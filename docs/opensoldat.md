@@ -70,6 +70,7 @@ scripting). 60 ticks a second (`Constants.pas`'s `DEFAULT_GOALTICKS`).
 | `src/main/MiniSoldat` | `client/Client.pas` | the program |
 | `src/net/Soldat_protocol` | `shared/network/Net.pas` | the messages, each a packed record opening with its number (`MsgID_*`) |
 | `src/server/Soldat_lobby`, `Soldat_server`, `main/MiniSoldatServer` | `server/Server.pas`, `ServerLoop.pas`, `Main.pas`; `server/LobbyClient.pas` | the dedicated server, one game each; the list of servers is another program's, which each server registers with |
-| nothing yet | `shared/network/Network*.pas`, `shared/Demo.pas`, `server/scriptcore/` | the game's own messages (sprites, bullets, things), the demos, the server's scripting |
+| `src/net/Soldat_wire`, `src/server/Soldat_room`, `src/online/Soldat_online` | `shared/network/Network*.pas`, `server/ServerLoop.pas` | the game's own messages (there one a kind of thing, here the round whole); the server's loop; a client's side (there it says where its soldier is, here it only guesses) |
+| nothing yet | `shared/Demo.pas`, `server/scriptcore/` | the demos, the server's scripting |
 
 Each module's opening comment says the same for itself.

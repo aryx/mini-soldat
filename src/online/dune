@@ -1,0 +1,16 @@
+; a round played on a server (Soldat_online): the connection, the
+; player's keys up, the round down, its own soldier predicted and the
+; others drawn between two of the server's words. Pure OCaml: the
+; browser's program links it. Soldat's shared/network/NetworkClient*.pas.
+(library
+ (name soldat_online)
+ (wrapped false)
+ (libraries
+   soldat_map soldat_assets soldat_game soldat_net
+   caps ; Cap.network: the authority to connect
+   tiny_libs.core ; Set_: the keys held
+   tiny_libs.random ; Lehmer: the sparks' own chance
+   tiny_libs.physics_2d ; Particles: a body's points, between two rounds
+   tiny_libs.networking_protocols ; Transport: the connection, on every platform
+   tiny_libs.networking_netcode ; Prediction and Interpolation
+   elm_playground))

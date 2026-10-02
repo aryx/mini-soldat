@@ -1,61 +1,102 @@
 # Playing over the network
 
-The goal: several players in the same game, from the desktop programs
-and from the browser alike, meeting on a server.
+Several players in the same game, from the desktop programs and from
+the browser alike, meeting on a server.
 
-## What is there
+```
+./bin/mini-soldat-server                       # on 127.0.0.1:23073
+./bin/mini-soldat server=127.0.0.1 nick=pad    # a player, in the room Arena2
+./bin/mini-soldat server=127.0.0.1 nick=mm room=ctf_Ash
+http://localhost:8000/play.html?server=127.0.0.1&nick=web
+```
 
-`mini-soldat-server`, a lobby: players connect, name themselves, enter
-rooms and talk. Three modules, each with its story in its `.mli`:
+## How it is made
+
+**The server owns the game.** A room other than the lobby is a round
+(`Soldat_update.tick`, the very one a player plays alone) that the
+server steps 60 times a second. A room's name is its map's (`Arena2`,
+`ctf_Ash`; a name it has no map for plays on Arena2). Its six soldiers
+are Soldat's bots until a player takes one, and a bot has it back when
+the player leaves: a game is never empty and nobody's number changes.
+
+| | |
+|---|---|
+| up, 60 a second | a player's keys and cursor, numbered: 10 bytes (`Input`) |
+| down, 30 a second | the round whole, what happened since the last (for the sounds and the sparks), and the number of the player's last keys played (`World`): about 4 KB |
+
+**A player's program plays no round.** It shows the server's, with two
+things of its own:
+
+- *its own soldier at once*: a soldier's tick is a function of its
+  body and its keys, so the program plays its own soldier's with the
+  keys it just sent, and when the server's round comes, puts the
+  soldier where the server says and plays again the keys sent since.
+  A key is felt at once, whatever the distance to the server;
+- *the others a little in the past*: each is drawn where it was two
+  rounds ago (66 ms), between two of the server's rounds, so that it
+  moves at every frame and not at every other.
+
+Its health, its bullets, who is hit and who dies are the server's
+alone. Sparks and sounds are made on each program, from what the
+server says happened.
 
 | Module | What |
 |---|---|
-| `src/net/Soldat_protocol` | the messages as bytes: `Hello`, `Join`, `Leave`, `Say`, `List` up; `Welcome`, `Refused`, `Rooms`, `Entered`, `Came`, `Went`, `Said` down |
-| `src/server/Soldat_lobby` | who is in which room and who is told what: a value, no socket, tested by calling it |
-| `src/server/Soldat_server` | the lobby on the network |
+| `src/net/Soldat_protocol` | the messages as bytes: `Hello`, `Join`, `Leave`, `Say`, `List`, `Input` up; `Welcome`, `Refused`, `Rooms`, `Entered`, `Came`, `Went`, `Said`, `Seat`, `World` down |
+| `src/net/Soldat_wire` | the game as bytes, inside `Input` and `World`: a player's keys, a soldier's body, a round, its events |
+| `src/server/Soldat_lobby` | who is in which room and who is told what: a value, no socket |
+| `src/server/Soldat_room` | a room's game: its seats, each player's queue of keys, its tick, what is sent: a value too |
+| `src/server/Soldat_server` | the two on the network: connections, a player seated when it enters a room, its keys routed, the rooms ticked |
+| `src/online/Soldat_online` | a player's side: the connection, its keys up, the round down, its soldier ahead, the others between two rounds, the room's talk |
 
-They stand on elm-playground's `libs/networking` (`tiny_libs`):
-`Wire` (values as bytes, anything that does not parse refused),
-`Server` (WebSocket connections, one event loop, no thread) and, in the
-tests, `Relay_client` (a native WebSocket client).
+## What of elm-playground it stands on
+
+Five modules of its `tiny_libs`, and how each is used here. The
+Playground's own `Multiplayer` is *not* used: its players' inputs are
+keyboards (no cursor: no aim), their number is fixed for the game, and
+its server-owned mode runs only inside one program (`net=simulate`);
+this game needs the cursor, a server of its own with rooms, and seats
+that change hands. It is built on what `Multiplayer` is built on.
+
+| Module | The functions that matter here | Where |
+|---|---|---|
+| `Wire` (`networking_protocols`) | `to_bytes (fun w -> ...)` with `put_u8`, `put_u16`, `put_varint`, `put_signed`, `put_string`; `parse (fun r -> ...)` with the `get_` of each, and `fail`. `parse` refuses bytes missing and bytes left over: nothing half-read is ever used | every message (`Soldat_protocol`) and the whole game (`Soldat_wire`). It has no number that is not whole: `Soldat_wire.put_float` writes a single as two `put_u16` |
+| `Server` (`networking_unix`) | `listen caps ~bind ~port`; `step` (what arrived, as `Joined`, `Message (id, bytes)`, `Left`); `send server id bytes`; `close`; `flush`; `wait server timeout`. One loop, no thread | `Soldat_server.step` and `tick`; the 60 ticks a second are the main's, which gives `wait` the time left to the next |
+| `Transport` (`networking_protocols`) | `connect caps (Relay { host; port })`: a WebSocket, by sockets natively and by the browser's in a page, the same call; then the record's `send bytes`, `receive ()` (what came, never waiting) and `status ()` | `Soldat_online.connect`, `update`. A platform installs how to connect when it starts (`run_app`), so the connection is made at the first frame, not in the main |
+| `Prediction` (`networking_netcode`) | `create ~me ~players ~update model`; `step t ~seq input` (my keys, played at once); `correct t ~world ~acked ~latest` (the server's word: my keys after `acked` played again on it); `model t` | `Soldat_online`: the model is the player's own body and the tick (`Soldat_soldier.t * int`), `update` is `Soldat_soldier.tick` on the player's keys. Not the whole round: the others and the bullets are not guessed |
+| `Interpolation` (`networking_netcode`) | `create ~delay`; `add t ~time round`; `sample t ~now`, which gives the two rounds around `now - delay` and how far between them | `Soldat_online.shown`: each other soldier's 20 points (or its dead body's) a fraction of the way from the one to the other (`between`) |
+
+Read but not used: `Snapshot` (`networking_netcode`), which is what
+`Soldat_room` does (numbered inputs, one played a tick, the last
+repeated, the world sent with the number of the last applied), for a
+game whose players are there for good; a room's seats change hands,
+and the transport here loses nothing (WebSocket is TCP's), so its
+resending of unacknowledged inputs is not needed. And in the tests,
+`Relay_client` (`networking_unix`), a native WebSocket client.
 
 WebSocket and not UDP, which Soldat uses, because a browser gives a
 page nothing else; a native program speaks it too, so both kinds of
 players meet on the same server.
 
-Nothing in the game talks to the server yet. `tests/server` does: the
-protocol's bytes, the lobby's rule, and the whole server over localhost
-with two real clients.
+## What is not there
 
-## What is to come
-
-In the order it would be built:
-
-1. **The game talks to the server**: a screen for the lobby (a nick, the
-   rooms, the lines said), in the game itself, so in the browser too.
-   The Playground has the transport for it on every platform
-   (`Transport`: sockets natively, the browser's WebSocket in a page).
-2. **A room is a game**: its map, its mode, its score, the server
-   stepping it. `src/game` is already apart from `src/render` for this:
-   the server links the one and not the other. `Soldat_update.tick`
-   already knows no keyboard: it takes the one player's `intent`, and
-   has to take one per player instead, wherever each comes from (the
-   keyboard, a bot, the network).
-3. **The game's messages**, in `Soldat_protocol` beside the lobby's: a
-   player's inputs up, the world down. As Quake did, the server owns
-   the game: elm-playground's `Snapshot` (the server applies each
-   player's numbered inputs and sends the world a few times a second),
-   `Prediction` (a player's own soldier moves at once, and is corrected
-   when the server's word arrives) and `Interpolation` (the others
-   drawn a little in the past, between two snapshots) are written for
-   exactly this, in `tiny_libs.networking_netcode`. Soldat itself does
-   otherwise for a player's own soldier: the client says where it is
-   (`TMsg_ClientSpriteSnapshot_Mov` carries its position and velocity
-   with its keys), which is simpler and which a modified client can lie
-   about. A choice to make then.
-4. **What Soldat's server has**: teams and the modes (deathmatch,
-   capture the flag...), a map list, a password, bots filling a room,
-   kicks and bans.
+- **Choosing a room in the game**: it is the flag `room=`. No screen
+  for the lobby (the rooms, the players): only the room's talk (`t`, a
+  line, enter).
+- **A weapon chosen**: everyone has the Ak-74 (the keys 1 to 0 are not
+  sent).
+- **Only what changed**: the round is sent whole, 125 KB a second for
+  each player. Fine on a local network; a far server wants deltas, as
+  Quake 3's.
+- **A hit decided where the shooter saw it** (lag compensation): the
+  others are drawn 66 ms in the past, and a shot is judged in the
+  server's present.
+- **A connection lost** is not found again; a round's end starts
+  another on the same map.
+- **A password, kicks, bans, a map list.**
+- **Tests of the player's side**: the bytes, the room and the lobby
+  are tested; `Soldat_online` was tried by hand against a running
+  server (a soldier taken, moved, fired, shown), not by a test.
 
 ## Running one for the website
 
@@ -64,4 +105,6 @@ its own, with `bind=0.0.0.0`. And a page served over `https://` (as
 Pages' are) may only open a WebSocket that is encrypted too (`wss://`),
 except to `localhost`; `Server` speaks plain `ws://`. So a public
 server needs TLS in front of it (a reverse proxy, nginx or Caddy, with
-a certificate), or TLS of its own. To settle when step 1 is there.
+a certificate), or TLS of its own. Until then: the page served over
+`http://` (`make serve-website`) and a server on the same machine or
+network.

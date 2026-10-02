@@ -173,6 +173,8 @@ Program flags are words, `name` or `name=value`
 `hitboxes` (draw the points the game tests), `sticks` (the skeletons
 over the soldiers), `waypoints` (the map's, the bots' paths, with the
 keys each says to hold), and, read by the main before the game starts:
+`server=HOST[:PORT]`, `nick=NAME`, `room=NAME` (the round is a
+`mini-soldat-server`'s: `Soldat_online`, `docs/network.md`),
 `mode=dm|tdm|ctf` (the map's own without it: capture the flag where
 the map has the two flags' places), `bots=N` (how many to play with
 and against: 3), `ai=engine` (the last of
@@ -280,8 +282,8 @@ Playground's `computer` and calls it. A round replays the same from
 the same intents (a test says so): nothing in a tick is random.
 
 What the browser's program links must be pure OCaml (no `unix`):
-`src/map`, `src/anim`, `src/game`, `src/render` and `src/net` are, and
-must stay
+`src/map`, `src/anim`, `src/game`, `src/render`, `src/net` and
+`src/online` are, and must stay
 so; `src/server` is not and is never linked by the game. The server's
 rule is a value too (`Soldat_lobby.receive`: a message in, the lobby
 and the messages to send out), the sockets only in `Soldat_server`, so

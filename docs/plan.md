@@ -289,6 +289,31 @@ be.
   is a polygon in its team's colour); a flag thrown; the walls for who
   carries a flag; respawn in waves.
 
+- **Step 8, over the network** (2026-10-03). The server owns the game:
+  a room is a round it steps 60 times a second (`Soldat_room`), its
+  soldiers bots' until a player takes one. A player's program
+  (`Soldat_online`, the flag `server=`) sends its keys, numbered, and
+  is sent the round 30 times a second (`Soldat_wire`: the game as
+  bytes); it plays its own soldier at once (elm-playground's
+  `Prediction`, on `Soldat_soldier.tick`) and draws the others between
+  two rounds (its `Interpolation`); sparks and sounds are made on each
+  program from what the server says happened. The same from a browser.
+  `docs/network.md` has how it is made, what of elm-playground it
+  stands on, and what is not there.
+  What it turned out to be:
+  - rule 4 held: the server runs `Soldat_update.tick` as it is, given
+    one more argument (each player's keys); and a soldier's tick being
+    a function is what made the prediction thirty lines;
+  - the Playground's `Multiplayer` did not fit (keyboards only, a fixed
+    number of players, no server of its own): the libraries under it
+    did;
+  - a platform says how to connect only once it has started: the
+    connection is made at the first frame.
+  Left out, and not small: a lobby's screen, the weapon chosen, deltas
+  (125 KB a second a player), lag compensation, reconnection, TLS for
+  the public website, and tests of the player's side (it was tried by
+  hand).
+
 Nothing is the toy's any more but the bot of `ai=engine`, kept as an
 example.
 
@@ -325,14 +350,8 @@ example.
 
 ## The steps
 
-### 8. Over the network
-
-As `docs/network.md` has it: the lobby's screen in the game; a room
-that is a game the server steps; the game's messages; then the choice
-it describes (the server owning the game, or each client its own
-soldier, as Soldat). Rule 4 above is what makes this a step and not a
-rewrite. It can be started earlier, beside the others, as far as the
-lobby's screen.
+All eight are in "Done". What each left out is said there, and for the
+network in `docs/network.md`.
 
 ## The order, and what could change it
 
@@ -340,7 +359,7 @@ lobby's screen.
 which settled how content is fetched (4's pictures used it, 6's sounds
 will). 4 was the play, 5 who one plays against and what lies on the
 ground, 6 what is heard and what flies about, 7 the teams and the
-flags. 8 is what is left: the network.
+flags, 8 the network.
 
 ## To decide
 

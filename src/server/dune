@@ -6,5 +6,7 @@
  (wrapped false)
  (libraries
    soldat_net
+   soldat_map soldat_game ; a room's game
+   elm_playground ; the game's colours
    caps ; Cap.network: the authority to listen
    tiny_libs.networking_unix)) ; Server: WebSocket connections, one event loop

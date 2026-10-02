@@ -10,7 +10,7 @@
 
 (* See Soldat_protocol.mli *)
 
-type to_server = Hello of string | Join of string | Leave | Say of string | List
+type to_server = Hello of string | Join of string | Leave | Say of string | List | Input of int * string
 
 type to_client =
   | Welcome of string
@@ -20,6 +20,8 @@ type to_client =
   | Came of string
   | Went of string
   | Said of string * string
+  | Seat of { seat : int; map : string }
+  | World of { acked : int; world : string }
 
 let lobby = "lobby"
 
@@ -46,7 +48,8 @@ let encode_to_server (m : to_server) : string =
       | Join room -> Wire.put_u8 w 0x11; Wire.put_string w room
       | Leave -> Wire.put_u8 w 0x12
       | Say text -> Wire.put_u8 w 0x13; Wire.put_string w text
-      | List -> Wire.put_u8 w 0x14)
+      | List -> Wire.put_u8 w 0x14
+      | Input (seq, keys) -> Wire.put_u8 w 0x15; Wire.put_varint w seq; Wire.put_string w keys)
 
 let encode_to_client (m : to_client) : string =
   Wire.to_bytes (fun w ->
@@ -59,7 +62,9 @@ let encode_to_client (m : to_client) : string =
       | Entered (room, nicks) -> Wire.put_u8 w 0x23; Wire.put_string w room; put_list w (Wire.put_string w) nicks
       | Came nick -> Wire.put_u8 w 0x24; Wire.put_string w nick
       | Went nick -> Wire.put_u8 w 0x25; Wire.put_string w nick
-      | Said (nick, text) -> Wire.put_u8 w 0x26; Wire.put_string w nick; Wire.put_string w text)
+      | Said (nick, text) -> Wire.put_u8 w 0x26; Wire.put_string w nick; Wire.put_string w text
+      | Seat { seat; map } -> Wire.put_u8 w 0x27; Wire.put_u8 w seat; Wire.put_string w map
+      | World { acked; world } -> Wire.put_u8 w 0x28; Wire.put_signed w acked; Wire.put_string w world)
 
 (*****************************************************************************)
 (* Reading *)
@@ -86,6 +91,10 @@ let decode_to_server (bytes : string) : (to_server, string) result =
       | 0x12 -> Leave
       | 0x13 -> Say (get_string r)
       | 0x14 -> List
+      | 0x15 ->
+          let seq = Wire.get_varint r in
+          let keys = get_string r in
+          Input (seq, keys)
       | _ -> Wire.fail r "not a player's message")
     bytes
 
@@ -111,5 +120,14 @@ let decode_to_client (bytes : string) : (to_client, string) result =
           let nick = get_string r in
           let text = get_string r in
           Said (nick, text)
+      | 0x27 ->
+          let seat = Wire.get_u8 r in
+          let map = get_string r in
+          Seat { seat; map }
+      | 0x28 ->
+          (* the round's bytes: Soldat_wire's to read, however long *)
+          let acked = Wire.get_signed r in
+          let world = Wire.get_string r in
+          World { acked; world }
       | _ -> Wire.fail r "not a server's message")
     bytes

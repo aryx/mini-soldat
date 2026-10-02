@@ -1,8 +1,13 @@
-; what the game and its server say to each other, as bytes
-; (Soldat_protocol). Pure OCaml: the server links it, and so will the
-; game in a browser. Soldat's shared/network/Net.pas.
+; what the game and its server say to each other, as bytes: the
+; messages (Soldat_protocol) and, in two of them, the game itself
+; (Soldat_wire: a player's keys, the round). Pure OCaml: the server
+; links it, and the game in a browser. Soldat's shared/network/Net.pas.
 (library
  (name soldat_net)
  (wrapped false)
  (libraries
+   soldat_map soldat_anim soldat_game ; what Soldat_wire writes and reads
+   tiny_libs.random ; Lehmer: a seed for a round read back
+   tiny_libs.physics_2d ; Particles: a body's and a thing's points
+   elm_playground ; a soldier's colour
    tiny_libs.networking_protocols)) ; Wire: values as bytes and back

@@ -6,6 +6,11 @@
  (name Test)
  (libraries
    unix caps alcotest testo
-   soldat_net soldat_server
+   soldat_map soldat_game soldat_net soldat_server soldat_online
+   testutil_soldat ; maps made by hand
+   tiny_libs.core ; Set_: a keyboard's keys
+   elm_playground ; a computer, for the client's frames
+   tiny_libs.physics_2d ; Particles: a body's points
+   elm_playground_software ; an implem of virtual elm_playground, to link
    tiny_libs.networking_protocols ; Transport: a client's two ends
    tiny_libs.networking_unix)) ; Relay_client: a native WebSocket client

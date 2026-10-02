@@ -44,6 +44,9 @@ val create : ?capacity:int -> unit -> t
 (* [receive id message lobby]: connection [id] sent [message] *)
 val receive : int -> Soldat_protocol.to_server -> t -> t * (int * Soldat_protocol.to_client) list
 
+(* a connection's nick and the room it is in, once it has said Hello *)
+val who : int -> t -> (string * string) option
+
 (* connection [id] went away (nothing, if it had no nick) *)
 val left : int -> t -> t * (int * Soldat_protocol.to_client) list
 

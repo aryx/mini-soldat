@@ -10,6 +10,6 @@
  (libraries
    tiny_libs.core ; Program
    caps ; Cap.open_in: a map's file read
-   soldat_map soldat_assets soldat_game soldat_render
+   soldat_map soldat_assets soldat_game soldat_render soldat_online
    elm_playground
    elm_playground_software)) ; implem of virtual elm_playground: SDL and our own rasterizer

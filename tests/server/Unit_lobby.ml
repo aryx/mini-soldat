@@ -20,7 +20,9 @@ let show ((id, m) : int * Soldat_protocol.to_client) : string =
     | Entered (room, nicks) -> Printf.sprintf "Entered %s [%s]" room (String.concat "," nicks)
     | Came nick -> "Came " ^ nick
     | Went nick -> "Went " ^ nick
-    | Said (nick, text) -> Printf.sprintf "Said %s: %s" nick text)
+    | Said (nick, text) -> Printf.sprintf "Said %s: %s" nick text
+    | Seat { seat; map } -> Printf.sprintf "Seat %d %s" seat map
+    | World { acked; _ } -> Printf.sprintf "World %d" acked)
 
 (* connection [id] sends [message]: what goes out is checked, and the
  * lobby after it kept *)

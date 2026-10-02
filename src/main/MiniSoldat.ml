@@ -61,6 +61,10 @@ let help =
          mode=M    dm a deathmatch, tdm two teams, ctf capture the flag
                    (the map's own without it: ctf where it has flags)
          bots=N    how many bots to play with and against (3)
+         server=HOST[:PORT]  play on a mini-soldat-server (port 23073),
+                   with nick=NAME (player), in room=NAME (Arena2; a
+                   room's name is its map's: room=ctf_Ash). There: t,
+                   a line, enter, to talk
          ai=engine the last of them not Soldat's but one on
                    elm-playground's Sense and Bot: it knows only what
                    it has seen, and reacts as late as a hand does
@@ -128,5 +132,21 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
   in
   let bots = match Option.bind (List.assoc_opt "bots" flags) int_of_string_opt with Some n when n >= 0 && n <= 15 -> n | _ -> first.bots in
   let first = { first with primary; bots; mode } in
-  let app = Playground.game Soldat_view.view Soldat_update.update first in
+  (* server=HOST[:PORT]: the round is a server's (mini-soldat-server),
+   * in the room room= (Arena2: a room's name is its map's), as nick= *)
+  let first =
+    match List.assoc_opt "server" flags with
+    | None -> first
+    | Some server -> (
+        let (host, port) =
+          match String.index_opt server ':' with
+          | Some i -> (String.sub server 0 i, Option.value (int_of_string_opt (String.sub server (i + 1) (String.length server - i - 1))) ~default:23073)
+          | None -> ((if server = "" then "127.0.0.1" else server), 23073)
+        in
+        let nick = Option.value (List.assoc_opt "nick" flags) ~default:"player" in
+        let room = Option.value (List.assoc_opt "room" flags) ~default:"Arena2" in
+        Soldat_online.connect caps ~host ~port ~nick ~room;
+        { first with scenes = Scene2d.start (Soldat_model.Connecting ("connecting to " ^ host ^ "...")) })
+  in
+  let app = Playground.game Soldat_view.view Soldat_online.update first in
   Playground_platform.run_app ~flags app))

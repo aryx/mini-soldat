@@ -5,6 +5,14 @@
 # (with direction from me)
 
 ** Features
+- over the network (docs/plan.md's step 8): mini-soldat-server plays a
+  room's round, 60 ticks a second, its soldiers bots' until a player
+  takes one (Soldat_room); the game as bytes (Soldat_wire) in two new
+  messages (Input, Seat, World); a player's side (Soldat_online, the
+  flags server=, nick=, room=): its keys up, the round down, its own
+  soldier predicted and the others interpolated (elm-playground's
+  Prediction and Interpolation), the room's talk; from a browser too.
+  docs/network.md says how, and what of elm-playground it uses
 - teams and flags (docs/plan.md's step 7): a soldier's team (its
   colour, its places to appear at, its walls, no harm from its own);
   a round's mode, a deathmatch, a team match or capture the flag, the

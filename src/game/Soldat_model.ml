@@ -166,6 +166,10 @@ type play = {
   spark_seed : Lehmer.t;
   (* what was heard this tick, and where: for who plays the sounds *)
   sounds : (Soldat_sfx.t * (float * float)) list;
+  (* what happened this tick to be heard and seen, each with the
+   * soldier it is of (nobody's: -1): what a server sends its players,
+   * who make their own sparks and sounds of it *)
+  events : (int * Soldat_event.t) list;
   (* ticks before the round ends by itself (TimeLimitCounter) *)
   time_left : int;
   (* the game's chance: the next number comes from it (Lehmer) *)
@@ -180,6 +184,10 @@ type scene =
   | Title of Soldat_map.t
   | Playing of play
   | Over of string * Soldat_map.t
+  (* a round a server plays, as its last word and this program's own
+   * guesses show it (Soldat_online); or the wait for it, and why *)
+  | Online of play
+  | Connecting of string
 
 (* how much of Soldat's look is drawn, the steps this game was made
  * in (docs/plan.md), each one a key away (g) to see what it added:
@@ -206,6 +214,10 @@ type model = {
   mode : mode option;
   (* which of [maps] the key m asks for next *)
   next_map : int;
+  (* online: the last lines said and told, the newest last; and the
+   * line being typed, if one is *)
+  lines : string list;
+  typing : string option;
 }
 
 (* the maps whose content this game has (data/maps): the key m goes
@@ -253,7 +265,7 @@ let limit (p : play) : int = match p.mode with Deathmatch -> kill_limit | Team_m
 let team_shirt (t : int) : int * int * int = if t = 1 then (210, 15, 5) else (21, 31, 217)
 
 let model_at ?(graphics = graphics_levels) (first : scene) : model =
-  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; rounds = 0; bots = 3; mode = None; next_map = 1 }
+  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; rounds = 0; bots = 3; mode = None; next_map = 1; lines = []; typing = None }
 
 let initial_model ?graphics (map : Soldat_map.t) : model = model_at ?graphics (Title map)
 

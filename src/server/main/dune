@@ -4,5 +4,9 @@
  (name MiniSoldatServer)
  (public_name mini-soldat-server)
  (libraries
-   caps ; Cap.main: the authority to listen, from the program's start
-   soldat_server))
+   unix ; the clock: 60 ticks a second
+   caps ; Cap.main: the authority to listen and to read the maps
+   soldat_map ; a room's map, read from a file
+   soldat_game ; no sparks, no sound, on a server
+   soldat_server
+   elm_playground_software)) ; an implem of virtual elm_playground, to link: the game's types use it

@@ -1,11 +1,14 @@
 (* Soldat_protocol: what a player's program and the server say to each
    other, as bytes.
 
-   For now the words of the lobby only: a player names itself, enters a
-   room, talks in it, asks which rooms there are; the server tells it
-   who came, who went and what was said. A room is where a game will be
-   played: the game's own messages (a player's keys up, the world down)
-   are to come here beside these.
+   The words of the lobby: a player names itself, enters a room, talks
+   in it, asks which rooms there are; the server tells it who came, who
+   went and what was said. And the game's: a room other than the lobby
+   is a round the server plays, and whoever enters it is given a
+   soldier of it ([Seat]); from then on it sends its keys, numbered
+   ([Input]), and is sent the round 30 times a second ([World]), with
+   the number of the last of its keys the server has played. What the
+   keys and the round are as bytes is Soldat_wire's.
 
      player                              server
        Hello "pad"            ---->
@@ -13,6 +16,10 @@
                               <----      Entered ("lobby", ["mm"; "pad"])
        Join "ctf_Ash"         ---->
                               <----      Entered ("ctf_Ash", ["pad"])
+                              <----      Seat { seat = 2; map = "ctf_Ash" }
+       Input (0, keys)        ---->
+       Input (1, keys)        ---->
+                              <----      World { acked = 0; world }
        Say "anyone?"          ---->
                               <----      Said ("pad", "anyone?")
 
@@ -54,6 +61,7 @@ type to_server =
   | Leave (* back to the lobby *)
   | Say of string (* a line, to everyone in my room *)
   | List (* which rooms are there? *)
+  | Input of int * string (* my keys this tick, numbered from 0 (Soldat_wire's bytes) *)
 
 (* from the server to a player *)
 type to_client =
@@ -64,6 +72,9 @@ type to_client =
   | Came of string (* this nick came into your room *)
   | Went of string (* this nick left your room *)
   | Said of string * string (* this nick said this line, in your room *)
+  | Seat of { seat : int; map : string } (* in this room's game you are that soldier, on that map *)
+  | World of { acked : int; world : string }
+      (* the round (Soldat_wire's bytes), after the keys of yours numbered [acked] (-1: none yet) *)
 
 val encode_to_server : to_server -> string
 val encode_to_client : to_client -> string

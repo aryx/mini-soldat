@@ -294,6 +294,13 @@ let view (computer : computer) (model : model) : shape list =
       @ view_menu model.primary (0., 50.)
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-230.) ]
   | Playing p -> view_play computer ~graphics ~primary:model.primary p
+  | Connecting why -> [ rectangle (rgb 40 60 80) computer.screen.width computer.screen.height; text white 3. why ]
+  | Online p ->
+      (* a server's round: the same picture, and what is said in the room *)
+      let screen = computer.screen in
+      view_play computer ~graphics ~primary:model.primary p
+      @ List.mapi (fun i line -> text white 1.6 line |> move 0. (screen.bottom + 150. - (22. * float_of_int i))) model.lines
+      @ (match model.typing with Some line -> [ text (rgb 255 220 80) 1.8 ("say: " ^ line ^ "_") |> move 0. (screen.bottom + 20.) ] | None -> [])
   | Over (name, map) ->
       [ view_map computer ~graphics map; text white 5. (if name = "YOU" then "YOU WIN!" else name ^ " WINS") |> move_y 200. ]
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-50.) ])

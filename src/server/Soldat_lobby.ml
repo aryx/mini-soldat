@@ -63,6 +63,10 @@ let receive (id : int) (message : Soldat_protocol.to_server) (t : t) : t * (int 
       if not (Soldat_protocol.valid_text text) then refused "a line is 1 to 200 characters"
       else (t, List.map (fun (other, _) -> (other, Soldat_protocol.Said (c.nick, text))) (members c.room t))
   | Some _, List -> (t, [ (id, Rooms (List.map (fun (room, nicks) -> (room, List.length nicks)) (rooms t))) ])
+  (* a game's keys are the room's game's, not the lobby's (Soldat_server) *)
+  | Some _, Input _ -> (t, [])
+
+let who (id : int) (t : t) : (string * string) option = Option.map (fun (c : client) -> (c.nick, c.room)) (Ints.find_opt id t.clients)
 
 let left (id : int) (t : t) : t * (int * Soldat_protocol.to_client) list =
   match Ints.find_opt id t.clients with

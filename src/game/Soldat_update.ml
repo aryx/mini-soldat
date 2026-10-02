@@ -153,12 +153,14 @@ let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_wea
     map; mode; captures = (0, 0); news = None; camera = first; soldiers = Array.of_list (List.rev soldiers);
     brains = Array.of_list (None :: List.mapi (fun i c -> if i + 1 = engine_at then None else Some (Soldat_bots.brain c)) bots);
     minds = Array.of_list (None :: List.mapi (fun i _ -> if i + 1 = engine_at then Some (Bot.start still) else None) bots);
-    bullets = []; things; sparks = []; spark_seed = Lehmer.scramble (seed' + 1000); sounds = []; time_left = time_limit; seed = !seed; frame = 0;
+    bullets = []; things; events = []; sparks = []; spark_seed = Lehmer.scramble (seed' + 1000); sounds = []; time_left = time_limit; seed = !seed; frame = 0;
   }
 
 (* a tick: [player] is what the human soldier wants, [look] where its
- * cursor is from the screen's middle, in the map's units *)
-let tick (p : play) (player : intent) ~(look : float * float) : play =
+ * cursor is from the screen's middle, in the map's units. With several
+ * players (a server's room), [controls i] is what soldier [i] wants,
+ * for each that no bot drives; [me], the soldier the camera follows *)
+let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : intent) ~(look : float * float) : play =
   let p = { p with frame = p.frame + 1; time_left = max 0 (p.time_left - 1) } in
   let soldiers = Array.copy p.soldiers in
   let brains = Array.copy p.brains in
@@ -181,7 +183,7 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
          if s.dead = None then begin
            let it =
              match (brains.(i), minds.(i)) with
-             | (None, None) -> player
+             | (None, None) -> ( match controls with Some of_ -> of_ i | None -> player)
              | (None, Some mind) ->
                  (* the bot of ai=engine: its senses, late, and its mind *)
                  let (it, mind) = Bot.step Soldat_engine_bot.mind (p, i) mind in
@@ -345,9 +347,9 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
   in
   let sparks = Soldat_sparks.capped (old @ fresh) in
   (* the camera, shaken by an explosion's fire *)
-  let (cx, cy) = follow p soldiers.(0) look in
+  let (cx, cy) = follow p soldiers.(me) look in
   let (wx, wy) = Soldat_sparks.wobble ~random sparks in
-  { p with captures = !captures; news = !news; camera = (cx +. wx, cy +. wy); soldiers; brains; minds; bullets; things; sparks; spark_seed = !spark_seed; sounds; seed = !seed }
+  { p with captures = !captures; news = !news; camera = (cx +. wx, cy +. wy); soldiers; brains; minds; bullets; things; events = List.rev !events; sparks; spark_seed = !spark_seed; sounds; seed = !seed }
 
 (*****************************************************************************)
 (* The rounds *)
@@ -370,9 +372,11 @@ let winner (p : play) : string option =
       else if over then Some "NOBODY"
       else None
 
-let update (computer : computer) (model : model) : model =
+(* the keys that are any scene's: g, the next way of drawing; 1 to 9
+ * and 0, the weapon to appear with. With the scenes a frame later,
+ * which know the keys that just went down *)
+let common (computer : computer) (model : model) : model * scene Scene2d.t =
   let scenes = Scene2d.update computer model.scenes in
-  let space = Scene2d.pressed (fun k -> k.kspace) scenes in
   (* g: the next way of drawing, round to the first *)
   let model =
     if Scene2d.pressed (fun k -> Set_.mem "g" k.keys) scenes then { model with graphics = (model.graphics mod graphics_levels) + 1; graphics_shown = 150 }
@@ -380,6 +384,11 @@ let update (computer : computer) (model : model) : model =
   in
   (* 1 to 9 and 0: the weapon to appear with, from now on *)
   let model = match chosen computer with Some primary -> { model with primary } | None -> model in
+  (model, scenes)
+
+let update (computer : computer) (model : model) : model =
+  let (model, scenes) = common computer model in
+  let space = Scene2d.pressed (fun k -> k.kspace) scenes in
   let scenes =
     match scenes.scene with
     | Loading name -> (
@@ -404,6 +413,7 @@ let update (computer : computer) (model : model) : model =
         (* m: the next of the game's maps, got as any content *)
         if Scene2d.pressed (fun k -> Set_.mem "m" k.keys) scenes then Scene2d.go (Loading (List.nth maps (model.next_map mod List.length maps))) scenes
         else if space then Scene2d.go (Playing (start ~bots:(Soldat_bots.cast model.bots model.rounds) ~engine ~primary:model.primary ~seed:model.rounds ?mode:model.mode map)) scenes else scenes
+    | Online _ | Connecting _ -> scenes (* Soldat_online's *)
     | Playing p -> (
         let z = zoom computer.screen in
         let p = if p.soldiers.(0).primary <> model.primary then { p with soldiers = Array.mapi (fun i (s : soldier) -> if i = 0 then { s with primary = model.primary } else s) p.soldiers } else p in
