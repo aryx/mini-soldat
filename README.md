@@ -34,7 +34,8 @@ contributors (their names are in its
 [CONTRIBUTORS.md](https://github.com/opensoldat/opensoldat/blob/develop/CONTRIBUTORS.md));
 its content is [opensoldat/base](https://github.com/opensoldat/base),
 under CC BY 4.0. Both are the reference this clone is written from.
-Go and play the real one.
+Go and play the real one: its
+[releases](https://github.com/opensoldat/opensoldat/releases/latest).
 
 ## Building
 
