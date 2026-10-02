@@ -159,7 +159,9 @@ docs/         the website (index.html, written by hand; play.html and
               opensoldat.md: Soldat's sources and content, what is in
               them, and which of its files each module here stands for;
               network.md: playing over the network, what is there and
-              what is to come
+              what is to come; notes_soldat_in_playground.md: each of
+              Soldat's terms, ideas and pieces of code, and what it is
+              here; plan.md: the steps from here to Soldat
 ```
 
 ## License

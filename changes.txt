@@ -79,5 +79,8 @@
 - data/: Soldat's content copied here, CC BY 4.0 (data/README.md)
 - the map is a value the round carries (Soldat_map.t), no longer
   constants of a module
+- docs/notes_soldat_in_playground.md: Soldat's terms, ideas and code
+  next to what each is in the Playground, from reading both sides;
+  docs/plan.md: the steps from the toy's soldiers to Soldat
 - docs/network.md: playing over the network, what is there (the
   lobby) and what is to come (the game on the server, snapshots)

@@ -58,6 +58,17 @@ Yoann's direction (2026-10-02), to follow in every part:
   then `make install` and a later version required here. Not before
   trying with what it has.
 
+`docs/notes_soldat_in_playground.md` is the dictionary between the two
+(Soldat's words, its physics' formulas next to `Particles`', each
+function of its map next to `Collide`'s, the soldier, the weapons, the
+frame, the sound, and what the Playground lacks): read it before
+porting a part, and when a part is ported move its rows from *to
+come* to the module that has them. `docs/plan.md` is the order of the
+steps and the rules they follow (Soldat's units, a pure `src/game`
+taking one `intent` per soldier, no `Random` in a tick, the server's
+branches of the Pascal for the rules): a step done is moved to its
+"Done".
+
 What is still TinySoldat's and so to be replaced by a port: the
 soldier (a rigid box in a `Physics.world`, its speeds invented, with
 the map twice as big to fit it: `Soldat_map.scale`), its one gun, its
