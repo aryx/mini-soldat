@@ -34,6 +34,8 @@ open Soldat_model (* its types, used all along *)
 let human (computer : computer) (scenes : model) (p : play) : intent =
   let k = computer.keyboard and m = computer.mouse in
   let me = body_of p 0 in
+  (* the mouse is on the screen, the soldier in the map *)
+  let (mx, my) = Camera2d.to_world p.camera m.mx m.my in
   let letter l = Set_.mem l k.keys in
   {
     run = (if letter "d" then 1. else 0.) - if letter "a" then 1. else 0.;
@@ -41,7 +43,7 @@ let human (computer : computer) (scenes : model) (p : play) : intent =
     jet = letter "w";
     shoot = m.mdown || k.kspace;
     grenade = Scene2d.pressed (fun k -> Set_.mem "q" k.keys) scenes;
-    aim = degrees (m.mx - me.x) (m.my - me.y);
+    aim = degrees (mx - me.x) (my - me.y);
   }
 
 (*****************************************************************************)
@@ -79,8 +81,17 @@ let blast_radius = 160.
 (* A frame *)
 (*****************************************************************************)
 
+(* the camera after a frame: towards a point between the player and
+ * where it aims, as Soldat's is, so that one sees farther where one
+ * looks; never beyond the map. A dead player's stays where it died *)
+let follow (computer : computer) (p : play) (soldiers : soldier array) (me : Physics.body) : Camera2d.t =
+  let m = computer.mouse in
+  let cam = if soldiers.(0).dead = None then Camera2d.follow 0.15 (me.x + (m.mx * 0.5)) (me.y + (m.my * 0.5)) p.camera else p.camera in
+  Camera2d.clamp computer.screen p.map.bounds cam
+
 let update_play (computer : computer) (scenes : model) (p : play) : play =
   let p = { p with frame = p.frame +.. 1 } in
+  let n_map = p.n_map in
   let bodies = Array.of_list p.world.bodies in
   let soldiers = Array.copy p.soldiers in
   let minds = Array.copy p.minds in
@@ -141,7 +152,7 @@ let update_play (computer : computer) (scenes : model) (p : play) : play =
                hurt i 20. bl.owner (b.vx * 0.15, b.vy * 0.15);
                None
            | None ->
-               if bl.ttl = 0 || List.exists (Physics.went_through b) Soldat_map.bodies then None
+               if bl.ttl = 0 || List.exists (Physics.went_through b) p.map.bullet_bodies then None
                else Some { bl with b; ttl = bl.ttl -.. 1 })
   in
   (* 4. the grenades' fuses, and their blasts *)
@@ -171,6 +182,10 @@ let update_play (computer : computer) (scenes : model) (p : play) : play =
   in
   let grenades = List.filter_map (fun g -> if g.fuse > 0 then Some { g with fuse = g.fuse -.. 1 } else None) grenades in
   let bodies = Array.of_list bodies_list in
+  (* fallen out of the map: dead, by nobody's hand *)
+  for i = 0 to n_soldiers -.. 1 do
+    if bodies.(n_map +.. i).y < p.map.bounds.bottom - 600. then hurt i 1000. i (0., 0.)
+  done;
   (* 5. the damage: deaths become ragdolls, the dead respawn after 2 s *)
   soldiers
   |> Array.iteri (fun i s ->
@@ -182,7 +197,7 @@ let update_play (computer : computer) (scenes : model) (p : play) : play =
                soldiers.(i) <- { s with health = 0.; dead = Some (0, Soldat_ragdoll.ragdoll b knock.(i)) };
                if killer.(i) >= 0 && killer.(i) <> i then
                  soldiers.(killer.(i)) <- { (soldiers.(killer.(i))) with kills = soldiers.(killer.(i)).kills +.. 1 };
-               bodies.(n_map +.. i) <- parked s.color)
+               bodies.(n_map +.. i) <- parked p.map s.color)
              else soldiers.(i) <- { s with health }
          | Some (n, ps) ->
              (* the blasts kick the ragdolls too: their old positions
@@ -205,11 +220,12 @@ let update_play (computer : computer) (scenes : model) (p : play) : play =
                (* respawn at the spawn point farthest from the living *)
                let living = List.filter (fun j -> soldiers.(j).dead = None) [ 0; 1; 2 ] in
                let room (x, y) = List.fold_left (fun m j -> let b = bodies.(n_map +.. j) in min m (Float.hypot (b.x - x) (b.y - y))) infinity living in
-               let spot = List.fold_left (fun best sp -> if room sp > room best then sp else best) (List.hd Soldat_map.spawns) Soldat_map.spawns in
+               let spot = List.fold_left (fun best sp -> if room sp > room best then sp else best) (List.hd p.map.spawns) p.map.spawns in
                bodies.(n_map +.. i) <- soldier_body s.color spot;
                soldiers.(i) <- { s with dead = None; health = 100.; fuel = 100. })
-             else soldiers.(i) <- { s with dead = Some (n +.. 1, Soldat_ragdoll.move ps) });
-  { p with world = { world with bodies = Array.to_list bodies }; soldiers; minds; bullets; grenades; blasts = !blasts }
+             else soldiers.(i) <- { s with dead = Some (n +.. 1, Soldat_ragdoll.move p.map ps) });
+  let camera = follow computer p soldiers bodies.(n_map) in
+  { p with camera; world = { world with bodies = Array.to_list bodies }; soldiers; minds; bullets; grenades; blasts = !blasts }
 
 (*****************************************************************************)
 (* The rounds *)
@@ -221,10 +237,10 @@ let update (computer : computer) (model : model) : model =
   let scenes = Scene2d.update computer model in
   let space = Scene2d.pressed (fun k -> k.kspace) scenes in
   match scenes.scene with
-  | Title | Over _ ->
+  | Title map | Over (_, map) ->
       (* ai=engine chooses the bots, at the start of a round *)
       let ai_engine = List.assoc_opt "ai" computer.flags = Some "engine" in
-      if space then Scene2d.go (Playing (start ~ai_engine ())) scenes else scenes
+      if space then Scene2d.go (Playing (start ~ai_engine map)) scenes else scenes
   | Playing p -> (
       let p = update_play computer scenes p in
-      match winner p with Some s -> Scene2d.go (Over s.name) scenes | None -> { scenes with scene = Playing p })
+      match winner p with Some s -> Scene2d.go (Over (s.name, p.map)) scenes | None -> { scenes with scene = Playing p })

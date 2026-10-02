@@ -1,8 +1,21 @@
-; the map: its polygons, its spawn points, what is in sight
-; (Soldat_map.ml). Soldat's shared/PolyMap.pas and shared/MapFile.pas.
+; the map: a .pms file read (Pms), the map the game plays on made of it
+; (Soldat_map), and the one the game starts on, carried in the program
+; (Map_arena2). Soldat's shared/MapFile.pas and shared/PolyMap.pas.
 (library
  (name soldat_map)
  (wrapped false)
  (libraries
+   tiny_libs.core ; Base64: the embedded map back to its bytes
    tiny_libs.physics_2d ; Collide: a segment against a polygon
    elm_playground)) ; shapes, and the Physics layer's bodies
+
+; data/maps/Arena2.pms as a module holding it in base64, so that the
+; program carries its first map (in a browser too, where there is no
+; file to open): Map_arena2.base64
+(rule
+ (targets Map_arena2.ml)
+ (deps %{project_root}/data/maps/Arena2.pms %{project_root}/scripts/build/file_to_base64_ml.ml)
+ (action
+  (with-stdout-to
+   %{targets}
+   (run ocaml %{project_root}/scripts/build/file_to_base64_ml.ml %{project_root}/data/maps/Arena2.pms))))

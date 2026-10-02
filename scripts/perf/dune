@@ -1,0 +1,9 @@
+; how long a frame of the game takes, without drawing it (Frame_bench):
+;   dune exec scripts/perf/Frame_bench.exe
+(executable
+ (name Frame_bench)
+ (libraries
+   unix ; the clock
+   soldat_map soldat_game
+   elm_playground
+   elm_playground_software)) ; an implem of virtual elm_playground, to link

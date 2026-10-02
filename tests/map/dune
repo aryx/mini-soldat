@@ -1,0 +1,11 @@
+; unit tests for the map, run by 'make test' (dune runtest): Soldat's
+; Arena2 read from the bytes the program carries (Unit_pms), and the
+; game's map made of it (Unit_map)
+(test
+ (name Test)
+ (libraries
+   alcotest testo
+   soldat_map
+   tiny_libs.core ; Base64
+   elm_playground
+   elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)

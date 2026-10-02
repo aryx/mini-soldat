@@ -12,8 +12,11 @@
  * all in.
  *
  * The map and the soldiers are a Physics.world (the Playground's
- * solver): the soldiers are upright boxes (they don't tip over), run by
- * setting their speed, pushed up by their jets against gravity.
+ * solver): the map's walls are bodies nothing moves, the soldiers are
+ * upright boxes (they don't tip over), run by setting their speed,
+ * pushed up by their jets against gravity. The map is a value the round
+ * carries (Soldat_map.t), bigger than the screen when it is one of
+ * Soldat's: a camera (the Playground's Camera2d) follows the player.
  *
  * In Soldat: a soldier is shared/mechanics/Sprites.pas's TSprite and
  * what it wants to do its TControl (set from the keys or by a bot,
@@ -64,9 +67,14 @@ type bullet = { b : Physics.body; owner : int; ttl : int }
 type grenade = { fuse : int; thrower : int }
 type blast = { x : number; y : number; age : int }
 
-(* the world's bodies: the map's, then one per soldier (always there:
- * the solver knows bodies by their place), then the grenades' *)
+(* the world's bodies: the map's ([n_map] of them), then one per
+ * soldier (always there: the solver knows bodies by their place), then
+ * the grenades' *)
 type play = {
+  map : Soldat_map.t;
+  n_map : int;
+  (* the part of the map the screen shows: it follows the player *)
+  camera : Camera2d.t;
   world : Physics.world;
   soldiers : soldier array;
   (* with ai=engine, one per soldier: the senses it has seen
@@ -80,28 +88,41 @@ type play = {
   frame : int;
 }
 
-type scene = Title | Playing of play | Over of string
+(* the map goes from a round to the next: the title's, the round's,
+ * and after the round the winner's name over it *)
+type scene = Title of Soldat_map.t | Playing of play | Over of string * Soldat_map.t
 
 type model = scene Scene2d.t
 
-let n_map = List.length Soldat_map.bodies
-let body_of (p : play) (i : int) : Physics.body = List.nth p.world.bodies (n_map +.. i)
+let body_of (p : play) (i : int) : Physics.body = List.nth p.world.bodies (p.n_map +.. i)
 
-(* a dead soldier's body waits far away, out of everyone's way *)
-let parked (color : color) : Physics.body = soldier_body color (0., 5000.) |> Physics.immovable
+(* a dead soldier's body waits far above the map, out of everyone's way *)
+let parked (map : Soldat_map.t) (color : color) : Physics.body = soldier_body color (0., map.bounds.top + 5000.) |> Physics.immovable
 
-let start ?(ai_engine = false) () : play =
+(* the [i]th place to appear at, going round when the map has fewer
+ * than there are soldiers *)
+let spawn (map : Soldat_map.t) (i : int) : number * number = List.nth map.spawns (i mod List.length map.spawns)
+
+(* the camera on (x, y), as far as the map goes *)
+let camera_at (screen : screen) (map : Soldat_map.t) ((x, y) : number * number) : Camera2d.t =
+  Camera2d.clamp screen map.bounds (Camera2d.look_at x y Camera2d.origin)
+
+let start ?(ai_engine = false) (map : Soldat_map.t) : play =
   let soldier name color human = { name; color; human; health = 100.; fuel = 100.; reload = 0; grenade_reload = 0; aim = 0.; dead = None; kills = 0 } in
   let soldiers = [| soldier "YOU" (rgb 220 60 50) true; soldier "BLUE" (rgb 60 110 220) false; soldier "GREEN" (rgb 60 170 80) false |] in
-  let bodies = Array.to_list (Array.mapi (fun i s -> soldier_body s.color (List.nth Soldat_map.spawns i)) soldiers) in
+  let bodies = Array.to_list (Array.mapi (fun i s -> soldier_body s.color (spawn map i)) soldiers) in
   let still = { run = 0.; jump = false; jet = false; shoot = false; grenade = false; aim = 0. } in
-  { world = Physics.world (Soldat_map.bodies @ bodies);
+  let (x, y) = spawn map 0 in
+  { map;
+    n_map = List.length map.bodies;
+    camera = Camera2d.look_at x y Camera2d.origin;
+    world = Physics.world (map.bodies @ bodies);
     soldiers;
     minds = Array.map (fun _ -> Bot.start still) soldiers;
     ai_engine;
     bullets = []; grenades = []; blasts = []; frame = 0 }
 
-let initial_model : model = Scene2d.start Title
+let initial_model (map : Soldat_map.t) : model = Scene2d.start (Title map)
 
 (* the direction (dx, dy) as an angle, in degrees *)
 let degrees (dx : number) (dy : number) : number = Float.atan2 dy dx * 180. / Float.pi

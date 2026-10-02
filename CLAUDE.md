@@ -34,12 +34,44 @@ each module here stands for; each module's opening comment says it too
 ("In Soldat: ..."). Read the Pascal before writing a part, and keep
 both true when a module is added or changes role.
 
+## The approach
+
+Yoann's direction (2026-10-02), to follow in every part:
+
+- **Adapt Soldat's Pascal to OCaml and to the Playground's API**: a
+  part is written from its Pascal (the constants, the order things are
+  done in, the corner cases), not reinvented. In far less code: OCaml,
+  values instead of global arrays, and the Playground doing the
+  drawing, the window, the sound and the network.
+- **The same game feel**: the keys, the movements, the animations, the
+  weapons' numbers as in Soldat. When in doubt, Soldat's numbers
+  (`shared/Constants.pas`, `weapons.ini`), at its 60 ticks a second.
+- **The physics is elm-playground's** (`~/playground/libs/physics/`,
+  `tiny_libs.physics_2d`), Soldat's logic encoded on it and on the
+  Playground's `Physics` layer. Soldat's own physics is a small Verlet
+  particle system with stick constraints (`shared/Parts.pas`: a
+  soldier is one particle that moves, in `SpriteParts`, and a skeleton
+  of particles and sticks, `GostekSkeleton`, for its body), which is
+  what `Particles` is (`step`, `relax`, `keep_out`).
+- **elm-playground itself may be changed if really needed** (a
+  textured triangle, a missing primitive): there, in `~/playground`,
+  then `make install` and a later version required here. Not before
+  trying with what it has.
+
+What is still TinySoldat's and so to be replaced by a port: the
+soldier (a rigid box in a `Physics.world`, its speeds invented, with
+the map twice as big to fit it: `Soldat_map.scale`), its one gun, its
+bots, its drawing. The rigid-body world costs a time proportional to
+the map's walls each frame (`scripts/perf/Frame_bench`: 12 ms on the
+biggest maps, more in a browser); Soldat looks only at the sector a
+point is in, which the port brings.
+
 ## Commands
 
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build @default (the web program's page too)
-make test              # dune runtest -f, both suites
+make test              # dune runtest -f, the three suites
 make run               # dune exec mini-soldat
 make run-software      # dune exec mini-soldat-software
 make serve             # the game in a browser, http://localhost:8001/
@@ -50,7 +82,7 @@ make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5
 ```
 
 One suite, or one test (Testo; each `tests/<suite>/Test.ml` is its own
-runner; the suites are `game` and `server`):
+runner; the suites are `map`, `game` and `server`):
 
 ```bash
 dune build @tests/game/runtest --force
@@ -60,7 +92,15 @@ dune exec tests/game/Test.exe -- run -s engine   # tests whose name contains it
 Program flags are words, `name` or `name=value`
 (`./bin/mini-soldat hitboxes ai=engine`), read from `computer.flags`:
 `hitboxes` (draw what the physics sees), `ai=engine` (the bots on
-`Sense` and `Bot`).
+`Sense` and `Bot`), and, read by the main before the game starts,
+`map=FILE` (a `.pms`; `~/` understood), `map=toy` (TinySoldat's
+screen, what the game's tests play on), nothing: Arena2, carried in
+the program (`data/maps/Arena2.pms` as base64, `src/map/dune`'s rule).
+
+`dune exec scripts/perf/Frame_bench.exe -- ~/work/GAMES/opensoldat-base/shared/maps/*.pms`
+reads every map of Soldat's, plays 300 frames on each and prints a
+frame's time: the check that a change to `Pms` or `Soldat_map` still
+takes them all (two minutes).
 
 The Playground's own flags start with a dash, and make a change
 checkable without a screen: `-dump-frame n file.png` writes the nth
@@ -141,5 +181,6 @@ there (in `~/playground`), then build here.
   (`Soldat_protocol.mli`, `Soldat_lobby.mli`). The modules copied from
   TinySoldat have none yet: they are to be rewritten.
 - No content of `opensoldat-base` is copied here without its
-  attribution (CC BY 4.0, its `Credits.md`); a port of Soldat's Pascal
-  says so and keeps the MIT notice.
+  attribution (CC BY 4.0, its `Credits.md`): it goes in `data/`, with
+  a line in `data/README.md`. A port of Soldat's Pascal says so and
+  keeps the MIT notice.

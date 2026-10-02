@@ -47,7 +47,8 @@ scripting). 60 ticks a second (`Constants.pas`'s `DEFAULT_GOALTICKS`).
 
 | Here | Soldat | What it is there |
 |---|---|---|
-| `src/map/Soldat_map` | `shared/MapFile.pas`, `shared/PolyMap.pas` | a `.pms` read (`TMapFile`); its polygons in sectors, a point or a ray tested against them (`TPolyMap`) |
+| `src/map/Pms` | `shared/MapFile.pas` | a `.pms` read (`TMapFile`, `LoadMapFile`), field for field |
+| `src/map/Soldat_map` | `shared/PolyMap.pas`, `client/MapGraphics.pas` | its polygons in sectors, a point or a ray tested against them, which kind stops what (`TPolyMap`); the map as vertices to draw |
 | `src/game/Soldat_model` | `shared/mechanics/Sprites.pas`, `shared/Game.pas` | a soldier (`TSprite`), what it wants to do (`TControl`); the round |
 | `src/game/Soldat_ragdoll` | `shared/Parts.pas`, `shared/Anims.pas` | Verlet particles and constraints (`ParticleSystem`); the gostek's skeleton and its animations (`TAnimation`) |
 | `src/game/Soldat_bots` | `shared/AI.pas`, `shared/Waypoints.pas` | the bots, along the map's waypoints |

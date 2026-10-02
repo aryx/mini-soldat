@@ -9,7 +9,7 @@
  *)
 (* A dead soldier: Jakobsen's particles and sticks (Particles, the
  * Hitman technique), 9 particles, a stick figure falling, tumbling and
- * lying on the map (Particles.keep_out).
+ * lying on the map's walls (Particles.keep_out).
  *
  * In Soldat the living soldier is such a skeleton too (the "gostek":
  * shared/Parts.pas's ParticleSystem, its points and sticks read from
@@ -39,8 +39,8 @@ let ragdoll (b : Physics.body) ((kx, ky) : number * number) : Particles.particle
          { (Particles.particle pos) with old = (fst pos - (vx * spin / 60.), snd pos - (vy / 60.)) })
        figure)
 
-let move (ps : Particles.particle array) : Particles.particle array =
+let move (map : Soldat_map.t) (ps : Particles.particle array) : Particles.particle array =
   ps
   |> Particles.step ~drag:0.01 ~accel:(0., -.Soldat_map.gravity) ~dt:(1. / 60.)
   |> Particles.relax ~iterations:5 bones
-  |> Particles.keep_out Soldat_map.polygons
+  |> Particles.keep_out map.walls

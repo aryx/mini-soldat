@@ -12,6 +12,21 @@
   (particles and sticks), respawning, the first to 5 kills; the bots
   by hand or, with ai=engine, on Sense and Bot; the flag hitboxes
 - renamed MiniSoldat (the title screen, the help)
+- Soldat's own maps: a .pms file read (Pms, after MapFile.pas: the
+  polygons and their kinds, the sectors, the props, the colliders, the
+  spawn points, the waypoints) and made into the game's map
+  (Soldat_map.of_pms: twice as big, y turned over, the triangles
+  counterclockwise, which kinds stop a soldier and which a bullet, the
+  sky's two colours, the polygons in flat colours, the transparent
+  ones not drawn). All of Soldat's 99 maps are read and played on
+- Arena2 carried in the program (base64, as elm-playground embeds its
+  files), the map the game starts on, in a browser too; map=FILE any
+  other, map=toy TinySoldat's screen
+- a camera following the player, towards where it aims (Camera2d),
+  never beyond the map; the score stays on the screen
+- drawn in Soldat's order: the background, the soldiers and what
+  flies, then the map's polygons over them
+- a soldier fallen out of the map dies
 - in a browser: the same game compiled to JavaScript by js_of_ocaml,
   on the Playground's web platform (src/main/web; make serve)
 - a website, docs/, for Github Pages: a page written by hand (what it
@@ -45,6 +60,10 @@
   linked as they are (no copy of the source with its main taken out)
 - Dockerfile and docker.yml Github Actions CI check (OCaml 4.14.4 and
   5.5.1), make build-docker
+- tests/map (6): Arena2 read from the bytes carried, what is in it,
+  what is refused; the game's map made of it; what stops what
+- scripts/perf/Frame_bench: a frame's time without drawing, on the
+  toy and Arena2, or on any .pms files named (all 99: 0.7 to 12.5 ms)
 - tests/server (9): the protocol's worked example and what it refuses,
   the lobby's rule called as a function, and the server over localhost
   with real WebSocket clients (elm-playground's Relay_client)
@@ -57,5 +76,8 @@
   draws are TinySoldat's, pixel for pixel
 - docs/opensoldat.md: Soldat's sources (MIT) and content (CC BY 4.0),
   what is in them, and which of its files each module stands for
+- data/: Soldat's content copied here, CC BY 4.0 (data/README.md)
+- the map is a value the round carries (Soldat_map.t), no longer
+  constants of a module
 - docs/network.md: playing over the network, what is there (the
   lobby) and what is to come (the game on the server, snapshots)

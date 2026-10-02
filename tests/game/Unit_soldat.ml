@@ -23,8 +23,8 @@ let computer (i : int) : Playground.computer =
  * positions through the walls from the first frame; on ai/, it has to
  * see them, and patrols until it does *)
 let fight ?(ai_engine = false) () =
-  let scenes = Scene2d.start Soldat_model.Title in
-  let p = ref (Soldat_model.start ~ai_engine ()) in
+  let scenes = Scene2d.start (Soldat_model.Title Soldat_map.toy) in
+  let p = ref (Soldat_model.start ~ai_engine Soldat_map.toy) in
   let spawn_of i = let b = Soldat_model.body_of !p i in (b.x, b.y) in
   let blue_spawn = spawn_of 1 and green_spawn = spawn_of 2 in
   (* how far each one ever gets from where it started: a patrolling bot
@@ -48,8 +48,8 @@ let fight ?(ai_engine = false) () =
  * One frame in, the ai=engine bots' senses hold no enemy position (the
  * three spawn apart, with the map between them) *)
 let senses () =
-  let scenes = Scene2d.start Soldat_model.Title in
-  let p = ref (Soldat_model.start ~ai_engine:true ()) in
+  let scenes = Scene2d.start (Soldat_model.Title Soldat_map.toy) in
+  let p = ref (Soldat_model.start ~ai_engine:true Soldat_map.toy) in
   for i = 1 to 3 do
     p := Soldat_update.update_play (computer i) scenes !p
   done;

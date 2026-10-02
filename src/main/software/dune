@@ -9,6 +9,7 @@
  (public_name mini-soldat-software)
  (libraries
    tiny_libs.core ; Program
-   soldat_game soldat_render
+   caps ; Cap.open_in: a map's file read
+   soldat_map soldat_game soldat_render
    elm_playground
    elm_playground_software)) ; implem of virtual elm_playground: SDL and our own rasterizer

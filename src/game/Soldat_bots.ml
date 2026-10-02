@@ -51,7 +51,7 @@ let bot (p : play) (i : int) : intent =
   | target :: _ ->
       let t = body_of p target in
       let dx = t.x - me.x and dy = t.y - me.y in
-      let seen = Soldat_map.clear (me.x, me.y + 10.) (t.x, t.y) in
+      let seen = Soldat_map.clear p.map (me.x, me.y + 10.) (t.x, t.y) in
       (* the aim wobbles, a sine of the time: no Random *)
       let wobble = 5. * sin ((float_of_int p.frame * 0.07) + float_of_int i) in
       (* nearer than 120: back off; farther than 260: go; in between,
@@ -85,7 +85,7 @@ let look (p : play) (i : int) (was : (number * number) Sense.target) : (number *
   | [] -> Sense.forget ~after:90 (Sense.update ~distance:Float.infinity ~clear:false ~position:(me.x, me.y) was)
   | j :: _ ->
       let t = body_of p j in
-      Sense.update ~distance:(distance j) ~clear:(Soldat_map.clear (me.x, me.y + 10.) (t.x, t.y)) ~position:(t.x, t.y) was
+      Sense.update ~distance:(distance j) ~clear:(Soldat_map.clear p.map (me.x, me.y + 10.) (t.x, t.y)) ~position:(t.x, t.y) was
       |> Sense.forget ~after:90
 
 let senses_of (was : senses option) ((p, i) : play * int) : senses =

@@ -48,34 +48,42 @@ let view_soldier (s : soldier) (b : Physics.body) : shape list =
       @ bar (rgb 220 60 60) 30. (s.health / 100.) b.x (b.y + 38.)
       @ bar (rgb 240 200 60) 30. (s.fuel / 100.) b.x (b.y + 33.)
 
+(* the map alone, seen from where the first soldier will appear: what
+ * is behind a title *)
+let view_map (computer : computer) (map : Soldat_map.t) : shape =
+  Camera2d.view (camera_at computer.screen map (spawn map 0)) (map.back @ map.front)
+
+(* through the camera, in Soldat's order: what is behind, the soldiers
+ * and what flies, then the map's polygons over them; over it all and
+ * not moving with the map, the score *)
 let view_play (computer : computer) (p : play) : shape list =
   let n_soldiers = 3 in
-  List.map Physics.draw Soldat_map.bodies
-  @ List.concat (List.mapi (fun i s -> view_soldier s (body_of p i)) (Array.to_list p.soldiers))
-  @ List.map (fun bl -> Physics.draw bl.b) p.bullets
-  @ List.mapi (fun k _ -> Physics.draw (List.nth p.world.bodies (n_map +.. n_soldiers +.. k))) p.grenades
-  @ List.map (fun bl -> circle orange (10. + (float_of_int bl.age * 7.)) |> fade (1. - (float_of_int bl.age / 20.)) |> move bl.x bl.y) p.blasts
-  @ (if List.mem_assoc "hitboxes" computer.flags then List.map Physics.debug p.world.bodies else [])
-  @ List.mapi
-      (fun i s ->
-        text s.color 2.5 (Printf.sprintf "%s %d" s.name s.kills) |> move (-300. + (300. * float_of_int i)) 460.)
-      (Array.to_list p.soldiers)
-  @ (if p.soldiers.(0).dead <> None then [ text white 3. "respawning..." |> move_y 380. ] else [])
+  let top = computer.screen.top in
+  Camera2d.view p.camera
+    (p.map.back
+    @ List.concat (List.mapi (fun i s -> view_soldier s (body_of p i)) (Array.to_list p.soldiers))
+    @ List.map (fun bl -> Physics.draw bl.b) p.bullets
+    @ List.mapi (fun k _ -> Physics.draw (List.nth p.world.bodies (p.n_map +.. n_soldiers +.. k))) p.grenades
+    @ List.map (fun bl -> circle orange (10. + (float_of_int bl.age * 7.)) |> fade (1. - (float_of_int bl.age / 20.)) |> move bl.x bl.y) p.blasts
+    @ p.map.front
+    @ if List.mem_assoc "hitboxes" computer.flags then List.map Physics.debug p.world.bodies else [])
+  :: List.mapi
+       (fun i s ->
+         text s.color 2.5 (Printf.sprintf "%s %d" s.name s.kills) |> move (-300. + (300. * float_of_int i)) (top - 40.))
+       (Array.to_list p.soldiers)
+  @ (if p.soldiers.(0).dead <> None then [ text white 3. "respawning..." |> move_y (top - 120.) ] else [])
 
 let view (computer : computer) (model : model) : shape list =
-  let screen = computer.screen in
-  rectangle (rgb 120 160 200) screen.width screen.height
-  ::
-  (match model.scene with
-  | Title ->
-      List.map Physics.draw Soldat_map.bodies
-      @ [ text white 6. "MINI SOLDAT" |> move_y 300.;
-          text white 2. "a/d run   w jump, hold w in the air: jets" |> move_y 200.;
-          text white 2. "mouse aim   click or space shoot   q grenade" |> move_y 160.;
-          text white 2. "you against two bots: first to 5 kills" |> move_y 120. ]
+  match model.scene with
+  | Title map ->
+      [ view_map computer map;
+        text white 6. "MINI SOLDAT" |> move_y 300.;
+        text white 2. "a/d run   w jump, hold w in the air: jets" |> move_y 200.;
+        text white 2. "mouse aim   click or space shoot   q grenade" |> move_y 160.;
+        text white 2. "you against two bots: first to 5 kills" |> move_y 120.;
+        text white 2. map.name |> move_y 40. ]
       @ Scene2d.blink 1. model [ text white 3. "PRESS SPACE" |> move_y (-50.) ]
   | Playing p -> view_play computer p
-  | Over name ->
-      List.map Physics.draw Soldat_map.bodies
-      @ [ text white 5. (if name = "YOU" then "YOU WIN!" else name ^ " WINS") |> move_y 200. ]
-      @ Scene2d.blink 1. model [ text white 3. "PRESS SPACE" |> move_y (-50.) ])
+  | Over (name, map) ->
+      [ view_map computer map; text white 5. (if name = "YOU" then "YOU WIN!" else name ^ " WINS") |> move_y 200. ]
+      @ Scene2d.blink 1. model [ text white 3. "PRESS SPACE" |> move_y (-50.) ]
