@@ -1,0 +1,13 @@
+; the toy of docs/architecture.md: n pictures going round, to see what
+; a picture costs a backend. Natively:
+;   dune exec scripts/perf/bitmap_toy/BitmapToy.exe -- n=64
+; and in a browser (web/: the same source, compiled by js_of_ocaml):
+;   python3 -m http.server --directory _build/default/scripts/perf/bitmap_toy/web 8002
+;   node scripts/perf/web_probe.js "http://127.0.0.1:8002/index.html?n=64" 8
+(executable
+ (name BitmapToy)
+ (libraries
+   tiny_libs.core ; Program
+   tiny_libs.graphics_rgba
+   elm_playground
+   elm_playground_software))

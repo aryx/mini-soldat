@@ -12,6 +12,32 @@
   (particles and sticks), respawning, the first to 5 kills; the bots
   by hand or, with ai=engine, on Sense and Bot; the flag hitboxes
 - renamed MiniSoldat (the title screen, the help)
+- the map looks as Soldat's does: its texture on its polygons, shaded
+  by their corners, and its scenery in its three layers, drawn by the
+  game itself into tiles (Soldat_raster: textured Gouraud triangles,
+  sprites placed as MapGraphics.pas places a prop; Soldat_scene: tiles
+  of 256 units made as the camera comes near, the flat colours until
+  then)
+- Soldat's content as files (Soldat_assets): from data/, or any folder
+  laid out as Soldat's (base=, e.g. a checkout of opensoldat-base:
+  every map with its texture and scenery, map=ctf_Ash by name), or
+  beside the page in a browser; nothing waits for a file
+- a .bmp reader (Bmp), for the scenery never redrawn as PNG
+- the key g and the flag graphics=N: the game as each step drew it (1
+  skeletons on flat colours, 2 the soldiers' pictures, 3 the map's
+  texture and scenery)
+- deadly, hurting, healing and exploding polygons act on a soldier's
+  health (HandleSpecialPolyTypes); the map's colliders stop bullets
+- in a browser: the pictures fetched as plain pixels (Gen_assets at
+  'make website': elm-playground's PNG decoder is quadratic compiled
+  to JavaScript). And a change to elm-playground, this game's first:
+  its web platform kept the last 32 pictures, the textured map and
+  three soldiers are 64, and every one was encoded again each frame
+  (9 frames a second); it keeps them all now (60)
+- docs/architecture.md: the program's shape, a frame's way to the
+  screen on each backend, what each layer keeps;
+  scripts/perf/bitmap_toy, the toy that shows a backend's limit;
+  scripts/perf/web_probe.js, a page timed in a real browser
 - the soldier looks as Soldat's does (Soldat_gostek, adapted from
   GostekGraphics.pas and its table): 16 parts and a helmet, each one
   of Soldat's pictures hung between two points of the skeleton,
@@ -111,8 +137,11 @@
   bullets in the head
 - tests/anim (8): the files' reader, the 44 animations' frames, how
   one advances
-- tests/render (7): where a part's picture goes, worked out by hand
-  from Soldat's arithmetic; a picture tinted and turned over
+- tests/render (14): where a part's picture goes, worked out by hand
+  from Soldat's arithmetic; a picture tinted and turned over; a
+  triangle and a sprite drawn into pixels
+- tests/assets (6): a .bmp written by hand, a picture as pixels and
+  back
 - tests/map (8): Arena2 read from the bytes carried, what is in it,
   what is refused; the game's map made of it: its perps, its sectors
   (which list a wall where its outline is, not its inside); what

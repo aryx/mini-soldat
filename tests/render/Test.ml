@@ -8,4 +8,4 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
-let () = Testo.interpret_argv ~project_name:"render" (fun _env -> Unit_gostek.tests)
+let () = Testo.interpret_argv ~project_name:"render" (fun _env -> Unit_gostek.tests @ Unit_raster.tests)

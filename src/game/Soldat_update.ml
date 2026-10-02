@@ -91,12 +91,31 @@ let shoot (owner : int) (s : soldier) : bullet =
   let (dx, dy) = normalize (s.body.aim_x -. hx, s.body.aim_y -. hy) in
   { x = hx; y = hy; vx = (dx *. bullet_speed) +. (s.body.vx *. 0.5); vy = (dy *. bullet_speed) +. (s.body.vy *. 0.5); owner; ttl = bullet_timeout }
 
-(* the bullet's way this tick ends in a wall: looked at every 2.5 units
- * or less (TBullet.CheckMapCollision) *)
+(* the bullet's way this tick ends in a wall, looked at every 2.5 units
+ * or less (TBullet.CheckMapCollision), or goes through one of the
+ * map's colliders (CheckColliderCollision) *)
 let hits_map (map : Soldat_map.t) (b : bullet) : bool =
   let steps = max 1 (int_of_float (Float.max (Float.abs b.vx) (Float.abs b.vy) /. 2.5)) in
   let rec go k = k <= steps && (Soldat_map.in_bullet_wall map (b.x +. (b.vx *. float_of_int k /. float_of_int steps), b.y +. (b.vy *. float_of_int k /. float_of_int steps)) || go (k + 1)) in
-  go 1
+  go 1 || List.exists (fun collider -> Collide.segment_circle ((b.x, b.y), (b.x +. b.vx, b.y +. b.vy)) collider <> None) map.colliders
+
+(* what the walls a soldier touched this tick do to its health
+ * (HandleSpecialPolyTypes, S:3071, the server's branches): the deadly
+ * ones take all of it and more, the hurting ones and lava 5 now and
+ * then, the healing ones give 2 back every 12 ticks. Soldat hurts one
+ * tick in ten by chance; here every tenth tick, a tick having no
+ * chance in it *)
+let wall_damage (ticks : int) (s : soldier) : float =
+  List.fold_left
+    (fun damage (kind : Pms.kind) ->
+      match kind with
+      | Deadly -> Float.max damage (s.health +. 50.)
+      | Bloody_deadly -> Float.max damage (s.health +. 450.)
+      | Explodes -> Float.max damage 4000.
+      | Hurts | Lava -> if ticks mod 10 = 0 then Float.max damage 5. else damage
+      | Regenerates -> if ticks mod 12 = 0 && damage = 0. && s.health < full_health then -2. else damage
+      | _ -> damage)
+    0. s.body.touched
 
 (* the first of a soldier's points the bullet's way this tick goes
  * through *)
@@ -178,12 +197,13 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
                  let vx = b.vx and vy = b.vy +. bullet_gravity in
                  Some { b with x = b.x +. vx; y = b.y +. vy; vx = vx *. 0.99; vy = vy *. 0.99; ttl = b.ttl - 1 })
   in
-  (* 3. the damage: the dead become ragdolls, and come back after 3 s *)
+  (* 3. the damage: the bullets', and the walls' (by nobody's hand); the
+   * dead become ragdolls, and come back after 3 s *)
   soldiers
   |> Array.iteri (fun i s ->
          match s.dead with
          | None ->
-             let health = s.health -. damage.(i) in
+             let health = Float.min full_health (s.health -. damage.(i) -. wall_damage p.frame s) in
              if health < 1. then begin
                soldiers.(i) <- { s with health = 0.; dead = Some (0, Soldat_ragdoll.of_soldier s.body hit.(i)) };
                if killer.(i) >= 0 && killer.(i) <> i then soldiers.(killer.(i)) <- { (soldiers.(killer.(i))) with kills = soldiers.(killer.(i)).kills + 1 }
@@ -206,14 +226,32 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
 let winner (p : play) : soldier option = Array.to_list p.soldiers |> List.find_opt (fun s -> s.kills >= 5)
 
 let update (computer : computer) (model : model) : model =
-  let scenes = Scene2d.update computer model in
+  let scenes = Scene2d.update computer model.scenes in
   let space = Scene2d.pressed (fun k -> k.kspace) scenes in
-  match scenes.scene with
-  | Title map | Over (_, map) ->
-      (* ai=engine chooses the bots, at the start of a round *)
-      let ai_engine = List.assoc_opt "ai" computer.flags = Some "engine" in
-      if space then Scene2d.go (Playing (start ~ai_engine map)) scenes else scenes
-  | Playing p -> (
-      let z = zoom computer.screen in
-      let p = tick p (human computer p) ~look:(computer.mouse.mx /. z, -.computer.mouse.my /. z) in
-      match winner p with Some s -> Scene2d.go (Over (s.name, p.map)) scenes | None -> { scenes with scene = Playing p })
+  (* g: the next way of drawing, round to the first *)
+  let model =
+    if Scene2d.pressed (fun k -> Set_.mem "g" k.keys) scenes then { model with graphics = (model.graphics mod graphics_levels) + 1; graphics_shown = 150 }
+    else { model with graphics_shown = max 0 (model.graphics_shown - 1) }
+  in
+  let scenes =
+    match scenes.scene with
+    | Loading name -> (
+        (* the map asked by its name: its file comes when it comes; if
+         * it does not, or is no map, the one the program carries *)
+        match Soldat_assets.bytes ("maps/" ^ name ^ ".pms") with
+        | Loading -> scenes
+        | Missing -> Scene2d.go (Title (Lazy.force Soldat_map.arena2)) scenes
+        | Here bytes -> (
+            match Pms.parse bytes with
+            | Ok pms -> Scene2d.go (Title (Soldat_map.of_pms pms)) scenes
+            | Error _ -> Scene2d.go (Title (Lazy.force Soldat_map.arena2)) scenes))
+    | Title map | Over (_, map) ->
+        (* ai=engine chooses the bots, at the start of a round *)
+        let ai_engine = List.assoc_opt "ai" computer.flags = Some "engine" in
+        if space then Scene2d.go (Playing (start ~ai_engine map)) scenes else scenes
+    | Playing p -> (
+        let z = zoom computer.screen in
+        let p = tick p (human computer p) ~look:(computer.mouse.mx /. z, -.computer.mouse.my /. z) in
+        match winner p with Some s -> Scene2d.go (Over (s.name, p.map)) scenes | None -> { scenes with scene = Playing p })
+  in
+  { model with scenes }

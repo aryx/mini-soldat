@@ -26,14 +26,14 @@ module; this note has the ideas.
 | *poly* | a triangle of the map, with its kind (`PolyType`) | `Pms.polygon`, `Pms.kind` |
 | *perp* | a polygon's edge normal, stored in the map file | `Pms.polygon.perps` |
 | *sector* | a square of the grid laid over the map, listing the polygons whose outline crosses it | `Soldat_map.sector` |
-| *prop*, *scenery* | a picture placed on the map; the picture's file | `Pms.prop`, `Pms.t.scenery` (read, not drawn yet) |
-| *collider* | a circle that stops bullets | `Pms.collider` (read, not used yet) |
+| *prop*, *scenery* | a picture placed on the map; the picture's file | `Pms.prop`, `Pms.t.scenery`; drawn by `Soldat_scene` |
+| *collider* | a circle that stops bullets | `Soldat_map.t.colliders` |
 | *thing* | what lies on the map and can be picked up or carried: flags, kits, dropped weapons (`TThing`) | *to come* |
 | *spark* | a short-lived particle for the eye: blood, smoke, shells (`TSpark`) | *to come* |
 | *waypoint* | a node of the graph bots walk along | `Pms.waypoint` (read, not used yet) |
 | *tick* | a step of the game: 60 a second (`DEFAULT_GOALTICKS`) | a frame of the Playground: `update`, 60 a second |
 | *cvar* | a named setting (`net_port`, `sv_maxplayers`: `shared/Cvar.pas`) | a flag, `name=value` on the command line or after `?` in a URL |
-| *smod* | the archive of the game's content (`soldat.smod`), read through PhysFS | files embedded as base64 (`src/map/dune`), or fetched (*to come*) |
+| *smod* | the archive of the game's content (`soldat.smod`), read through PhysFS | files embedded as base64 (what is small and always needed), or got under a base, a folder or the web (`Soldat_assets`) |
 
 ## The shape of the program
 
@@ -416,11 +416,11 @@ calls `update` once a frame, so there is nothing to interpolate.
 |---|---|
 | the camera's rule above | `Soldat_update.follow`: a point of the model, three lines; `Camera2d.view` shows through it |
 | 640 by 480, y down | the Playground's screen is 1000 by 1000, y up: a zoom of the screen's width over 640 (`Soldat_model.zoom`), y turned over |
-| the sky: two colours, from the top to the bottom of the map's range (25 sectors each way), the screen's width | bands of `rectangle`s (no gradient in the Playground); or a picture one pixel wide, stretched |
-| a polygon: the map's texture (512 by 512, repeated), each corner with its u, v and its colour, which multiplies the texture | `polygon`, one colour: the corners' mean times the texture's mean (`Texture_tints`). **Nothing** in the Playground draws a textured or shaded triangle |
-| the edges (`r_smoothedges`): along each outer edge of the map, a strip of `textures/edges/`, to soften it | *to come*, with the textures |
+| the sky: two colours, from the top to the bottom of the map's range (25 sectors each way), the screen's width | bands of `rectangle`s, 64 of them (no gradient in the Playground) |
+| a polygon: the map's texture (512 by 512, repeated), each corner with its u, v and its colour, which multiplies the texture | `Soldat_raster.triangle`, into a tile of pixels: the same arithmetic a graphics card does (barycentric weights, the texture's pixel times the blended colour). **Nothing** in the Playground draws a textured or shaded triangle: the game does, once, and shows the pixels (`Soldat_scene`, tiles of 256 units and 512 pixels, made as the camera comes near). In flat colours (the corners' mean times the texture's mean, `Texture_tints`) until a tile is ready, and at graphics 1 and 2 |
+| the edges (`r_smoothedges`): along each outer edge of the map, a strip of `textures/edges/`, to soften it | *to come* |
 | a transparent polygon (alpha 0): a wall one cannot see | not drawn |
-| a prop: its picture (`scenery-gfx/`), placed, turned, scaled each way, tinted, with an alpha, in one of three layers; pure green is transparent | `bitmap w h picture |> rotate |> move`: *to come*. The tint and the green are to be put into the pixels first (`Pixels.map`) |
+| a prop: its picture (`scenery-gfx/`), placed, turned, scaled each way, tinted, with an alpha, in one of three layers; pure green is transparent | `Soldat_raster.sprite`, into the same tiles: Soldat's own matrix (turned about the point one unit under its corner), read backwards, a pixel of the tile to its place in the picture. Green made transparent by `Soldat_assets` |
 | the soldier: 15 pictures and more (`gostek-gfx/`: `morda` the head, `klata` the chest, `biodro` the hip, `udo` the thigh, `noga` the lower leg, `stopa` the foot, `ramie` the arm, `reka` the forearm, `dlon` the hand), each hung between two points of the skeleton (the head from 9 to 12, a thigh from 6 to 3...), turned along them, some stretched (the thighs, the forearms), tinted the shirt's, the trousers', the skin's or the hair's colour, mirrored when facing left | `Soldat_gostek`: its table (`parts`, from `GostekGraphics.inc`), `place` (`DrawGostekSprite`'s matrix, as where the picture's middle goes and the angle), `bitmap w h picture |> rotate |> move`. A picture per (part, tint, side), made once (`picture`). *To come*: the hair, the vest, the chain, the blood, the second team |
 | the pictures are 4.5 times bigger than drawn (`mod.ini`'s `DefaultScale`): a head of 27 pixels is 6 units | `Soldat_gostek.size`: the `w` and `h` given to `bitmap` |
 | the weapon in the hands (between points 16 and 15), its clip, its fire | the USSOCOM's picture, a part like the others; *to come*: the other weapons, a clip, a muzzle's fire |
@@ -448,8 +448,8 @@ the flamer); the rest play once.
 | Soldat | Here |
 |---|---|
 | `soldat.smod`, an archive read through PhysFS; a map's own archive mounted over it | a file embedded as base64 (`scripts/build/file_to_base64_ml.ml`), what is small and always needed: a map, the skeleton, the animations, the weapons' numbers |
-| | or fetched when wanted, the rest (99 maps, 95 MB of textures and scenery): `Audio.fetch path_or_url k` gives a file's bytes natively and a URL's in a browser; `image w h url` shows a picture as it is, by its URL alone |
-| PNG, BMP, GIF, through stb_image | `Png.decode`, `Gif.decode`, `Jpeg.decode` to an `Rgba_image.t`. No BMP: 58 pictures of scenery and the 31 edges are BMP, to convert or to read |
+| | or got when wanted, the rest (99 maps, 95 MB of textures and scenery): `Soldat_assets`, over `Audio.fetch path_or_url k`, which gives a file's bytes at once natively and a URL's later in a browser |
+| PNG, BMP, GIF, through stb_image | `Png.decode` (elm-playground's) and `Bmp.decode` (ours) to an `Rgba_image.t`, natively; plain pixels in a browser (`Soldat_assets.picture`) |
 | a colour key (pure green, or black) made transparent when loading | `Pixels.map` on the decoded picture |
 
 ## What the Playground lacks
@@ -460,13 +460,14 @@ required here). In the order they would hurt:
 
 | Lacking | Needed for | Without it |
 |---|---|---|
-| a textured triangle, shaded by its corners | the map as Soldat draws it | flat colours (today); or the map drawn once into pictures by our own code, shown with `bitmap` |
+| a textured triangle, shaded by its corners | the map as Soldat draws it | drawn by the game into pictures (`Soldat_raster`, `Soldat_scene`): done, without changing the Playground |
 | an image tinted | the soldier's shirt, trousers, skin; the props' colours | a picture made per tint, once: done for the soldier (`Soldat_gostek.picture`) |
 | an image mirrored | a soldier facing left | Soldat has a second picture for most parts; the others are made turned over, once: done |
 | an image's `fade` on Cairo (it is ignored there; the software platform and the browser do it) | a soldier fading in, the props' alpha | the alpha put into the pixels |
-| more than 32 pictures kept in a browser (each new `bitmap` is encoded as a PNG; only the last 32 are kept, by age) | a soldier is 11 pictures at a time, 7 of them its own: three soldiers use 25 to 29, and 52 over time | measured: 55 to 60 frames a second, a pause of up to 50 ms when a soldier turns. Past three soldiers, the limit has to be raised there |
+| more than 32 pictures kept in a browser (each new `bitmap` is encoded as a PNG; only the last 32 were kept, by age) | three soldiers use up to 50, the textured map 14 tiles more: 64 in a frame | mended in elm-playground (after 0.3.5): a table with a budget of pixels, as its Cairo platform has. It was 9 frames a second, it is 60 (`docs/architecture.md`) |
 | part of an image | the interface's bars, an atlas | rectangles; a picture each |
-| a BMP decoder | part of the scenery, the edges | converted once, in `data/` |
+| a BMP decoder | part of the scenery, the edges | `Bmp`, here: 24 bits and 8 bits with a palette, which is all of Soldat's |
+| a PNG decoder that is fast in a browser (`Png.decode` compiled by js_of_ocaml is quadratic: 14 s for 257 KB) | the textures and the scenery, fetched | the website's pictures as plain pixels, made when it is built (`Gen_assets`, `name.rgba`): twice the bytes, nothing to decode |
 | 8-bit WAV | 63 sounds | converted once |
 | a gradient | the sky | bands |
 | the mouse's cursor hidden | Soldat's own cursor | both shown |

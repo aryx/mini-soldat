@@ -5,9 +5,9 @@
 (library
  (name soldat_render)
  (wrapped false)
- (modules Soldat_view Soldat_gostek Pictures_data)
+ (modules Soldat_view Soldat_gostek Pictures_data Soldat_raster Soldat_scene)
  (libraries
-   soldat_map soldat_anim soldat_game
+   soldat_map soldat_anim soldat_game soldat_assets
    tiny_libs.core ; Basics, Base64
    tiny_libs.graphics_rgba ; Rgba_image: a picture in memory
    tiny_libs.physics_2d ; Particles: the skeleton's sticks

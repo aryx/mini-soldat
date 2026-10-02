@@ -1,0 +1,10 @@
+; unit tests for the content's readers, run by 'make test' (dune
+; runtest): a BMP written here and what is refused (Unit_bmp), a
+; picture as pixels and back (Unit_assets)
+(test
+ (name Test)
+ (libraries
+   alcotest testo
+   soldat_assets
+   tiny_libs.graphics_rgba
+   elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)

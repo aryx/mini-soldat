@@ -72,8 +72,14 @@ type wall = {
 
 type t = {
   name : string;
-  (* the picture, y upwards: behind the soldiers (the sky, then the
-   * background polygons), and over them, as Soldat draws the others *)
+  (* the map as its file has it, when it is one of Soldat's: what draws
+   * it as Soldat does needs its texture, its corners' colours, its
+   * props (Soldat_scene) *)
+  pms : Pms.t option;
+  (* the picture in flat colours, y upwards: the sky; behind the
+   * soldiers, the background polygons; over them, as Soldat draws the
+   * others *)
+  sky : shape list;
   back : shape list;
   front : shape list;
   walls : wall array;
@@ -82,6 +88,9 @@ type t = {
   division : float;
   num : int;
   sectors : int array array;
+  (* circles that stop a bullet (a barrel, a crate drawn there): a
+   * middle and a radius *)
+  colliders : ((float * float) * float) list;
   (* where a soldier appears: never empty *)
   spawns : (float * float) list;
   (* the fuel a soldier's jets start with, in ticks *)

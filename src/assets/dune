@@ -1,0 +1,20 @@
+; Soldat's content got while the game runs: a file's bytes from a
+; folder or from the web (Soldat_assets), a picture decoded (PNG by
+; elm-playground's, BMP by Bmp). Soldat reads its own through PhysFS
+; (client/Gfx.pas, stb_image).
+(library
+ (name soldat_assets)
+ (wrapped false)
+ (modules Soldat_assets Bmp)
+ (libraries
+   tiny_libs.graphics_rgba ; Rgba_image: a picture in memory
+   tiny_libs.graphics_png ; Png.decode
+   elm_playground)) ; Audio.fetch: a file's bytes, on every platform
+
+; the website's build's own program: a folder's pictures as pixels
+(executable
+ (name Gen_assets)
+ (modules Gen_assets)
+ (libraries
+   soldat_assets
+   elm_playground_software)) ; an implem of virtual elm_playground, to link

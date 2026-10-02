@@ -27,7 +27,7 @@ let map ?(spawns = [ (0., -20.) ]) (walls : Soldat_map.wall list) : Soldat_map.t
   let walls = Array.of_list walls in
   let num = 25 in
   let side = (2 * num) + 1 in
-  { name = "test"; back = []; front = []; walls; division = 100.; num; sectors = Array.make (side * side) (Array.init (Array.length walls) Fun.id); spawns; jet = 190 }
+  { name = "test"; pms = None; sky = []; back = []; front = []; walls; division = 100.; num; sectors = Array.make (side * side) (Array.init (Array.length walls) Fun.id); colliders = []; spawns; jet = 190 }
 
 let empty : Soldat_map.t = map []
 

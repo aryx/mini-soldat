@@ -76,9 +76,28 @@ type play = {
 
 (* the map goes from a round to the next: the title's, the round's,
  * and after the round the winner's name over it *)
-type scene = Title of Soldat_map.t | Playing of play | Over of string * Soldat_map.t
+type scene =
+  | Loading of string (* a map asked by its name, its file not there yet *)
+  | Title of Soldat_map.t
+  | Playing of play
+  | Over of string * Soldat_map.t
 
-type model = scene Scene2d.t
+(* how much of Soldat's look is drawn, the steps this game was made
+ * in (docs/plan.md), each one a key away (g) to see what it added:
+ *   1  the soldiers as their skeletons' sticks, the map in flat colours
+ *   2  the soldiers' pictures
+ *   3  the map's texture and scenery *)
+let graphics_levels = 3
+
+let graphics_name (level : int) : string =
+  match level with 1 -> "1: skeletons, flat colours" | 2 -> "2: the soldiers' pictures" | _ -> "3: the map's texture and scenery"
+
+type model = {
+  scenes : scene Scene2d.t;
+  graphics : int;
+  (* frames its name still shows for, after a change *)
+  graphics_shown : int;
+}
 
 (* Soldat's DEFAULT_HEALTH *)
 let full_health = 150.
@@ -107,7 +126,13 @@ let start ?(ai_engine = false) (map : Soldat_map.t) : play =
   let soldiers = [| soldier first "YOU" (220, 60, 50) true; soldier second "BLUE" (60, 110, 220) false; soldier third "GREEN" (60, 170, 80) false |] in
   { map; camera = first; soldiers; minds = Array.map (fun _ -> Bot.start still) soldiers; ai_engine; bullets = []; frame = 0 }
 
-let initial_model (map : Soldat_map.t) : model = Scene2d.start (Title map)
+let model_at ?(graphics = graphics_levels) (first : scene) : model =
+  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0 }
+
+let initial_model ?graphics (map : Soldat_map.t) : model = model_at ?graphics (Title map)
+
+(* starting on a map asked by its name (maps/NAME.pms of the content) *)
+let loading_model ?graphics (name : string) : model = model_at ?graphics (Loading name)
 
 (* Soldat shows 640 units across (DEFAULT_WIDTH): how many of the
  * screen's a unit is *)

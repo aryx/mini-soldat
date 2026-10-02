@@ -53,6 +53,7 @@ type t = {
   mutable on_ground_permanent : bool;
   mutable jets : int;
   mutable jetting : bool;
+  mutable touched : Pms.kind list;
   mutable aim_x : float;
   mutable aim_y : float;
   mutable skeleton : (float * float) array;
@@ -173,7 +174,7 @@ let create ((x, y) : float * float) (jets : int) : t =
       legs = Soldat_anims.start Stand 1;
       body = Soldat_anims.start Stand 1;
       on_ground = false; on_ground_last = false; on_ground_permanent = false;
-      jets; jetting = false;
+      jets; jetting = false; touched = [];
       aim_x = x; aim_y = y;
       skeleton = [||]; old_skeleton = [||];
       was_running_left = false; was_jumping = false;
@@ -434,6 +435,7 @@ let check_map (map : Soldat_map.t) (s : t) (c : control) (x : float) (y : float)
   match List.find_opt (fun (w : Soldat_map.wall) -> Soldat_map.stops_soldier w.kind && Soldat_map.in_wall pos w) (Soldat_map.sector map (fst pos) (snd pos)) with
   | None -> false
   | Some w ->
+      s.touched <- w.kind :: s.touched;
       let (step, depth, _) = Soldat_map.closest_perp w pos in
       let speed = Float.hypot s.vx s.vy in
       (* out along the perp, by how deep it is, never more than its speed *)
@@ -506,6 +508,7 @@ let check_radius (map : Soldat_map.t) (s : t) (x : float) (y : float) : bool =
                   let ((px, py), _, edge) = Soldat_map.closest_perp w (sx, sy) in
                   let (p1, p2) = match edge with 1 -> (w.a, w.b) | 2 -> (w.b, w.c) | _ -> (w.c, w.a) in
                   let depth = Soldat_map.point_line_distance p1 p2 pos in
+                  s.touched <- w.kind :: s.touched;
                   s.x <- s.old_x;
                   s.y <- s.old_y;
                   s.vx <- s.fx -. (px *. depth);
@@ -536,6 +539,7 @@ let check_vertices (map : Soldat_map.t) (s : t) (x : float) (y : float) : bool =
  * keys as [control] took them *)
 let collide (map : Soldat_map.t) (s : t) (c : control) : unit =
   s.on_ground <- false;
+  s.touched <- [];
   ignore (check_map map s c (s.x -. 3.5) (s.y -. 12.) ~feet:false);
   ignore (check_map map s c (s.x +. 3.5) (s.y -. 12.) ~feet:false);
   (* walking, the leading foot is lifted a little; and a foot already

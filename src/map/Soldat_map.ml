@@ -22,12 +22,15 @@ type wall = {
 
 type t = {
   name : string;
+  pms : Pms.t option;
+  sky : shape list;
   back : shape list;
   front : shape list;
   walls : wall array;
   division : float;
   num : int;
   sectors : int array array;
+  colliders : ((float * float) * float) list;
   spawns : (float * float) list;
   jet : int;
 }
@@ -174,13 +177,18 @@ let of_pms (pms : Pms.t) : t =
   let division = float_of_int pms.sectors_division in
   {
     name = pms.name;
-    back = sky pms.sky_top pms.sky_bottom division @ shapes_where is_back;
+    pms = Some pms;
+    sky = sky pms.sky_top pms.sky_bottom division;
+    back = shapes_where is_back;
     front = shapes_where (fun kind -> not (is_back kind));
     walls;
     division;
     num = pms.sectors_num;
     (* the file numbers its polygons from 1 *)
     sectors = Array.map (fun polys -> Array.of_list (List.filter_map (fun n -> if n >= 1 && n <= Array.length walls then Some (n - 1) else None) (Array.to_list polys))) pms.sectors;
+    (* a bullet meets a collider at its radius over 1.7
+     * (TBullet.CheckColliderCollision) *)
+    colliders = Array.to_list pms.colliders |> List.filter_map (fun (c : Pms.collider) -> if c.active then Some ((c.x, c.y), c.radius /. 1.7) else None);
     spawns;
     (* PolyMap.LoadData's "quickfix" *)
     jet = 119 * pms.jet / 100;

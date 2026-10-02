@@ -56,7 +56,9 @@ scripting). 60 ticks a second (`Constants.pas`'s `DEFAULT_GOALTICKS`).
 | `src/game/Soldat_bots` | `shared/AI.pas`, `shared/Waypoints.pas` | the bots, along the map's waypoints |
 | `src/game/Soldat_update` | `client/UpdateFrame.pas`, `server/ServerLoop.pas`; `shared/mechanics/Bullets.pas` | a tick's order; a bullet (`TBullet`: its step, its way against the map and the soldiers) |
 | `src/render/Soldat_gostek` | `client/GostekGraphics.pas`, `GostekGraphics.inc` | the soldier drawn: the table of its parts, each a picture between two points of the skeleton (`RenderGostek`, `DrawGostekSprite`) |
-| `src/render/Soldat_view` | `client/GameRendering.pas`, `MapGraphics.pas`, `InterfaceGraphics.pas` | the frame drawn: the map, the soldiers, the interface |
+| `src/render/Soldat_scene`, `Soldat_raster` | `client/MapGraphics.pas`, `client/Gfx.pas` | the map drawn: its textured polygons, its props in three layers (there by OpenGL each frame; here once, into tiles) |
+| `src/assets/Soldat_assets`, `Bmp` | `client/Gfx.pas` (stb_image), PhysFS | the content's files got and decoded |
+| `src/render/Soldat_view` | `client/GameRendering.pas`, `InterfaceGraphics.pas` | the frame drawn, in its order: the map, the soldiers, the interface |
 | `src/main/MiniSoldat` | `client/Client.pas` | the program |
 | `src/net/Soldat_protocol` | `shared/network/Net.pas` | the messages, each a packed record opening with its number (`MsgID_*`) |
 | `src/server/Soldat_lobby`, `Soldat_server`, `main/MiniSoldatServer` | `server/Server.pas`, `ServerLoop.pas`, `Main.pas`; `server/LobbyClient.pas` | the dedicated server, one game each; the list of servers is another program's, which each server registers with |

@@ -36,41 +36,61 @@ let help =
   {|mini-soldat
   keys:  a/d    run              w      jump
          s      crouch           x      lie down, get up
+         g      the graphics: as each step of the game's making drew it
          down and a side, running: a roll; up and a side: a jump sideways
   mouse: aim; left button: shoot; right button (or shift): the jets
   flags: map=FILE  one of Soldat's maps, a .pms file (Arena2 without it)
+         map=NAME  or by its name, under the base: map=ctf_Ash
+         base=DIR  where the maps, textures and scenery are (data), e.g.
+                   a checkout of opensoldat-base: base=~/opensoldat-base/shared
+         graphics=N  how much of Soldat's look: 1 skeletons and flat
+                   colours, 2 the soldiers' pictures, 3 the map's
+                   texture and scenery (the key g goes round them)
          hitboxes  draw the points the game tests
          sticks    draw the soldiers' skeletons over them
          ai=engine the bots on Sense and Bot instead of by hand
-  e.g.   ./bin/mini-soldat map=~/opensoldat-base/shared/maps/ctf_Ash.pms
+  e.g.   ./bin/mini-soldat base=~/opensoldat-base/shared map=ctf_Ash
 |}
 
-(* a file's bytes; "~/" is the home directory (a shell leaves the ~ of
- * map=~/... alone) *)
+(* "~/" is the home directory (a shell leaves the ~ of map=~/... alone) *)
+let home (file : string) : string =
+  match Sys.getenv_opt "HOME" with
+  | Some home when String.length file >= 2 && String.sub file 0 2 = "~/" -> home ^ String.sub file 1 (String.length file - 1)
+  | _ -> file
+
+(* a file's bytes *)
 let read_file (caps : < Cap.open_in ; .. >) (file : string) : string =
-  let file =
-    match Sys.getenv_opt "HOME" with
-    | Some home when String.length file >= 2 && String.sub file 0 2 = "~/" -> home ^ String.sub file 1 (String.length file - 1)
-    | _ -> file
-  in
+  let file = home file in
   let chan = CapStdlib.open_in caps file in
   Fun.protect ~finally:(fun () -> close_in chan) (fun () ->
       set_binary_mode_in chan true;
       really_input_string chan (in_channel_length chan))
 
-(* the map the flags ask for: the one carried, or a file's *)
-let map_of_flags (caps : < Cap.open_in ; .. >) (flags : (string * string) list) : Soldat_map.t =
+(* the map the flags ask for: the one carried; a file's, read now
+ * (map=some/where/ctf_Ash.pms); or one of the content's, by its name
+ * (map=ctf_Ash: maps/ctf_Ash.pms under the base), which comes when it
+ * comes *)
+type asked = Map of Soldat_map.t | Named of string
+
+let map_of_flags (caps : < Cap.open_in ; .. >) (flags : (string * string) list) : asked =
   match List.assoc_opt "map" flags with
-  | None | Some "" | Some "arena2" -> Lazy.force Soldat_map.arena2
-  | Some file -> (
+  | None | Some "" | Some "arena2" -> Map (Lazy.force Soldat_map.arena2)
+  | Some file when Filename.check_suffix file ".pms" || Filename.check_suffix file ".PMS" -> (
       match Pms.parse (read_file caps file) with
-      | Ok pms -> Soldat_map.of_pms pms
+      | Ok pms -> Map (Soldat_map.of_pms pms)
       | Error why -> prerr_endline (file ^ ": " ^ why); exit 1
       | exception Sys_error why -> prerr_endline why; exit 1)
+  | Some name -> Named name
 
 let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
   print_string help;
   let flags = Playground_platform.flags () in
+  (* where the textures and the scenery are: a folder, or a URL's start *)
+  Option.iter (fun base -> Soldat_assets.set_base (home base)) (List.assoc_opt "base" flags);
   let map = map_of_flags caps flags in
-  let app = Playground.game Soldat_view.view Soldat_update.update (Soldat_model.initial_model map) in
+  (* how much of Soldat's look is drawn: all of it, unless the flag says
+   * (the key g goes round the ways) *)
+  let graphics = Option.value (Option.bind (List.assoc_opt "graphics" flags) int_of_string_opt) ~default:Soldat_model.graphics_levels in
+  let first = match map with Map map -> Soldat_model.initial_model ~graphics map | Named name -> Soldat_model.loading_model ~graphics name in
+  let app = Playground.game Soldat_view.view Soldat_update.update first in
   Playground_platform.run_app ~flags app))

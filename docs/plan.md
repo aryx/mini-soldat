@@ -78,9 +78,48 @@ be.
   Left out, as planned: the hair, the vest, the chain, the blood on a
   wounded soldier's limbs, the second team's pictures.
 
+- **Step 3, the map looks as Soldat's does** (2026-10-02). The choice
+  it started with: the map is drawn by the game, once, into pictures
+  (`Soldat_raster`: textured triangles shaded by their corners,
+  Gouraud's way, and the scenery's sprites placed as Soldat places
+  them), in tiles of 256 units made as the camera comes near and shown
+  with `bitmap` (`Soldat_scene`): the map's texture on its polygons,
+  its scenery in its three layers. Nothing of elm-playground changed
+  for it. The content is files now (`Soldat_assets`): `data/` natively,
+  or any folder laid out as Soldat's (the flag `base`, e.g. a checkout
+  of opensoldat-base: all 99 maps with their textures and scenery,
+  `map=ctf_Ash` by name); `assets/` beside the page in a browser.
+  Until a file has come and a tile is drawn, the flat colours of
+  before are shown, and with no file at all they are what one gets.
+  Also: the deadly, hurting, healing and exploding polygons act on a
+  soldier's health; the colliders stop bullets; a `.bmp` reader for the
+  scenery never redrawn as PNG (`Bmp`).
+  And the key g (the flag `graphics`): the game as each step drew it,
+  1 the skeletons on flat colours, 2 the soldiers' pictures, 3 the
+  map's texture and scenery.
+  What it turned out to be:
+  - **in a browser** two things of elm-playground's web platform stood
+    in the way. Its PNG decoder compiled to JavaScript takes a time
+    that grows as the square of the file (14 s for 257 KB): the
+    website's pictures are turned into plain pixels when it is built
+    (`Gen_assets`, `name.rgba`). And it kept the last 32 pictures given
+    to `bitmap`, where the textured map with three soldiers is 64: 9
+    frames a second. That one was mended there, the first change this
+    game asked of elm-playground: a table with a budget of pixels, as
+    its Cairo platform had since the same day (60 frames a second;
+    `docs/architecture.md` has the story and a toy that shows it). It
+    is in elm-playground after 0.3.5: built with an older one the
+    game is the same, and slow in a browser at graphics 3;
+  - the software platform draws big pictures slowly: `mini-soldat`
+    (Cairo) is the one to play with.
+  Left out: the soft edges along the map's outline (`textures/edges/`),
+  what a polygon's kind does to a bullet (a ricochet: step 4), animated
+  scenery (none in Soldat's own content), the website's other maps
+  (only Arena2's content is there: "To decide").
+
 What is still the toy's, and so what the steps below replace: the
-soldier's gun (one, with the USSOCOM's numbers and its picture), its
-bots, the map's flat polygons.
+soldier's gun (one, with the USSOCOM's numbers and its picture) and
+its bots.
 
 ## The rules of the road
 
@@ -114,30 +153,6 @@ bots, the map's flat polygons.
    of the note.
 
 ## The steps
-
-### 3. The map looks as Soldat's does
-
-*What one sees*: the map's texture on its polygons, shaded by their
-corners, the soft edges, the scenery in its three layers, the sky as
-Soldat grades it.
-
-- The decision this step starts with: a textured, shaded triangle is
-  not something the Playground can draw. Either it gains one (a new
-  shape, in its three backends: the real fix, and useful to it), or
-  the map is drawn once by our own code into pictures shown with
-  `bitmap` (nothing to change there; big pictures, whose cost on Cairo
-  and in a browser is to be measured). A day of measuring before
-  choosing.
-- The scenery: the props with their pictures, turned, scaled, tinted,
-  green made transparent; the BMP ones converted once.
-- The content no longer fits in the program: a map's texture is half a
-  megabyte. So here the files are fetched (a folder beside the program
-  natively, the website's in a browser), with a list of what there
-  is, and any of the 99 maps can be chosen, in a browser too.
-- The polygons' other kinds: deadly, hurting, healing, lava; the
-  colliders.
-
-*Checked by*: Arena2 and ctf_Ash next to the real game's screenshots.
 
 ### 4. The weapons
 
@@ -200,32 +215,30 @@ lobby's screen.
 
 ## The order, and what could change it
 
-1 and 2 came first: every later step stands on Soldat's units and its
-soldier, and a stick figure is hard to judge a feel by. 3 and 4 can
-swap: 3 first if the look matters most
-(and it settles how content is fetched, which 4's pictures and 6's
-sounds then use), 4 first if the play does.
+1, 2 and 3 came first: Soldat's units and its soldier, then its look,
+which settled how content is fetched (4's pictures and 6's sounds use
+it). 4 is next: the play.
 
 ## To decide
 
 - **A budget of lines**, as mini-chrome has. The Pascal behind steps 1
   to 7 is about 39,000 lines (`shared/` without its network, and
   `client/`); a first guess for all of `src/` here is 10,000.
-- **Step 3's choice**: a textured triangle in elm-playground, or the
-  map drawn into pictures by the game.
-- **3 before 4, or 4 before 3.**
 - **A reference to compare with**: playing the real game beside ours
   is the check of a feel. Building OpenSoldat here (Free Pascal) and
   making it print a soldier's position each tick for given keys would
   turn "it feels the same" into a test; it is a day's work that is not
   the game.
-- **More than 32 pictures in a browser**: elm-playground's web
-  platform keeps the last 32 pictures given to `bitmap`
-  (`last_bitmaps`), and three soldiers already use 29. Raising that
-  (or keeping them by use rather than by age) is a change of a few
-  lines there, then a version of it required here. Needed before
-  there are more soldiers (step 5's bots, step 8's players), and it
-  would take away today's pauses.
+- **The version of elm-playground required**: the website wants the
+  one after 0.3.5 (its web platform keeping every picture: step 3).
+  `dune-project`, `configure` and the Dockerfile still say 0.3.3, which
+  builds; to raise once that change is in a tagged version.
+- **elm-playground's PNG decoder in a browser**: `Png.decode` compiled
+  by js_of_ocaml takes 26 ms for 4 KB, 94 ms for 35 KB, 14.5 s for
+  257 KB: quadratic, where natively it is instant. Worked around here
+  (pixels instead of PNG on the website, 2.3 MB for Arena2 where the
+  PNG are 1.2), but worth mending there: it would let the website
+  serve Soldat's files as they are.
 - **The content on the website**: fetching maps, textures and sounds
   means publishing Soldat's content (CC BY 4.0, credited) under
   `docs/`, about 100 MB if all of it; or only what a few maps need.

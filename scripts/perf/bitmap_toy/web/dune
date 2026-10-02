@@ -1,0 +1,17 @@
+; the toy in a browser: see ../dune
+(copy_files# ../BitmapToy.ml)
+
+(executable
+ (name BitmapToy)
+ (libraries
+   tiny_libs.core
+   tiny_libs.graphics_rgba
+   elm_playground
+   elm_playground_web)
+ (modes js)
+ (link_flags -no-check-prims))
+
+(rule
+ (alias default)
+ (deps index.html BitmapToy.bc.js)
+ (action (progn)))

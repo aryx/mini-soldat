@@ -94,6 +94,23 @@ let death () =
   let p = tick { p with bullets = [ shot p ] } in
   Alcotest.(check (float 0.1)) "a bullet through it then does nothing" Soldat_model.full_health p.soldiers.(0).health
 
+(* what a wall's kind does to who stands on it *)
+let walls () =
+  let on (kind : Pms.kind) (ticks : int) : Soldat_model.soldier = (after ticks (Soldat_model.start (Testutil_map.floor ~kind ()))).soldiers.(0) in
+  (* dropped from 20 above the floor: on it within the second *)
+  Alcotest.(check bool) "a deadly floor: dead on landing" true ((on Deadly 60).dead <> None);
+  Alcotest.(check int) "by nobody's hand: no kill" 0 (on Deadly 60).kills;
+  (* 5 every 10 ticks: 150 is gone in 300 ticks on it *)
+  let hurt = on Hurts 200 in
+  Alcotest.(check bool) "a hurting floor: about half its health after 200 ticks" true (hurt.dead = None && hurt.health > 40. && hurt.health < 110.);
+  Alcotest.(check bool) "dead after 400" true ((on Hurts 400).dead <> None);
+  Alcotest.(check (float 0.1)) "a plain floor: nothing" Soldat_model.full_health (on Normal 400).health;
+  (* wounded, on a healing floor: 2 every 12 ticks *)
+  let p = Soldat_model.start (Testutil_map.floor ~kind:Regenerates ()) in
+  let p = after 240 { p with soldiers = Array.map (fun (s : Soldat_model.soldier) -> { s with health = 50. }) p.soldiers } in
+  Alcotest.(check bool) "a healing floor: from 50, well over 80 after 4 seconds" true (p.soldiers.(0).health > 80.);
+  Alcotest.(check bool) "never over all of it" true ((on Regenerates 400).health <= Soldat_model.full_health)
+
 let tests =
   Testo.categorize "Soldat"
     [
@@ -102,4 +119,5 @@ let tests =
       Testo.create "ai=engine, a bot knows only what it has seen" senses;
       Testo.create "a round replays the same" replay;
       Testo.create "shot dead, and back" death;
+      Testo.create "deadly, hurting and healing floors" walls;
     ]

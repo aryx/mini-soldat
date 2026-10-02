@@ -57,10 +57,13 @@
    line to the cursor, and the arms' ends 7 and 8 from the hand the
    animation holds, towards it. A bullet leaves from there (point 15).
 
+   What a wall's kind does to who touches it (deadly, hurting,
+   healing) is the game's to do (Soldat_update), a soldier's health
+   being its: a tick says which kinds were touched.
+
    Not here yet, of the Pascal: firing and the weapons, the idle
    animations, the parachute,
-   the chain and the hair that dangle, what deadly and hurting
-   polygons do, the background polygons.
+   the chain and the hair that dangle, the background polygons.
 
    In Soldat: ParticleSystem.Euler (shared/Parts.pas), TSprite.Update,
    CheckMapCollision, CheckRadiusMapCollision, CheckMapVerticesCollision
@@ -106,6 +109,7 @@ type t = {
   mutable on_ground_permanent : bool;
   mutable jets : int; (* the fuel, in ticks *)
   mutable jetting : bool; (* the jets pushed, this tick *)
+  mutable touched : Pms.kind list; (* the kinds of the walls it touched, this tick *)
   mutable aim_x : float;
   mutable aim_y : float;
   mutable skeleton : (float * float) array; (* its 20 points, the first at 0 *)
