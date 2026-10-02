@@ -153,6 +153,16 @@ let view_thing ~(graphics : int) (thing : Soldat_things.t) : shape list =
   let angle = Float.atan2 (by - ay) (bx - ax) in
   let plain color = [ segment color 1.5 (ax, ay) (bx, by) ] in
   match thing.kind with
+  | Flag team ->
+      (* its pole, and its cloth between its top, its two loose points
+       * and the pole's middle, in its team's colour; blinking in the
+       * last 5 seconds before it goes home by itself *)
+      if thing.holder < 0 && (not thing.in_base) && thing.ttl < 300 && thing.ttl mod 6 < 3 then []
+      else
+        let p n = thing.points.(n).pos in
+        let (r, g, b) = team_shirt team in
+        let middle = ((ax + bx) / 2., (ay + by) / 2.) in
+        [ polygon (rgb r g b) (List.map at [ p 1; p 2; p 3; middle ]); segment (rgb 200 200 200) 1. (p 0) (p 1) ]
   | Weapon g ->
       if thing.ttl < 300 && thing.ttl mod 6 < 3 then []
       else if graphics < 2 then plain (rgb 40 40 40)
@@ -220,12 +230,22 @@ let view_menu (chosen : Soldat_weapons.id) ((x, y) : float * float) : shape list
     Soldat_weapons.primaries
 
 (* the scores, the best first, at the top right; the time left and the
- * kills to reach, at the top *)
+ * points to reach, at the top; with teams, each team's points beside
+ * it, and what just happened to a flag under it *)
 let view_scores (computer : computer) (p : play) : shape list =
   let screen = computer.screen in
   let ranked = List.stable_sort (fun (a : soldier) (b : soldier) -> compare b.kills a.kills) (Array.to_list p.soldiers) in
   let seconds = p.time_left /.. 60 in
-  (text white 2. (Printf.sprintf "%d:%02d    first to %d" (seconds /.. 60) (seconds mod 60) kill_limit) |> move_y (screen.top - 30.))
+  let teams =
+    if p.mode = Deathmatch then []
+    else
+      let colour t = let (r, g, b) = team_shirt t in rgb r g b in
+      [ text (colour 1) 3. (Printf.sprintf "Alpha %d" (score p 1)) |> move (-170.) (screen.top - 70.);
+        text (colour 2) 3. (Printf.sprintf "%d Bravo" (score p 2)) |> move 170. (screen.top - 70.) ]
+      @ match p.news with Some (words, ticks) -> [ text white 2.5 words |> move_y (screen.top - 110.) |> fade (Float.min 1. (float_of_int ticks / 40.)) ] | None -> []
+  in
+  teams
+  @ (text white 2. (Printf.sprintf "%d:%02d    first to %d" (seconds /.. 60) (seconds mod 60) (limit p)) |> move_y (screen.top - 30.))
   :: List.mapi (fun i (s : soldier) -> text s.color 1.8 (Printf.sprintf "%-12s %2d" s.name s.kills) |> move (screen.right - 110.) (screen.top - 30. - (24. * float_of_int i))) ranked
 
 (* through the camera, in Soldat's order: what is behind, the bullets,
@@ -248,7 +268,7 @@ let view_play (computer : computer) ~(graphics : int) ~(primary : Soldat_weapons
     @ if List.mem_assoc "hitboxes" computer.flags then List.concat_map view_tested soldiers else [])
   :: view_scores computer p
   @ view_interface computer p.map p.soldiers.(0)
-  @ (if p.soldiers.(0).dead <> None then (text white 3. "respawning..." |> move_y (top - 120.)) :: view_menu primary (0., top - 180.) else [])
+  @ (if p.soldiers.(0).dead <> None then (text white 3. "respawning..." |> move_y (top - 150.)) :: view_menu primary (0., top - 200.) else [])
 
 let view (computer : computer) (model : model) : shape list =
   let graphics = model.graphics in
@@ -264,8 +284,13 @@ let view (computer : computer) (model : model) : shape list =
         text white 6. "MINI SOLDAT" |> move_y 300.;
         text white 2. "a/d run   w jump   s crouch   x lie down   r reload   q other weapon   e grenade   f throw it away" |> move_y 220.;
         text white 2. "mouse aim   left button shoot   right button (or shift) jets" |> move_y 185.;
-        text white 2. (Printf.sprintf "you against %d of Soldat's bots: first to %d kills   g: the graphics" model.bots kill_limit) |> move_y 150.;
-        text white 2. map.name |> move_y 110. ]
+        text white 2.
+          (match Option.value model.mode ~default:(mode_of map) with
+          | Deathmatch -> Printf.sprintf "a deathmatch: you against %d of Soldat's bots, first to %d kills" model.bots kill_limit
+          | Team_match -> Printf.sprintf "a team match: you and Alpha against Bravo, %d bots, first team to %d kills" model.bots team_limit
+          | Capture_the_flag -> Printf.sprintf "capture the flag: you and Alpha against Bravo, %d bots, first team to %d flags" model.bots capture_limit)
+        |> move_y 150.;
+        text white 2. (map.name ^ "      g: the graphics   m: the next map") |> move_y 110. ]
       @ view_menu model.primary (0., 50.)
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-230.) ]
   | Playing p -> view_play computer ~graphics ~primary:model.primary p

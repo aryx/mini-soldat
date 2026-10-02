@@ -208,12 +208,13 @@ type t = {
   mutable dropped : gun option; (* the weapon it let go of this tick *)
   mutable events : Soldat_event.t list; (* what of this tick is to be heard and seen, the last first *)
   human : bool; (* a player's: a weapon firing once a pull does so only for it *)
+  team : int; (* 1 Alpha, 2 Bravo; none: 0. A team's walls stop its own only *)
 }
 
 (* a soldier standing at a place, with that much fuel, [primary] in
  * its hands (the USSOCOM if none is said), the USSOCOM on its back,
  * one grenade; a player's unless [human] is false *)
-val create : ?primary:Soldat_weapons.id -> ?human:bool -> float * float -> int -> t
+val create : ?primary:Soldat_weapons.id -> ?human:bool -> ?team:int -> float * float -> int -> t
 
 (* with a weapon picked up from the ground in its hands, and with its
  * weapon let go (it died): [dropped] says which *)

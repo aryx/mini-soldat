@@ -55,6 +55,9 @@ type t =
   | Dist_gun
   | Dist_grenade
   | Dist_m79
+  | Flag_fall
+  | Capture
+  | Ctf_score
 
 (* a weapon's name in its files *)
 let weapon (id : Soldat_weapons.id) : string =
@@ -118,6 +121,9 @@ let names (s : t) : string list =
   | Dist_gun -> [ "dist-gun1"; "dist-gun2"; "dist-gun3"; "dist-gun4" ]
   | Dist_grenade -> [ "dist-grenade" ]
   | Dist_m79 -> [ "dist-m79" ]
+  | Flag_fall -> [ "flag"; "flag2" ]
+  | Capture -> [ "capture" ]
+  | Ctf_score -> [ "ctf" ]
 
 let variants (s : t) : int = List.length (names s)
 
@@ -132,4 +138,4 @@ let files : string list =
     @ List.map (fun id -> Reload id) weapons
     @ [ Change_weapon; Change_spin; Throw_gun; Take_gun; Take_medikit; Pickup; Grenade_pullout; Grenade_throw; Grenade_bounce; Grenade_explosion; M79_explosion;
         Explosion_erg; Ric; Ricochet; Hit_arg; Dead_hit; Death; Headchop; Bryzg; Bodyfall; Bonecrack; Step; Jump; Fall; Fall_hard; Crouch; Crouch_move; Prone_move;
-        Go_prone; Stand_up; Roll; Stop; Rocketz; Spawn; Weapon_hit; Kit_fall; Shell; Gauge_shell; Clip_fall; Dist_gun; Dist_grenade; Dist_m79 ])
+        Go_prone; Stand_up; Roll; Stop; Rocketz; Spawn; Weapon_hit; Kit_fall; Shell; Gauge_shell; Clip_fall; Dist_gun; Dist_grenade; Dist_m79; Flag_fall; Capture; Ctf_score ])

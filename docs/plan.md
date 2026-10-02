@@ -258,6 +258,37 @@ be.
   hum and the muffling after a grenade, a collider's sound, the menu's
   and the chat's.
 
+- **Step 7, teams and flags** (2026-10-03). A soldier has a team (Alpha
+  red, Bravo blue): its own team's bullets do nothing to it, a team's
+  walls stop its own only, it appears at its team's places. A round
+  has a mode: a deathmatch, a team match (a team's kills, to 60) or
+  capture the flag (to 10), the map's own (capture the flag where it
+  has the two flags' places) or asked (`mode=`). The flag is a third
+  kind of thing (`Soldat_things`, from `Things.pas`): four points, a
+  pole held up by a force on its top and a cloth; taken by the other
+  team's nearest soldier, its foot then at its carrier's waist;
+  dropped when its carrier dies; sent home by one of its own, or by
+  itself after 25 seconds; a capture when brought to one's own flag
+  standing at home. The bots play it (`ControlBot`'s team parts): a
+  path a team, the other's with the flag, a flag gone to from near,
+  one's own picked up, a carrier escorted. With `ctf_Ash` and its
+  content in `data/`, and the key m on the title for the next map.
+  What it turned out to be:
+  - the bots do capture: in ten minutes of three against three on
+    ctf_Ash, twenty flags taken, a dozen returned, three brought home;
+  - a flag stands *leaning*: its cloth has no stiffness, its corner
+    falls to the ground and pulls the top its way. It is what the
+    skeleton gives, there as here;
+  - a bot whose nearest soldier in sight is of its own team sees no
+    enemy behind it: Soldat's rule, kept;
+  - the game's lines went from 4,370 to 4,720 (`src/game`), the tests
+    from 99 to 106.
+  Left out: the other modes (pointmatch, rambo, infiltration, hold the
+  flag); the second team's own heads (`gostek-gfx/team2`, the only
+  pictures that differ); the flag's cloth drawn with its picture (it
+  is a polygon in its team's colour); a flag thrown; the walls for who
+  carries a flag; respawn in waves.
+
 Nothing is the toy's any more but the bot of `ai=engine`, kept as an
 example.
 
@@ -294,12 +325,6 @@ example.
 
 ## The steps
 
-### 7. Teams and flags
-
-Team deathmatch and capture the flag (Soldat's default mode): the
-flags as things, the teams' spawn points and polygons, the other
-team's pictures, friendly fire. Then, if wanted, the other modes.
-
 ### 8. Over the network
 
 As `docs/network.md` has it: the lobby's screen in the game; a room
@@ -314,8 +339,8 @@ lobby's screen.
 1, 2 and 3 came first: Soldat's units and its soldier, then its look,
 which settled how content is fetched (4's pictures used it, 6's sounds
 will). 4 was the play, 5 who one plays against and what lies on the
-ground, 6 what is heard and what flies about. 7 is next: the teams and
-the flags, Soldat's default mode.
+ground, 6 what is heard and what flies about, 7 the teams and the
+flags. 8 is what is left: the network.
 
 ## To decide
 

@@ -146,9 +146,9 @@ let rounds () =
   Alcotest.(check bool) "nobody yet" true (Soldat_update.winner p = None);
   let with_kills i n = { p with soldiers = Array.mapi (fun j (s : Soldat_model.soldier) -> if j = i then { s with kills = n } else s) p.soldiers } in
   Alcotest.(check bool) "9 kills: not yet" true (Soldat_update.winner (with_kills 2 9) = None);
-  Alcotest.(check (option string)) "10: the round is its" (Some p.soldiers.(2).name) (Option.map (fun (s : Soldat_model.soldier) -> s.name) (Soldat_update.winner (with_kills 2 10)));
+  Alcotest.(check (option string)) "10: the round is its" (Some p.soldiers.(2).name) (Soldat_update.winner (with_kills 2 10));
   Alcotest.(check (option string)) "the time over: who has most" (Some "YOU")
-    (Option.map (fun (s : Soldat_model.soldier) -> s.name) (Soldat_update.winner { (with_kills 0 3) with time_left = 0 }));
+    (Soldat_update.winner { (with_kills 0 3) with time_left = 0 });
   (* the dead come back at one of the map's places *)
   let p = after 100 p in
   let p = { p with soldiers = Array.mapi (fun j (s : Soldat_model.soldier) -> if j = 0 then { s with dead = Some (0, Soldat_ragdoll.of_soldier s.body ~push:(0., 0.)) } else s) p.soldiers } in

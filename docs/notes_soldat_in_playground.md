@@ -366,8 +366,8 @@ gravity, its radius, how long it stays.
 | `TSprite.DropWeapon`, the throw in `CreateThing` | `Soldat_soldier.t.dropped` (thrown at the 19th frame of `Throw_weapon`, or `let_go` dying), made a thing by `Soldat_things.weapon` |
 | picked up (`CheckSpriteCollision`, the server's): the nearest soldier within the thing's radius; a weapon only by one with empty hands | `Soldat_things.reach`, and the rule in `Soldat_update.tick` |
 | where things appear: the map's spawn points whose team is above 4 (5 and 6 the flags, 7 grenade kits, 8 medikits, 9 to 13 the bonus kits, 14 the yellow flag, 15 the bow, 16 the stationary gun) | `Soldat_map.t.medikit_spawns`, `grenade_spawns`; `Soldat_things.kits` (`SpawnThings`), `again` (`Respawn`, `SpawnBoxes`) |
-| a flag held: its first point on its holder's back (point 8), the other pulled up | *to come*, with the teams |
-| a capture: the holder of the enemy's flag within 28 of its own, at home (within 75 of where it appears) | *to come* |
+| a flag (`OBJECT_ALPHA_FLAG`, `OBJECT_BRAVO_FLAG`): `flag.po`, four points; standing, its foot stopped and its top pulled up (16 times gravity); held, its first point on its holder's waist (point 8), its top pulled up (14 times) | `Soldat_things.kind`'s `Flag team`, `flag_shape`, `tick_flag`; `holder`, `in_base` (within 75 of its place: `Soldat_map.t.alpha_flag`, `bravo_flag`, the file's spawn points 5 and 6) |
+| taken (`CheckSpriteCollision`): by the nearest living soldier within 19, past its first 90 ticks; its own team's sends it home at once unless it is there; left 25 seconds on the ground it goes home. A capture (`TThing.Update`): carried within 28 of its carrier's own flag standing at home | the rule in `Soldat_update.tick` (`flag`), `play.captures`, `play.news` (Soldat's big message), the sounds `Capture` and `Ctf_score` |
 | the bonus kits, the bow, the parachute, the knife, the stationary gun; a thing hit by a bullet or an explosion | *to come*, or never |
 
 ## The sparks
@@ -395,7 +395,12 @@ dirt, the jets' fire, the weather.
 
 | Soldat | Here |
 |---|---|
-| the modes (`GAMESTYLE_*`): deathmatch, pointmatch, teammatch, capture the flag (the default), rambo, infiltration, hold the flag | deathmatch; the others *to come* |
+| the modes (`GAMESTYLE_*`): deathmatch, pointmatch, teammatch, capture the flag (the default), rambo, infiltration, hold the flag | `Soldat_model.mode`: `Deathmatch`, `Team_match`, `Capture_the_flag`; the map's own (`mode_of`: capture the flag where it has the two flags' places) or the flag `mode=`. The four others *to come*, or never |
+| a team (`Player.Team`: Alpha 1, Bravo 2), its colour (`$D20F05`, `$151FD9`), its spawn points, its kills or its flags (`TeamScore`), the limits (`sv_tm_limit` 60, `sv_ctf_limit` 10) | `Soldat_soldier.t.team`, `Soldat_model.team_shirt`, `Soldat_map.t.alpha_spawns` and `bravo_spawns`, `Soldat_model.score`, `team_limit`, `capture_limit`; `Soldat_update.winner` |
+| friendly fire off (`HealthHit` leaves at once for one's own team's bullets) | `Soldat_bullets.hurt` |
+| a team's walls (`TeamCollides`: polygons 10 to 17, a team's bullets or a team's players) | `Soldat_map.stops_soldier ~team`, `stops_bullet ~team` |
+| the bots in teams (`ControlBot`): the nearest in sight of its own team is no target and hides who is behind; a path a team (`PathNum`), the other's with the flag; it runs home from who has not its flag; a flag gone to by five rules | in `Soldat_bots.control` |
+| the other team's own pictures (`gostek-gfx/team2/`: only the head differs), the flag's cloth as a textured quad (`PolygonsRender`), the flag thrown (the space bar), the walls for who carries a flag, respawn in waves | *to come* |
 | a round's end: a kill limit (10) or a time limit (10 minutes), then the scores for 320 ticks, then the next map | `Soldat_model.kill_limit`, `time_limit`, `play.time_left`, `Soldat_update.winner`; then the same map again: the next map *to come* |
 | respawn: 180 ticks after dying (in team modes, in waves), at a spawn point taken by chance (`RandomizeStart`) | `Soldat_update.respawn_ticks`, and the game's chance |
 | the tick's order (`server/ServerLoop.pas`): the soldiers' particles stepped, each soldier updated (its keys, or its bot's), each bullet updated (its collisions), the bullets' particles stepped, each thing updated; the client adds the sparks | `Soldat_update.tick`, in that order |
@@ -462,7 +467,7 @@ the flamer); the rest play once.
 
 | Soldat | Here |
 |---|---|
-| `SFX_*`, 163 numbers, and their files (`LoadSounds`) | `Soldat_sfx.t`, the 44 the game plays (82 files: a step is one of four), `file` |
+| `SFX_*`, 163 numbers, and their files (`LoadSounds`) | `Soldat_sfx.t`, the 47 the game plays (86 files: a step is one of four), `file` |
 | a sample loaded | `Soldat_sound.sound`: its bytes from the content (`Soldat_assets`, `sfx/NAME.wav`), `Audio.wav`, frozen with `Audio.recorded`, kept. `Audio.wav` reads 16-bit only and 38 of the 82 are 8-bit: `Soldat_sound.to_16_bit` rewrites those first |
 | `PlaySound (sample, place)` in the rules | a `Sound` event; the tick's are `play.sounds`, played by `Soldat_update.update` |
 | `FPlaySound`: `1 - distance / 750` of its volume from the listener, nothing beyond; its side | `Soldat_sound.heard`, then `Audio.play (sound |> Audio.louder volume |> Audio.pan side)` |

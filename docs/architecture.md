@@ -49,13 +49,13 @@ downwards only.
 | `src/map` | a `.pms` file read (`Pms`); the map the game plays on: its walls, its sectors, its spawn points (`Soldat_map`) | 900 |
 | `src/anim` | the animations' and the skeleton's files read (`Poa`); the 44 animations (`Soldat_anims`) | 390 |
 | `src/assets` | files got while the game runs, and decoded (`Soldat_assets`, `Bmp`) | 320 |
-| `src/game` | the game without its picture: the weapons' numbers (`Soldat_weapons`), a soldier and its guns (`Soldat_soldier`), a dead one (`Soldat_ragdoll`), what lies on the ground (`Soldat_things`), the state (`Soldat_model`), the bullets and the explosions (`Soldat_bullets`), Soldat's bots (`Soldat_bots`), one on elm-playground's `ai` (`Soldat_engine_bot`), what a tick gave to hear and see (`Soldat_event`), the sparks (`Soldat_sparks`), the sounds (`Soldat_sfx`; `Soldat_sound` plays them), a tick and a round (`Soldat_update`) | 4,370 |
+| `src/game` | the game without its picture: the weapons' numbers (`Soldat_weapons`), a soldier and its guns (`Soldat_soldier`), a dead one (`Soldat_ragdoll`), what lies on the ground (`Soldat_things`), the state (`Soldat_model`), the bullets and the explosions (`Soldat_bullets`), Soldat's bots (`Soldat_bots`), one on elm-playground's `ai` (`Soldat_engine_bot`), what a tick gave to hear and see (`Soldat_event`), the sparks (`Soldat_sparks`), the sounds (`Soldat_sfx`; `Soldat_sound` plays them), a tick and a round, its teams and its flags (`Soldat_update`) | 4,720 |
 | `src/render` | the picture: a soldier's and its weapons' (`Soldat_gostek`), the map's (`Soldat_scene`, `Soldat_raster`), the sparks' (`Soldat_sparks_view`), the whole and the interface (`Soldat_view`) | 1,320 |
 | `src/net` | the messages between a player and the server (`Soldat_protocol`) | 200 |
 | `src/server` | the lobby (`Soldat_lobby`) and its sockets (`Soldat_server`) | 240 |
 | `src/main` | the programs | 100 |
 
-About 7,900 lines, and 2,300 of tests. What matters in the split:
+About 8,300 lines, and 2,600 of tests. What matters in the split:
 
 - **`src/game` knows no picture and no keyboard.** `Soldat_update.tick`
   takes what the player wants (an `intent`: keys and where the cursor
@@ -90,7 +90,8 @@ About 7,900 lines, and 2,300 of tests. What matters in the split:
 3. what the walls do to who touches them;
 4. the things: each falls or lies still; the nearest living soldier in
    reach takes it if it may (empty hands a weapon, the hurt a medikit);
-   a kit taken appears again elsewhere; the weapons let go of this
+   a kit taken appears again elsewhere; a flag follows its carrier, is
+   taken, sent home or captured; the weapons let go of this
    tick (thrown away, or by who just died) become things;
 5. the dead tumble, and come back at a place taken by chance;
 6. what all of that gave to hear and see. Each part above only *says*

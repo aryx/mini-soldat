@@ -16,12 +16,13 @@ unchanged.
 | `weapons.ini` | `server/configs/weapons.ini` | the weapons' numbers (damage, fire interval, clip, reload, speed...): packed into the program at build time (`src/game/dune`), read when it starts |
 | `bots/*.bot` (16) | `server/configs/bots/` | the bots' characters: a name, colours, a favourite weapon, how well it aims, how it fights: packed into the program at build time (`src/game/dune`) |
 | `textures/objects/medikit.png`, `grenadekit.png` | `shared/textures/objects/` | the two kits lying on a map: read when the game runs |
-| `sfx/*.wav` (82) | `shared/sfx/` | the sounds the game plays, of Soldat's 157 (`Soldat_sfx.files`): read when one is first played |
+| `sfx/*.wav` (86) | `shared/sfx/` | the sounds the game plays, of Soldat's 157 (`Soldat_sfx.files`): read when one is first played |
 | `sparks-gfx/*.png` (10), `sparks-gfx/explosion/*.png` (26) | `shared/sparks-gfx/` | the sparks' pictures: smoke, blood, a chip, the jets' fire; an explosion's 16 and its smoke's 10 |
 | `weapons-gfx/*-shell.png` (11) | `shared/weapons-gfx/` | each weapon's spent shell |
 | `weapons-gfx/*.png` (50) | `shared/weapons-gfx/` | the eleven weapons in a soldier's hands, each with its mirror (`-2`), its clip (`-clip`, `-clip2`) and its muzzle's fire (`-fire`); a grenade and the M79's shell. Read when the game runs; the USSOCOM's two (`colt1911`, `colt1911-2`) are packed into the program too |
-| `textures/poziomka.png` | `shared/textures/` | Arena2's texture: read when the game runs |
-| `scenery-gfx/*` (13) | `shared/scenery-gfx/` | Arena2's scenery: barrels, crates, grass, roots, a net; three of them still `.bmp` |
+| `maps/ctf_Ash.pms` | `shared/maps/ctf_Ash.pms` | a map for capture the flag: read when asked for (`map=ctf_Ash`, or the key m) |
+| `textures/poziomka.png`, `riverbed.png` | `shared/textures/` | Arena2's texture and ctf_Ash's: read when the game runs |
+| `scenery-gfx/*` (31) | `shared/scenery-gfx/` | Arena2's scenery and ctf_Ash's: barrels, crates, grass, roots, a net; three of them still `.bmp` |
 
 The game looks for the pictures it does not carry (the weapons', the
 textures, the scenery) under a *base*, `data/` by default: a checkout

@@ -14,9 +14,20 @@
 
 (* See Soldat_things.mli *)
 
-type kind = Weapon of Soldat_soldier.gun | Medikit | Grenade_kit
+type kind = Weapon of Soldat_soldier.gun | Medikit | Grenade_kit | Flag of int
 
-type t = { kind : kind; points : Particles.particle array; ttl : int; interest : int; still : bool; facing : int; place : int; hits : int }
+type t = {
+  kind : kind;
+  points : Particles.particle array;
+  ttl : int;
+  interest : int;
+  still : bool;
+  facing : int;
+  place : int;
+  hits : int;
+  holder : int;
+  in_base : bool;
+}
 
 (* shared/Constants.pas *)
 let gun_time = 1200
@@ -24,6 +35,15 @@ let flag_timeout = 1500
 let default_interest = 350
 let gun_radius = 10.
 let kit_radius = 12.
+let flag_radius = 19.
+let flag_interest = 1500
+let base_radius = 75.
+let touchdown_radius = 28.
+
+(* FLAG_STAND_FORCEUP and FLAG_HOLDING_FORCEUP, times gravity: what
+ * holds a flag's pole up, standing and carried *)
+let stand_up = -16. *. Soldat_soldier.grav
+let hold_up = -14. *. Soldat_soldier.grav
 let min_move_delta = 0.63
 let spawn_random = 25.
 let max_grenades = 2
@@ -56,8 +76,21 @@ let box : (float * float) array =
 
 let length ((ax, ay) : float * float) ((bx, by) : float * float) : float = Float.hypot (bx -. ax) (by -. ay)
 
+(* objects/flag.po at its scale of 4: a pole of 24, its foot first, and
+ * a cloth of 10 by 12 at its top; Alpha's cloth to the right (its two
+ * points moved to x = 12), so that the two flags face each other *)
+let flag_shape (team : int) : (float * float) array =
+  let x = if team = 1 then 12. else -10. in
+  [| (0., 12.); (0., -12.); (x, -12.); (x, 0.) |]
+
+let flag_sticks : Particles.stick list =
+  let shape = flag_shape 2 in
+  let l a b : Particles.stick = { a; b; length = length shape.(a) shape.(b) } in
+  [ l 0 1; l 1 2; l 2 3; l 3 0 ]
+
 let sticks (thing : t) : Particles.stick list =
   match thing.kind with
+  | Flag _ -> flag_sticks
   | Weapon g ->
       let (scale, _, _) = rifle g.kind.id in
       [ { a = 1; b = 0; length = 4. *. scale } ]
@@ -73,8 +106,9 @@ let physics (kind : kind) : float * float =
       (damping, weight)
   | Medikit -> (0.989, 1.05)
   | Grenade_kit -> (0.989, 1.07)
+  | Flag _ -> (0.991, 1.0)
 
-let radius (kind : kind) : float = match kind with Weapon _ -> gun_radius | Medikit | Grenade_kit -> kit_radius
+let radius (kind : kind) : float = match kind with Weapon _ -> gun_radius | Medikit | Grenade_kit -> kit_radius | Flag _ -> flag_radius
 
 (*****************************************************************************)
 (* Made *)
@@ -95,13 +129,26 @@ let weapon (s : Soldat_soldier.t) ~(alive : bool) (g : Soldat_soldier.gun) : t =
     let old = (hx, hy +. dy) in
     { (Particles.particle (fst old +. s.vx +. (ax *. throw), snd old +. s.vy +. (ay *. throw))) with old }
   in
-  { kind = Weapon g; points = [| point (2. *. scale) first; point (-2. *. scale) second |]; ttl = gun_time; interest = 0; still = false; facing = s.direction; place = -1; hits = 0 }
+  { kind = Weapon g; points = [| point (2. *. scale) first; point (-2. *. scale) second |]; ttl = gun_time; interest = 0; still = false; facing = s.direction; place = -1; hits = 0; holder = -1; in_base = false }
 
 let kit_at (kind : kind) ((x, y) : float * float) (place : int) : t =
-  { kind; points = Array.map (fun (bx, by) -> Particles.particle (x +. bx, y +. by)) box; ttl = flag_timeout; interest = default_interest; still = false; facing = 1; place; hits = 0 }
+  { kind; points = Array.map (fun (bx, by) -> Particles.particle (x +. bx, y +. by)) box; ttl = flag_timeout; interest = default_interest; still = false; facing = 1; place; hits = 0; holder = -1; in_base = false }
+
+(* where a team's flag stands *)
+let base (map : Soldat_map.t) (team : int) : (float * float) option = if team = 1 then map.alpha_flag else map.bravo_flag
+
+(* a team's flag, standing where the map says: none on a map without *)
+let flag (map : Soldat_map.t) (team : int) : t option =
+  Option.map
+    (fun (x, y) ->
+      { kind = Flag team; points = Array.map (fun (fx, fy) -> Particles.particle (x +. fx, y +. fy)) (flag_shape team);
+        ttl = flag_timeout; interest = flag_interest; still = false; facing = 1; place = -1; hits = 0; holder = -1; in_base = true })
+    (base map team)
+
+let flags (map : Soldat_map.t) : t list = List.filter_map (flag map) [ 1; 2 ]
 
 let places (map : Soldat_map.t) (kind : kind) : (float * float) list =
-  match kind with Medikit -> map.medikit_spawns | Grenade_kit -> map.grenade_spawns | Weapon _ -> []
+  match kind with Medikit -> map.medikit_spawns | Grenade_kit -> map.grenade_spawns | Weapon _ | Flag _ -> []
 
 (* Random(n): a whole number from 0 to n - 1 *)
 let pick ~(random : unit -> float) (n : int) : int = if n <= 0 then 0 else min (n - 1) (int_of_float (random () *. float_of_int n))
@@ -135,6 +182,9 @@ let kits (map : Soldat_map.t) ~(random : unit -> float) : t list =
   medikits @ some Grenade_kit map.grenade_kits
 
 let again (map : Soldat_map.t) ~(random : unit -> float) (thing : t) : t =
+  match thing.kind with
+  | Flag team -> Option.value (flag map team) ~default:thing
+  | _ ->
   match somewhere map ~random thing.kind ~but:thing.place with Some (place, at) -> kit_at thing.kind at place | None -> thing
 
 (*****************************************************************************)
@@ -169,7 +219,66 @@ let lost (map : Soldat_map.t) (thing : t) : bool =
   let bound = (float_of_int map.num *. map.division) -. 10. in
   Array.exists (fun (p : Particles.particle) -> Float.abs (fst p.pos) > bound || Float.abs (snd p.pos) > bound) thing.points
 
-let tick ?(heard : Soldat_event.t list ref option) (map : Soldat_map.t) (thing : t) : t option =
+(* a flag's tick (TThing.Update): its foot is where its carrier's waist
+ * is (the skeleton's point 8) and only its top meets the map; alone,
+ * its foot stops on the ground (tested 10 to each side, and 8 above)
+ * and holds its pole up, its other points bounce *)
+let tick_flag ?(heard : Soldat_event.t list ref option) ?(carried : (float * float) option) (map : Soldat_map.t) (team : int) (thing : t) : t =
+  let touched = ref 0 and lift = ref 0. in
+  let said = ref false in
+  let lands (p : Particles.particle) : unit =
+    if (not !said) && (thing.hits + !touched = 0 || (length p.pos p.old > 1.5 && thing.hits + !touched < 3)) then begin
+      said := true;
+      Option.iter (fun l -> l := Soldat_event.Sound (Flag_fall, p.pos) :: !l) heard
+    end
+  in
+  let in_wall (x, y) = out_of_walls map (Particles.particle (x, y)) <> None in
+  let points =
+    Array.mapi
+      (fun i (p : Particles.particle) ->
+        let (x, y) = p.pos in
+        if carried <> None && i <> 1 then p
+        else if i = 0 then
+          if in_wall (x -. 10., y -. 8.) || in_wall (x +. 10., y -. 8.) || in_wall (x -. 10., y) || in_wall (x +. 10., y) then begin
+            incr touched;
+            lift := !lift +. stand_up;
+            { p with pos = p.old }
+          end
+          else p
+        else
+          match out_of_walls map p with
+          | None -> p
+          | Some out ->
+              lands p;
+              incr touched;
+              (* out along the wall's perp, and leaving that way as fast as it came *)
+              let speed = length p.pos p.old in
+              let (px, py) = (fst p.old -. fst out.pos, snd p.old -. snd out.pos) in
+              let (nx, ny) = normalize (px, py) in
+              let pos = (fst p.pos -. px, snd p.pos -. py) in
+              if i = 1 && carried = None then lift := !lift -. 1.;
+              { p with pos; old = (fst pos +. (nx *. speed), snd pos +. (ny *. speed)) })
+      thing.points
+  in
+  if carried <> None then lift := !lift +. hold_up;
+  let points = if thing.still && carried = None then points else Particles.step ~drag:(1. -. 0.991) ~accel:(0., Soldat_soldier.grav) ~dt:1. points in
+  (* what holds the pole up pulls its top *)
+  if not (thing.still && carried = None) then points.(1) <- { (points.(1)) with pos = (fst points.(1).pos, snd points.(1).pos +. !lift) };
+  let points = if thing.still && carried = None then points else Particles.relax ~iterations:1 flag_sticks points in
+  (* carried: its foot where its carrier's waist is, whatever its sticks say *)
+  (match carried with Some at -> points.(0) <- { (points.(0)) with pos = at } | None -> ());
+  let moved i = length points.(i).pos points.(i).old in
+  let still = carried = None && (thing.still || (!touched >= 2 && (moved 0 +. moved 1) /. 2. < min_move_delta)) in
+  let points = if still && not thing.still then Array.map (fun (p : Particles.particle) -> { p with old = p.pos }) points else points in
+  let in_base = match base map team with Some home -> length points.(0).pos home < base_radius | None -> false in
+  (* at home or carried its time does not run *)
+  let ttl = if in_base || carried <> None then flag_timeout else max 0 (thing.ttl - 1) in
+  { thing with points; still; hits = thing.hits + !touched; in_base; ttl; interest = (if in_base || carried <> None then flag_interest else thing.interest) }
+
+let tick ?(heard : Soldat_event.t list ref option) ?(carried : (float * float) option) (map : Soldat_map.t) (thing : t) : t option =
+  match thing.kind with
+  | Flag team -> Some (tick_flag ?heard ?carried map team thing)
+  | _ ->
   let thing =
     if thing.still then thing
     else begin
@@ -177,10 +286,10 @@ let tick ?(heard : Soldat_event.t list ref option) (map : Soldat_map.t) (thing :
       (* it is heard as it first lands, and while it still bounces hard:
        * a weapon up to 30 times, a kit 3 *)
       let lands (p : Particles.particle) : unit =
-        let often = match thing.kind with Weapon _ -> 30 | Medikit | Grenade_kit -> 3 in
+        let often = match thing.kind with Weapon _ -> 30 | Medikit | Grenade_kit | Flag _ -> 3 in
         let n = thing.hits + !touched in
         if n = 0 || (length p.pos p.old > 1.5 && n < often) then
-          Option.iter (fun l -> l := Soldat_event.Sound ((match thing.kind with Weapon _ -> Weapon_hit | Medikit | Grenade_kit -> Kit_fall), p.pos) :: !l) heard
+          Option.iter (fun l -> l := Soldat_event.Sound ((match thing.kind with Weapon _ -> Weapon_hit | Medikit | Grenade_kit -> Kit_fall | Flag _ -> Flag_fall), p.pos) :: !l) heard
       in
       let points =
         Array.map (fun p -> match out_of_walls map p with Some p -> lands p; incr touched; p | None -> p) thing.points

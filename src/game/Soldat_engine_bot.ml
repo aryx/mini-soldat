@@ -26,7 +26,9 @@ let chest (s : soldier) : float * float = (s.body.x, s.body.y -. 12.)
 let look (p : play) (i : int) (was : (float * float) Sense.target) : (float * float) Sense.target =
   let (mx, my) = chest p.soldiers.(i) in
   let distance j = let (x, y) = chest p.soldiers.(j) in Float.hypot (x -. mx) (y -. my) in
-  let others = List.filter (fun j -> j <> i && p.soldiers.(j).dead = None) (List.init (Array.length p.soldiers) Fun.id) in
+  (* its enemies: everyone, or the other team *)
+  let enemy j = team p.soldiers.(i) = 0 || team p.soldiers.(j) <> team p.soldiers.(i) in
+  let others = List.filter (fun j -> j <> i && p.soldiers.(j).dead = None && enemy j) (List.init (Array.length p.soldiers) Fun.id) in
   match List.sort (fun a b -> compare (distance a) (distance b)) others with
   | [] -> Sense.forget ~after:90 (Sense.update ~distance:Float.infinity ~clear:false ~position:(mx, my) was)
   | j :: _ ->

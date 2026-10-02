@@ -103,6 +103,8 @@ type t = {
   (* a player's: a weapon that fires once a pull does so only in its
    * hands (a bot's fires as long as it holds the trigger) *)
   human : bool;
+  (* its team: 1 Alpha, 2 Bravo; none: 0 *)
+  team : int;
 }
 
 (*****************************************************************************)
@@ -211,7 +213,7 @@ let aim_skeleton (s : t) (points : (float * float) array) : unit =
 let ceasefire_time = 90
 let grenades_at_start = 1
 
-let create ?(primary : Soldat_weapons.id = Socom) ?(human = true) ((x, y) : float * float) (jets : int) : t =
+let create ?(primary : Soldat_weapons.id = Socom) ?(human = true) ?(team = 0) ((x, y) : float * float) (jets : int) : t =
   let s =
     {
       x; y; vx = 0.; vy = 0.; fx = 0.; fy = 0.; old_x = x; old_y = y;
@@ -226,7 +228,7 @@ let create ?(primary : Soldat_weapons.id = Socom) ?(human = true) ((x, y) : floa
       was_running_left = false; was_jumping = false;
       (* with the pistol chosen, it is in the hands and nothing on the back *)
       weapon = gun primary; secondary = gun Socom; grenades = grenades_at_start;
-      ceasefire = ceasefire_time; burst = 0; fired = false; can_throw = true; trigger_released = true; reload_wanted = false; shots = []; dropped = None; events = []; human;
+      ceasefire = ceasefire_time; burst = 0; fired = false; can_throw = true; trigger_released = true; reload_wanted = false; shots = []; dropped = None; events = []; human; team;
     }
   in
   s.skeleton <- place_skeleton s;
@@ -783,7 +785,7 @@ let control (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
  * is a foot (the Pascal's Area 0), else the head (1) *)
 let check_map (map : Soldat_map.t) (s : t) (c : control) (x : float) (y : float) ~(feet : bool) : bool =
   let pos = (x +. s.vx, y +. s.vy) in
-  match List.find_opt (fun (w : Soldat_map.wall) -> Soldat_map.stops_soldier w.kind && Soldat_map.in_wall pos w) (Soldat_map.sector map (fst pos) (snd pos)) with
+  match List.find_opt (fun (w : Soldat_map.wall) -> Soldat_map.stops_soldier ~team:s.team w.kind && Soldat_map.in_wall pos w) (Soldat_map.sector map (fst pos) (snd pos)) with
   | None -> false
   | Some w ->
       s.touched <- w.kind :: s.touched;
@@ -863,7 +865,7 @@ let check_radius (map : Soldat_map.t) (s : t) (x : float) (y : float) : bool =
     &&
     let (sx, sy) = (sx +. dx, sy +. dy) in
     let hit (w : Soldat_map.wall) : bool =
-      Soldat_map.stops_soldier w.kind
+      Soldat_map.stops_soldier ~team:s.team w.kind
       && Array.exists
            (fun (nx, ny) ->
              let pos = (sx -. (nx *. sprite_col_radius), sy -. (ny *. sprite_col_radius)) in
@@ -897,7 +899,7 @@ let check_vertices (map : Soldat_map.t) (s : t) (x : float) (y : float) : bool =
          true
        end
   in
-  List.exists (fun (w : Soldat_map.wall) -> Soldat_map.stops_soldier w.kind && (near w.a || near w.b || near w.c)) (Soldat_map.sector map x y)
+  List.exists (fun (w : Soldat_map.wall) -> Soldat_map.stops_soldier ~team:s.team w.kind && (near w.a || near w.b || near w.c)) (Soldat_map.sector map x y)
 
 (* the head, the feet, the circle, the corners (S:861-918); [c] is the
  * keys as [control] took them *)

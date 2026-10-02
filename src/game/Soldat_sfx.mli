@@ -2,7 +2,7 @@
 
    Soldat has 163 recordings, each a .wav file of its sfx/ folder, and
    a number for each (SFX_AK74_FIRE = 1 ...). Here those the game
-   plays are a type's cases, 70 of them, and [file] gives each one's
+   plays are a type's cases, 47 of them, and [file] gives each one's
    file.
 
    Some sounds are one of several recordings taken by chance, so that
@@ -70,6 +70,10 @@ type t =
   | Dist_gun (* 4 *)
   | Dist_grenade
   | Dist_m79
+  (* the flags *)
+  | Flag_fall (* 2 *)
+  | Capture (* a flag taken *)
+  | Ctf_score (* a flag brought home *)
 
 (* among how many recordings it is taken *)
 val variants : t -> int

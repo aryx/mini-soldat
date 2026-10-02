@@ -139,7 +139,7 @@ let out_of_walls (map : Soldat_map.t) (p : Particles.particle) : Particles.parti
       None
       (Soldat_map.sector map (fst probe) (snd probe))
   in
-  match pushed (x -. 1., y +. 4.) Soldat_map.stops_soldier p with
+  match pushed (x -. 1., y +. 4.) (fun kind -> Soldat_map.stops_soldier kind) p with
   | None -> p
   | Some p ->
       let any (kind : Pms.kind) = kind <> No_collide && kind <> Only_bullets in

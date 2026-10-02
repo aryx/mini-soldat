@@ -138,8 +138,18 @@ type bullet = {
 (* an explosion, where it was and how far it reached *)
 type explosion = { at : float * float; radius : float; age : int }
 
+(* what a round is played for: everyone for itself; two teams, a kill
+ * a point; two teams, each flag brought home a point *)
+type mode = Deathmatch | Team_match | Capture_the_flag
+
 type play = {
   map : Soldat_map.t;
+  mode : mode;
+  (* flags brought home by Alpha and by Bravo *)
+  captures : int * int;
+  (* what just happened to a flag, said for 3 seconds: its words and
+   * the ticks left *)
+  news : (string * int) option;
   (* the point of the map at the screen's middle *)
   camera : float * float;
   soldiers : soldier array;
@@ -192,7 +202,15 @@ type model = {
   rounds : int;
   (* how many bots the player is against (the flag bots) *)
   bots : int;
+  (* the mode asked for (the flag mode); none: the map's own *)
+  mode : mode option;
+  (* which of [maps] the key m asks for next *)
+  next_map : int;
 }
+
+(* the maps whose content this game has (data/maps): the key m goes
+ * round them *)
+let maps : string list = [ "Arena2"; "ctf_Ash" ]
 
 (* Soldat's DEFAULT_HEALTH *)
 let full_health = 150.
@@ -211,8 +229,31 @@ let farthest (map : Soldat_map.t) (others : (float * float) list) : float * floa
 let kill_limit = 10
 let time_limit = 36000
 
+(* and sv_tm_limit, sv_ctf_limit: a team's kills, a team's flags *)
+let team_limit = 60
+let capture_limit = 10
+
+(* the mode a map is for: capture the flag where it has a place for
+ * each flag *)
+let mode_of (map : Soldat_map.t) : mode = if map.alpha_flag <> None && map.bravo_flag <> None then Capture_the_flag else Deathmatch
+
+let team (s : soldier) : int = s.body.team
+let team_name (t : int) : string = match t with 1 -> "Alpha" | 2 -> "Bravo" | _ -> "nobody"
+
+(* a team's points: its flags brought home, or its soldiers' kills *)
+let score (p : play) (t : int) : int =
+  match p.mode with
+  | Capture_the_flag -> if t = 1 then fst p.captures else snd p.captures
+  | Team_match | Deathmatch -> Array.fold_left (fun n (s : soldier) -> if team s = t then n + s.kills else n) 0 p.soldiers
+
+(* the points a round is played to *)
+let limit (p : play) : int = match p.mode with Deathmatch -> kill_limit | Team_match -> team_limit | Capture_the_flag -> capture_limit
+
+(* a team's shirt: Soldat's red and blue *)
+let team_shirt (t : int) : int * int * int = if t = 1 then (210, 15, 5) else (21, 31, 217)
+
 let model_at ?(graphics = graphics_levels) (first : scene) : model =
-  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; rounds = 0; bots = 3 }
+  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; rounds = 0; bots = 3; mode = None; next_map = 1 }
 
 let initial_model ?graphics (map : Soldat_map.t) : model = model_at ?graphics (Title map)
 

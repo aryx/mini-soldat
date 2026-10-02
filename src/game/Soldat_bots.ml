@@ -177,7 +177,8 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
         match sees map look at with
         | Some d when !nearest > d ->
             target := j;
-            seen := true;
+            (* its own team's is no target, and hides who is behind *)
+            seen := not (team me <> 0 && team o = team me);
             if o.dead = None then nearest := d else k.grenade <- false
         | _ -> ()
       end)
@@ -185,6 +186,13 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
   (* who shot it last, if it can see them, before anyone else *)
   let pissed_off = ref (if me.hit_by >= 0 then me.hit_by else brain.pissed_off) in
   if !pissed_off = i then pissed_off := -1;
+  if !pissed_off >= 0 && team me <> 0 && team p.soldiers.(!pissed_off) = team me then pissed_off := -1;
+  (* with the enemy's flag, and seeing one of them who has not ours: it
+   * runs on, along its way home *)
+  let holding = List.exists (fun (t : Soldat_things.t) -> t.holder = i) p.things in
+  let holds j = List.exists (fun (t : Soldat_things.t) -> t.holder = j) p.things in
+  let run_away = !seen && holding && not (holds !target) in
+  if run_away then seen := false;
   if !pissed_off >= 0 then
     if sees map look (head p.soldiers.(!pissed_off)) <> None then begin
       target := !pissed_off;
@@ -198,6 +206,8 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
       old := !current;
       if !next = 0 then next := 1;
       let path = match waypoint map !next with Some w -> w.path | None -> 0 in
+      (* capture the flag: its team's way out; with the flag, the other's, which leads home *)
+      let path = if p.mode = Capture_the_flag then (if holding then 3 - team me else team me) else path in
       (match waypoint map found with Some w when w.path = path || !current = 0 -> current := found | _ -> ());
       match waypoint map !current with
       | None -> ()
@@ -231,6 +241,12 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
             end
           end
           else incr one_place;
+          (* running home, at who shoots it *)
+          if run_away && !pissed_off >= 0 then begin
+            let (ax, ay) = Soldat_bullets.place p.soldiers.(!pissed_off) in
+            k.aim <- (Float.round ax, Float.round (ay -. (175. /. b.weapon.kind.speed) -. float_of_int c.accuracy +. float_of_int (whole c.accuracy)));
+            k.fire <- true
+          end;
           (* back to its own weapon; a clip nearly empty changed *)
           if (b.weapon.kind.id = Socom || b.weapon.kind.id = Hands) && b.secondary.kind.id <> Hands then k.change <- true;
           if b.weapon.ammo < 4 && b.weapon.kind.ammo > 3 then k.reload <- true;
@@ -317,24 +333,43 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
     (fun n (thing : Soldat_things.t) ->
       let wanted =
         match thing.kind with
-        | Medikit -> me.health < full_health
-        | Grenade_kit -> b.grenades < Soldat_things.max_grenades
+        | Medikit -> me.health < full_health && not run_away
+        | Grenade_kit -> b.grenades < Soldat_things.max_grenades && not run_away
         | Weapon _ -> false
+        | Flag _ -> thing.holder <> i
       in
       if (not !see_thing) && wanted then begin
         let (p1x, _) = thing.points.(0).pos and (p2x, p2y) = thing.points.(1).pos in
         match sees map look (p2x, p2y -. 5.) with
         | Some d when d < 350. ->
-            see_thing := true;
-            looked := n :: !looked;
-            if thing.interest - 1 > 0 then begin
-              go_thing := true;
-              (* the nearer of its two ends *)
-              let tx = if (p2x > p1x && fst m > p1x) || (p2x < p1x && fst m <= p2x) then p1x else p2x in
-              if tx >= fst m then k.right <- true else k.left <- true;
-              if bucket (snd m) p2y >= 55 && snd m > p2y then k.jetpack <- true
+            (* a flag: not its own at home (unless it brings the other's
+             * to it); not theirs while its own is away; and theirs at
+             * home only from near *)
+            let mine_home = List.exists (fun (t : Soldat_things.t) -> t.kind = Flag (team me) && t.in_base) p.things in
+            let goes =
+              match thing.kind with
+              | Flag t when t = team me -> if thing.in_base then holding else true
+              | Flag _ -> mine_home && not (thing.in_base && d > 95.)
+              | _ -> true
+            in
+            if goes then begin
+              see_thing := true;
+              if thing.holder < 0 then looked := n :: !looked;
+              if thing.interest - (if thing.holder < 0 then 1 else 0) > 0 then begin
+                go_thing := true;
+                (* the nearer of its two ends *)
+                let tx = if (p2x > p1x && fst m > p1x) || (p2x < p1x && fst m <= p2x) then p1x else p2x in
+                if tx >= fst m then k.right <- true else k.left <- true;
+                (* one of its own carries it home: beside it, it stops
+                 * and crouches, and flies when it does *)
+                if thing.holder >= 0 && team p.soldiers.(thing.holder) = team me && not thing.in_base then begin
+                  if bucket (fst m) tx <= 55 then begin k.right <- false; k.left <- false; k.down <- true end;
+                  k.jetpack <- p.soldiers.(thing.holder).body.jetting
+                end;
+                if bucket (snd m) p2y >= 55 && snd m > p2y then k.jetpack <- true
+              end
+              else go_thing := false
             end
-            else go_thing := false
         | _ -> ()
       end)
     p.things;

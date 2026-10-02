@@ -20,7 +20,8 @@
  * program, or any .pms file named with the flag map), the soldier
  * moves and looks as Soldat's does, and fires Soldat's weapons, by its
  * rules and its numbers, against Soldat's own bots, in a deathmatch
- * as Soldat's: the first to 10 kills. The keys are Soldat's:
+ * as Soldat's, the first to 10 kills; or, on a map with flags, in two
+ * teams that capture each other's. The keys are Soldat's:
  *
  *   a/d    run           w  jump       s  crouch      x  lie down
  *   mouse  aim           left button: shoot     right button: the jets
@@ -44,6 +45,7 @@ let help =
          f      throw the weapon away: empty hands pick another up
          1-9, 0 the weapon to appear with (weapon=N)
          g      the graphics: as each step of the game's making drew it
+         m      on the title: the next map (Arena2, ctf_Ash)
          down and a side, running: a roll; up and a side: a jump sideways
   mouse: aim; left button: shoot; right button (or shift): the jets
   flags: map=FILE  one of Soldat's maps, a .pms file (Arena2 without it)
@@ -56,7 +58,9 @@ let help =
          weapon=N  the weapon to appear with, by its key: 1 Desert Eagles,
                    2 HK MP5, 3 Ak-74, 4 Steyr AUG, 5 Spas-12, 6 Ruger 77,
                    7 M79, 8 Barrett, 9 FN Minimi, 0 Minigun
-         bots=N    how many bots to play against (3)
+         mode=M    dm a deathmatch, tdm two teams, ctf capture the flag
+                   (the map's own without it: ctf where it has flags)
+         bots=N    how many bots to play with and against (3)
          ai=engine the last of them not Soldat's but one on
                    elm-playground's Sense and Bot: it knows only what
                    it has seen, and reacts as late as a hand does
@@ -118,7 +122,11 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
   if List.mem_assoc "mute" flags then Soldat_sound.mute := true;
   (* sparks=N: at most that many are kept (Soldat's r_maxsparks) *)
   Option.iter (fun n -> Soldat_sparks.most := max 0 n) (Option.bind (List.assoc_opt "sparks" flags) int_of_string_opt);
+  (* mode=dm, tdm or ctf: not the map's own *)
+  let mode : Soldat_model.mode option =
+    match List.assoc_opt "mode" flags with Some "dm" -> Some Deathmatch | Some "tdm" -> Some Team_match | Some "ctf" -> Some Capture_the_flag | _ -> None
+  in
   let bots = match Option.bind (List.assoc_opt "bots" flags) int_of_string_opt with Some n when n >= 0 && n <= 15 -> n | _ -> first.bots in
-  let first = { first with primary; bots } in
+  let first = { first with primary; bots; mode } in
   let app = Playground.game Soldat_view.view Soldat_update.update first in
   Playground_platform.run_app ~flags app))

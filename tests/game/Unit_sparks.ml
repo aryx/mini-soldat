@@ -53,7 +53,7 @@ let tests =
           Alcotest.(check int) "a step is one of four" 4 (Soldat_sfx.variants Step);
           (* 6 mod 4 = 2: the third *)
           Alcotest.(check (list string)) "by a number" [ "step"; "step2"; "step3"; "step4"; "step3" ] (List.map (Soldat_sfx.file Step) [ 0; 1; 2; 3; 6 ]);
-          Alcotest.(check int) "82 files in all" 82 (List.length (List.sort_uniq compare Soldat_sfx.files));
+          Alcotest.(check int) "86 files in all" 86 (List.length (List.sort_uniq compare Soldat_sfx.files));
           (* each is in data/sfx (the test's dune rule brings them beside it) *)
           List.iter (fun name -> Alcotest.(check bool) (name ^ ".wav is in data/sfx") true (Sys.file_exists ("../../data/sfx/" ^ name ^ ".wav"))) Soldat_sfx.files);
       Testo.create "how loud, and from where" (fun () ->

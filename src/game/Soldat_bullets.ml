@@ -164,6 +164,10 @@ let push (w : world) (i : int) ((px, py) : float * float) : unit =
  * killer has a kill more -- or one less, if it killed itself *)
 let hurt (w : world) (i : int) ~(by : int) ~(where : int) (amount : float) : unit =
   let s = w.soldiers.(i) in
+  (* its own team's bullets do nothing to it (sv_friendlyfire is off);
+   * its own do *)
+  if by <> i && by >= 0 && team s <> 0 && team w.soldiers.(by) = team s then ()
+  else
   let health = Float.max Soldat_ragdoll.brutal_health (Float.min full_health (s.health -. amount)) in
   let cuts = Soldat_ragdoll.cuts ~health ~where in
   match s.dead with
@@ -240,11 +244,11 @@ type met = Free | Lost | Bounced of bullet | Stopped of (float * float)
 (* CheckMapCollision: the bullet's way sampled, the first point of it
  * in a wall. [lift]: looked for that much above (a grenade is tested
  * twice, 2 above and where it is) *)
-let against_map (map : Soldat_map.t) (b : bullet) ~(lift : float) : met =
+let against_map ?(team = 0) (map : Soldat_map.t) (b : bullet) ~(lift : float) : met =
   let style = (Soldat_weapons.get b.weapon).style in
   let steps = max 1 (int_of_float (Float.max (Float.abs b.vx) (Float.abs b.vy) /. 2.5)) in
   let (sx, sy) = (b.vx /. float_of_int steps, b.vy /. float_of_int steps) in
-  let stops ((x, y) as pos) = List.find_opt (fun (w : Soldat_map.wall) -> Soldat_map.stops_bullet w.kind && Soldat_map.in_edges pos w) (Soldat_map.sector map x y) in
+  let stops ((x, y) as pos) = List.find_opt (fun (w : Soldat_map.wall) -> Soldat_map.stops_bullet ~team w.kind && Soldat_map.in_edges pos w) (Soldat_map.sector map x y) in
   let outside (x, y) = Float.abs (Float.round (x /. map.division)) > float_of_int map.num || Float.abs (Float.round (y /. map.division)) > float_of_int map.num in
   let rec along (k : int) : met =
     if k >= steps then Free
@@ -310,6 +314,8 @@ let update (w : world) (k : int) (b : bullet) : unit =
   let gun = Soldat_weapons.get b.weapon in
   let style = gun.style in
   let bound = (float_of_int w.map.num *. w.map.division) -. 10. in
+  (* its owner's team: a team's wall stops its own bullets only *)
+  let team = if b.owner >= 0 && b.owner < Array.length w.soldiers then w.soldiers.(b.owner).body.team else 0 in
   (* gone, for the others to see, before it acts on them *)
   w.bullets.(k) <- None;
   if Float.abs b.x > bound || Float.abs b.y > bound then ()
@@ -324,10 +330,10 @@ let update (w : world) (k : int) (b : bullet) : unit =
             if Float.hypot b.vx b.vy > 1.5 then emit w (Sound (Grenade_bounce, (b.x, b.y)));
             b'
           in
-          let lifted = match against_map w.map b ~lift:2. with Bounced b' -> bounce b b' | Lost -> lost := true; b | Free | Stopped _ -> b in
-          match against_map w.map lifted ~lift:0. with Bounced b' -> bounce lifted b' | Lost -> lost := true; lifted | Free | Stopped _ -> lifted)
+          let lifted = match against_map ~team w.map b ~lift:2. with Bounced b' -> bounce b b' | Lost -> lost := true; b | Free | Stopped _ -> b in
+          match against_map ~team w.map lifted ~lift:0. with Bounced b' -> bounce lifted b' | Lost -> lost := true; lifted | Free | Stopped _ -> lifted)
       | Plain | Pellets | Explosive -> (
-          match against_map w.map b ~lift:0. with
+          match against_map ~team w.map b ~lift:0. with
           | Free -> b
           | Lost -> lost := true; b
           | Bounced b' ->

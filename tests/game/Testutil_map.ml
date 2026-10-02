@@ -23,11 +23,11 @@ let wall ?(kind : Pms.kind = Normal) (a : float * float) (b : float * float) (c 
 
 (* a map of these walls, every sector seeing them all: 25 sectors of
  * 100 each way *)
-let map ?(spawns = [ (0., -20.) ]) ?(waypoints : Pms.waypoint list = []) ?(medikit_spawns = []) ?(grenade_spawns = []) (walls : Soldat_map.wall list) : Soldat_map.t =
+let map ?(spawns = [ (0., -20.) ]) ?(waypoints : Pms.waypoint list = []) ?(medikit_spawns = []) ?(grenade_spawns = []) ?(alpha_spawns = []) ?(bravo_spawns = []) ?alpha_flag ?bravo_flag (walls : Soldat_map.wall list) : Soldat_map.t =
   let walls = Array.of_list walls in
   let num = 25 in
   let side = (2 * num) + 1 in
-  { name = "test"; pms = None; sky = []; back = []; front = []; walls; division = 100.; num; sectors = Array.make (side * side) (Array.init (Array.length walls) Fun.id); colliders = []; spawns; jet = 190; waypoints = Array.of_list waypoints; medikits = List.length medikit_spawns; grenade_kits = List.length grenade_spawns; medikit_spawns; grenade_spawns }
+  { name = "test"; pms = None; sky = []; back = []; front = []; walls; division = 100.; num; sectors = Array.make (side * side) (Array.init (Array.length walls) Fun.id); colliders = []; spawns; jet = 190; waypoints = Array.of_list waypoints; medikits = List.length medikit_spawns; grenade_kits = List.length grenade_spawns; medikit_spawns; grenade_spawns; alpha_spawns; bravo_spawns; alpha_flag; bravo_flag }
 
 let empty : Soldat_map.t = map []
 

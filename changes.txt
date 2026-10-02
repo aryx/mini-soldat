@@ -5,6 +5,12 @@
 # (with direction from me)
 
 ** Features
+- teams and flags (docs/plan.md's step 7): a soldier's team (its
+  colour, its places to appear at, its walls, no harm from its own);
+  a round's mode, a deathmatch, a team match or capture the flag, the
+  map's own or the flag mode=; the flag, a thing of four points,
+  taken, carried, dropped, sent home, captured; Soldat's bots in
+  teams; ctf_Ash and its content; the key m for the next map
 - heard, and alive (docs/plan.md's step 6). The rules say what a tick
   gave to hear and see as values (Soldat_event); the sparks are made of
   them (Soldat_sparks, from Sparks.pas: shells, clips, blood, chips,

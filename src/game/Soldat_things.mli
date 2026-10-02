@@ -39,7 +39,28 @@
    places for it (its spawn points of "team" 8 for medikits, 7 for
    grenades), not the one it was at.
 
-   Left out: the flags, the bow, the bonus kits (flamer, predator,
+   **A flag** is four points: a pole of 24 units, its foot first, and
+   a cloth at its top.
+
+                 2 o-----o 3
+                   |     |       Bravo's; Alpha's cloth is on the
+                   |     o 4     other side, so that the two face
+                   |    /        each other
+                 1 o---
+
+   Standing, its foot stops on the ground and a force upwards on its
+   top (16 times gravity) keeps the pole up, as a float keeps a line:
+   leaning, for its cloth has no stiffness and its lower corner falls
+   to the ground, 15.6 from the foot, pulling the top its way.
+   Carried, its foot is at its carrier's waist (the skeleton's point
+   8) and the same force, 14 times gravity, holds it over the
+   shoulder; the cloth trails behind by its sticks alone. It is *at
+   home* within 75 units of the place the map gives it; left on the
+   ground elsewhere for 25 seconds, it goes back there by itself. Who
+   takes it and what a capture is are the round's rules
+   (Soldat_update): this module only makes it fall and follow.
+
+   Left out: the bow, the bonus kits (flamer, predator,
    vest, berserker, cluster), the parachute, the knife, the stationary
    gun; a thing hit by a bullet or thrown by an explosion.
 
@@ -48,7 +69,8 @@
    TSprite.DropWeapon (Sprites.pas).
 *)
 
-type kind = Weapon of Soldat_soldier.gun | Medikit | Grenade_kit
+(* [Flag team]: Alpha's (1) or Bravo's (2) *)
+type kind = Weapon of Soldat_soldier.gun | Medikit | Grenade_kit | Flag of int
 
 type t = {
   kind : kind;
@@ -66,6 +88,10 @@ type t = {
   place : int;
   (* times its points have met the map *)
   hits : int;
+  (* a flag: the soldier that carries it (none: -1), and whether it is
+   * within 75 units of where it stands *)
+  holder : int;
+  in_base : bool;
 }
 
 (* GUNRESISTTIME: a weapon's 20 seconds; it may be picked up once 30
@@ -84,14 +110,26 @@ val weapon : Soldat_soldier.t -> alive:bool -> Soldat_soldier.gun -> t
  * game's next number from 0 to 1 *)
 val kits : Soldat_map.t -> random:(unit -> float) -> t list
 
-(* a kit taken, or fallen out of the map: at another place (Respawn) *)
+(* a kit taken, or fallen out of the map: at another place (Respawn);
+ * a flag: back at home, standing, carried by nobody *)
 val again : Soldat_map.t -> random:(unit -> float) -> t -> t
 
 (* a tick later; [heard] is added what was heard of it (its fall on
- * the ground); None: gone (a weapon whose time is over, or out of
+ * the ground). [carried]: a flag's carrier's waist, where its foot
+ * then is. A flag whose [ttl] is 0 has been on the ground too long:
+ * the game puts it [again] at home. None: gone (a weapon whose time is over, or out of
  * the map). A kit out of the map is given back as it is: [lost] says
  * so, and the game puts it [again] *)
-val tick : ?heard:Soldat_event.t list ref -> Soldat_map.t -> t -> t option
+val tick : ?heard:Soldat_event.t list ref -> ?carried:float * float -> Soldat_map.t -> t -> t option
+
+(* a team's flag standing at home, and both: none on a map that has no
+ * place for them *)
+val flag : Soldat_map.t -> int -> t option
+val flags : Soldat_map.t -> t list
+
+(* TOUCHDOWN_RADIUS: a flag carried within this of the other at home
+ * is a capture *)
+val touchdown_radius : float
 val lost : Soldat_map.t -> t -> bool
 
 (* how far a point (a soldier's particle) is from the thing, if within

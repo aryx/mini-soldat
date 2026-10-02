@@ -103,6 +103,13 @@ type t = {
   grenade_kits : int;
   medikit_spawns : (float * float) list;
   grenade_spawns : (float * float) list;
+  (* where each team's soldiers appear (the file's spawn points of
+   * teams 1 and 2), and where its flag stands (5 and 6): a map for
+   * capture the flag has them *)
+  alpha_spawns : (float * float) list;
+  bravo_spawns : (float * float) list;
+  alpha_flag : (float * float) option;
+  bravo_flag : (float * float) option;
 }
 
 (* the game's map for one of Soldat's *)
@@ -127,8 +134,8 @@ val closest_perp : wall -> float * float -> (float * float) * float * int
 val point_line_distance : float * float -> float * float -> float * float -> float
 
 (* which kinds stop a soldier, and a bullet *)
-val stops_soldier : Pms.kind -> bool
-val stops_bullet : Pms.kind -> bool
+val stops_soldier : ?team:int -> Pms.kind -> bool
+val stops_bullet : ?team:int -> Pms.kind -> bool
 
 (* the point is in a wall that stops a bullet: a bullet ends there, a
  * line of sight too *)

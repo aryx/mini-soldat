@@ -60,9 +60,9 @@ scripting). 60 ticks a second (`Constants.pas`'s `DEFAULT_GOALTICKS`).
 | `src/render/Soldat_sparks_view` | `shared/mechanics/Sparks.pas` | a spark drawn (`TSpark.Render`) |
 | `src/game/Soldat_engine_bot` | nothing | one bot on elm-playground's `Sense` and `Bot` (the flag `ai=engine`): an example of that library, beside Soldat's |
 | `src/game/Soldat_model` | `shared/mechanics/Sprites.pas`, `shared/Game.pas` | a soldier (`TSprite`), what it wants to do (`TControl`); the round |
-| `src/game/Soldat_things` | `shared/mechanics/Things.pas` | what lies on the map (`TThing`): a weapon let go of, the kits; their fall, where they appear, who is in reach |
+| `src/game/Soldat_things` | `shared/mechanics/Things.pas` | what lies on the map (`TThing`): a weapon let go of, the kits, the flags; their fall, where they appear, who is in reach |
 | `src/game/Soldat_bots` | `shared/AI.pas`, `shared/Waypoints.pas`, `shared/SharedConfig.pas`; `server/configs/bots/` | the bots (`ControlBot`, `SimpleDecision`, `GoToThing`), along the map's waypoints; a bot's file read (`LoadBotConfig`) |
-| `src/game/Soldat_update` | `client/UpdateFrame.pas`, `server/ServerLoop.pas`, `shared/Game.pas` | a tick's order; what the special polygons do (`HandleSpecialPolyTypes`); a thing picked up; the respawn; the kill and time limits |
+| `src/game/Soldat_update` | `client/UpdateFrame.pas`, `server/ServerLoop.pas`, `shared/Game.pas` | a tick's order; what the special polygons do (`HandleSpecialPolyTypes`); a thing picked up; a flag taken, returned, captured (`TThing.CheckSpriteCollision`, `Update`); the teams; the respawn; the limits |
 | `src/render/Soldat_gostek` | `client/GostekGraphics.pas`, `GostekGraphics.inc` | the soldier drawn: the table of its parts, each a picture between two points of the skeleton (`RenderGostek`, `DrawGostekSprite`) |
 | `src/render/Soldat_scene`, `Soldat_raster` | `client/MapGraphics.pas`, `client/Gfx.pas` | the map drawn: its textured polygons, its props in three layers (there by OpenGL each frame; here once, into tiles) |
 | `src/assets/Soldat_assets`, `Bmp` | `client/Gfx.pas` (stb_image), PhysFS | the content's files got and decoded |

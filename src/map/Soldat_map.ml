@@ -38,25 +38,29 @@ type t = {
   grenade_kits : int;
   medikit_spawns : (float * float) list;
   grenade_spawns : (float * float) list;
+  alpha_spawns : (float * float) list;
+  bravo_spawns : (float * float) list;
+  alpha_flag : (float * float) option;
+  bravo_flag : (float * float) option;
 }
 
 (*****************************************************************************)
 (* The kinds *)
 (*****************************************************************************)
 
-let stops_soldier (kind : Pms.kind) : bool =
+(* [team]: whose soldier, or whose bullet (1 Alpha, 2 Bravo; none: 0).
+ * A team's wall stops its own and nobody else (TeamCollides) *)
+let stops_soldier ?(team = 0) (kind : Pms.kind) : bool =
   match kind with
   | Normal | Only_players | Ice | Deadly | Bloody_deadly | Hurts | Regenerates | Lava | Bouncy | Explodes | Hurts_flaggers | Not_flaggers -> true
-  | Only_bullets | No_collide | Team_bullets _ | Team_players _ | Only_flaggers | Non_flagger_collides | Background | Background_transition
-  | Unknown _ ->
-      false
+  | Team_players n -> n = team
+  | Only_bullets | No_collide | Team_bullets _ | Only_flaggers | Non_flagger_collides | Background | Background_transition | Unknown _ -> false
 
-let stops_bullet (kind : Pms.kind) : bool =
+let stops_bullet ?(team = 0) (kind : Pms.kind) : bool =
   match kind with
   | Normal | Only_bullets | Ice | Deadly | Bloody_deadly | Hurts | Regenerates | Lava | Bouncy | Explodes | Hurts_flaggers -> true
-  | Only_players | No_collide | Team_bullets _ | Team_players _ | Only_flaggers | Not_flaggers | Non_flagger_collides | Background
-  | Background_transition | Unknown _ ->
-      false
+  | Team_bullets n -> n = team
+  | Only_players | No_collide | Team_players _ | Only_flaggers | Not_flaggers | Non_flagger_collides | Background | Background_transition | Unknown _ -> false
 
 (*****************************************************************************)
 (* Points and walls *)
@@ -203,6 +207,11 @@ let of_pms (pms : Pms.t) : t =
     (* the spawn points of "teams" 8 and 7 (SpawnThings) *)
     medikit_spawns = spawns_of (fun team -> team = 8);
     grenade_spawns = spawns_of (fun team -> team = 7);
+    (* the two teams' own places, and their flags' (5 and 6) *)
+    alpha_spawns = spawns_of (fun team -> team = 1);
+    bravo_spawns = spawns_of (fun team -> team = 2);
+    alpha_flag = List.nth_opt (spawns_of (fun team -> team = 5)) 0;
+    bravo_flag = List.nth_opt (spawns_of (fun team -> team = 6)) 0;
   }
 
 let arena2 : t Lazy.t =

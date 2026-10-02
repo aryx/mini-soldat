@@ -80,7 +80,8 @@ Ported so far (`docs/plan.md`'s "Done"): the maps (`Pms`,
 (`Soldat_scene`, `Soldat_raster`), the weapons (`Soldat_weapons`, the
 guns in `Soldat_soldier`, `Soldat_bullets`, the cuts of
 `Soldat_ragdoll`), the things (`Soldat_things`), Soldat's bots
-(`Soldat_bots`), a deathmatch's rules (`Soldat_update`), the sparks
+(`Soldat_bots`), a round's rules (`Soldat_update`: a deathmatch, a
+team match, capture the flag, with the flags of `Soldat_things`), the sparks
 (`Soldat_sparks`, `Soldat_sparks_view`) and the sounds (`Soldat_sfx`,
 `Soldat_sound`). Of
 TinySoldat one thing is kept, on purpose: `Soldat_engine_bot`, a bot on
@@ -172,7 +173,9 @@ Program flags are words, `name` or `name=value`
 `hitboxes` (draw the points the game tests), `sticks` (the skeletons
 over the soldiers), `waypoints` (the map's, the bots' paths, with the
 keys each says to hold), and, read by the main before the game starts:
-`bots=N` (how many to play against: 3), `ai=engine` (the last of
+`mode=dm|tdm|ctf` (the map's own without it: capture the flag where
+the map has the two flags' places), `bots=N` (how many to play with
+and against: 3), `ai=engine` (the last of
 them the bot on `Sense` and `Bot`), `mute` (no sound), `sparks=N` (at
 most N sparks: 558, or 150 in a browser),
 `map=FILE` (a `.pms`; `~/` understood), `map=NAME` (`maps/NAME.pms`
@@ -199,7 +202,9 @@ by `Gen_assets` at `make website`), never as PNG: elm-playground's
 `Png.decode` is quadratic there.
 
 The keys are Soldat's: a/d, w (jump), s (crouch), x (prone), the left
-button (fire), the right one or shift (jets); space starts a round. In
+button (fire), the right one or shift (jets), r, q, e, f, 1 to 0;
+space starts a round, m on the title asks for the next map
+(`Soldat_model.maps`: those whose content is in `data/`). In
 a `-script`, `d:10-70` holds d, `at(300;120):3-200` puts the mouse
 there (the screen's units, from its middle, y upwards) and `click:60-90`
 holds its button; without an `at` the mouse is at the screen's middle
