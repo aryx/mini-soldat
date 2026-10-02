@@ -8,4 +8,4 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
-let () = Testo.interpret_argv ~project_name:"game" (fun _env -> Unit_soldier.tests @ Unit_soldat.tests)
+let () = Testo.interpret_argv ~project_name:"game" (fun _env -> Unit_soldier.tests @ Unit_weapons.tests @ Unit_soldat.tests)

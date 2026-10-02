@@ -27,10 +27,25 @@ type control = {
   down : bool;
   jetpack : bool;
   prone : bool;
+  fire : bool;
+  reload : bool;
+  change : bool;
+  grenade : bool;
   aim : float * float;
 }
 
-let no_control : control = { left = false; right = false; up = false; down = false; jetpack = false; prone = false; aim = (0., 0.) }
+let no_control : control =
+  { left = false; right = false; up = false; down = false; jetpack = false; prone = false; fire = false; reload = false; change = false; grenade = false; aim = (0., 0.) }
+
+(* a weapon in a soldier's hands or on its back: TGun's counters *)
+type gun = { kind : Soldat_weapons.t; ammo : int; fire_count : int; reload_count : int; startup_count : int }
+
+let gun (id : Soldat_weapons.id) : gun =
+  let kind = Soldat_weapons.get id in
+  { kind; ammo = kind.ammo; fire_count = 0; reload_count = kind.reload_time; startup_count = kind.startup }
+
+(* a bullet leaving a soldier, or a grenade its hand *)
+type shot = { from : float * float; velocity : float * float; weapon : Soldat_weapons.id }
 
 type t = {
   (* the particle: where it is, its speed, what pushes it until the next
@@ -61,6 +76,25 @@ type t = {
   (* a player holding left and right at once: what it was doing before *)
   mutable was_running_left : bool;
   mutable was_jumping : bool;
+  (* the weapon in its hands, the one on its back, its grenades *)
+  mutable weapon : gun;
+  mutable secondary : gun;
+  mutable grenades : int;
+  (* ticks before it may fire or be hit (CeaseFireCounter) *)
+  mutable ceasefire : int;
+  (* shots since the trigger was pulled (BurstCount) *)
+  mutable burst : int;
+  (* it fired this tick: its muzzle's fire is drawn (Fired) *)
+  mutable fired : bool;
+  (* the grenade's key was let go since the last throw (GrenadeCanThrow) *)
+  mutable can_throw : bool;
+  (* the shotgun: the trigger let go since its last shot
+   * (CanAutoReloadSpas), and a reload asked while it could not yet
+   * (AutoReloadWhenCanFire) *)
+  mutable trigger_released : bool;
+  mutable reload_wanted : bool;
+  (* what left it this tick, the first first *)
+  mutable shots : shot list;
 }
 
 (*****************************************************************************)
@@ -165,7 +199,11 @@ let aim_skeleton (s : t) (points : (float * float) array) : unit =
     set 19 (hand_x +. (nx *. arm), hand_y -. 4. +. (ny *. arm))
   end
 
-let create ((x, y) : float * float) (jets : int) : t =
+(* DEFAULT_CEASEFIRE_TIME, and half of sv_maxgrenades' 2 *)
+let ceasefire_time = 90
+let grenades_at_start = 1
+
+let create ?(primary : Soldat_weapons.id = Socom) ((x, y) : float * float) (jets : int) : t =
   let s =
     {
       x; y; vx = 0.; vy = 0.; fx = 0.; fy = 0.; old_x = x; old_y = y;
@@ -178,6 +216,9 @@ let create ((x, y) : float * float) (jets : int) : t =
       aim_x = x; aim_y = y;
       skeleton = [||]; old_skeleton = [||];
       was_running_left = false; was_jumping = false;
+      (* with the pistol chosen, it is in the hands and nothing on the back *)
+      weapon = gun primary; secondary = gun Socom; grenades = grenades_at_start;
+      ceasefire = ceasefire_time; burst = 0; fired = false; can_throw = true; trigger_released = true; reload_wanted = false; shots = [];
     }
   in
   s.skeleton <- place_skeleton s;
@@ -218,12 +259,240 @@ let legs_apply (s : t) (id : Soldat_anims.id) (frame : int) : unit =
 let body_apply (s : t) (id : Soldat_anims.id) (frame : int) : unit = if id <> s.body.id then s.body <- Soldat_anims.start id frame
 
 (*****************************************************************************)
+(* The weapons *)
+(*****************************************************************************)
+
+let frame_to (s : t) (frame : int) : unit = s.body <- { s.body with frame }
+
+(* GetCursorAimDirection: from the hand to the cursor *)
+let aim_direction (s : t) : float * float =
+  let (hx, hy) = point s 15 in
+  normalize (s.aim_x -. hx, s.aim_y -. hy)
+
+(* GetMoveacc (S:4870): how much moving spoils the aim *)
+let move_acc (s : t) (w : Soldat_weapons.t) ~(jetting : bool) : float =
+  if w.movement_acc <= 0. then 0.
+  else
+    match s.legs.id with
+    | _ when jetting -> w.movement_acc *. 7.
+    | Jump | Jump_side | Run | Run_back | Roll | Roll_back -> w.movement_acc *. 7.
+    | Get_up -> w.movement_acc *. 3.
+    | Prone -> if Soldat_anims.ended s.legs then 0. else w.movement_acc *. 3.
+    | Prone_move | Crouch | Crouch_run | Crouch_run_back -> 0.
+    | _ -> if s.on_ground_permanent then 0. else w.movement_acc *. 3.
+
+(* MAX_INACCURACY *)
+let max_inaccuracy = 0.5
+
+(* the body's animation after a shot (the end of TSprite.Fire) *)
+let recoil (s : t) (w : Soldat_weapons.t) : unit =
+  let free = s.body.id <> Throw && s.body.id <> Get_up && s.body.id <> Melee in
+  let crouched () = if s.stance = Crouching then body_apply s (if s.body.id = Hands_up_aim then Hands_up_recoil else Aim_recoil) 1 in
+  match w.id with
+  | Ak74 | Minimi | Mp5 | Eagles | Steyr | Socom ->
+      if free && s.stance = Standing then body_apply s Small_recoil 1;
+      crouched ()
+  | Ruger ->
+      if free && s.stance = Standing then body_apply s Recoil 1;
+      crouched ()
+  | Spas ->
+      if free && s.stance <> Lying then body_apply s Shotgun 1;
+      (* lying, a shot ends the loading of shells *)
+      if s.stance = Lying && s.body.id = Reload then frame_to s (Soldat_anims.frames Reload)
+  | M79 -> if free && s.stance <> Lying then body_apply s Small_recoil 1
+  | Barrett -> if free then body_apply s Barret 1
+  | Minigun -> if free && s.stance = Standing then body_apply s Small_recoil 2
+  | Grenade -> ()
+
+(* TSprite.Fire (S:4024). [random]: a number from 0 to 1, the next of
+ * the game's *)
+let fire (map : Soldat_map.t) (s : t) ~(jetting : bool) ~(random : unit -> float) : unit =
+  let w = s.weapon.kind in
+  let (ax, ay) = aim_direction s in
+  let (hx, hy) = point s 15 in
+  let from = (hx -. (ax *. 4.), hy -. (ay *. 4.) -. 2.) in
+  (* how wrong the aim may be: moving, and the weapon's own scatter,
+   * less when crouched or lying *)
+  let scatter =
+    if w.id = Eagles || w.style = Pellets || w.spread <= 0. then 0.
+    else
+      match s.legs.id with
+      | Prone_move -> w.spread /. 1.625
+      | Prone when s.legs.frame > 23 -> w.spread /. 1.625
+      | Crouch_run | Crouch_run_back -> w.spread /. 1.3
+      | Crouch when s.legs.frame > 13 -> w.spread /. 1.3
+      | _ -> w.spread
+  in
+  let inaccuracy = Float.min max_inaccuracy ((move_acc s w ~jetting +. scatter) *. 0.25) in
+  let deviation = max_inaccuracy *. sin (inaccuracy /. max_inaccuracy *. (Float.pi /. 2.)) in
+  let either () = ((random () *. 2.) -. 1.) in
+  let dx = either () *. deviation in
+  let dy = either () *. deviation in
+  let (bx, by) = normalize (ax +. dx, ay +. dy) in
+  let (bx, by) = ((bx *. w.speed) +. (s.vx *. w.inherited), (by *. w.speed) +. (s.vy *. w.inherited)) in
+  (* the muzzle in a wall (a head under a ceiling): a little lower *)
+  let from = if Soldat_map.in_bullet_wall map from then (fst from, snd from +. 2.5) else from in
+  let spread () =
+    let x = bx +. (either () *. w.spread) in
+    let y = by +. (either () *. w.spread) in
+    (x, y)
+  in
+  let shots =
+    if w.id = Eagles then begin
+      (* two, the second beside the first, across its way *)
+      let first = spread () in
+      let second = spread () in
+      let (nx, ny) = normalize (bx, by) in
+      let sign v = if v > 0. then 1. else if v < 0. then -1. else 0. in
+      let beside = (fst from -. (sign bx *. Float.abs ny *. 3.), snd from +. (sign by *. Float.abs nx *. 3.)) in
+      [ { from; velocity = first; weapon = w.id }; { from = beside; velocity = second; weapon = w.id } ]
+    end
+    else if w.style = Pellets then begin
+      let pellets = List.init 6 (fun _ -> { from; velocity = spread (); weapon = w.id }) in
+      (* the shotgun's kick *)
+      s.vx <- s.vx -. (bx *. 0.0412);
+      s.vy <- s.vy -. (by *. 0.041);
+      pellets
+    end
+    else [ { from; velocity = (bx, by); weapon = w.id } ]
+  in
+  if w.id = Minigun then begin
+    let (kx, ky) = if jetting then (bx *. 0.0012, by *. 0.0009) else (bx *. 0.0082, by *. 0.0078) in
+    s.vx <- s.vx -. (kx *. 0.6);
+    s.vy <- s.vy -. ky
+  end;
+  s.shots <- s.shots @ shots;
+  if w.id = Spas then s.trigger_released <- false;
+  s.weapon <- { s.weapon with ammo = max 0 (s.weapon.ammo - 1); fire_count = w.fire_interval };
+  s.fired <- true;
+  recoil s w;
+  if s.burst < 255 then s.burst <- s.burst + 1
+
+(* the body's animation for a reload begun before something else took
+ * the hands (the end of ThrowGrenade) *)
+let resume_reload (s : t) : unit =
+  let g = s.weapon in
+  if g.ammo = 0 then begin
+    if g.reload_count > g.kind.clip_out then body_apply s Clip_out 1;
+    if g.reload_count < g.kind.clip_out then body_apply s Clip_in 1;
+    if g.reload_count < g.kind.clip_in && g.reload_count > 0 then body_apply s Slide_back 1
+  end
+
+(* TSprite.ThrowGrenade (S:4755): the key held winds the arm up, let go
+ * it throws, harder the longer it was held *)
+let throw_grenade (map : Soldat_map.t) (s : t) (c : control) : unit =
+  if not c.grenade then s.can_throw <- true;
+  if s.can_throw && c.grenade && s.body.id <> Roll && s.body.id <> Roll_back then body_apply s Throw 1;
+  if s.body.id = Throw && ((not c.grenade) || s.body.frame = 36) then begin
+    let frame = s.body.frame in
+    if frame > 14 && frame < 37 && s.grenades > 0 && s.ceasefire = 0 then begin
+      let w = Soldat_weapons.get Grenade in
+      let (ax, ay) = aim_direction s in
+      (* a little arc, none when thrown straight up or down *)
+      let sign = if ax > 0. then 1. else if ax < 0. then -1. else 0. in
+      let arc = sign /. 8. *. (1. -. Float.abs ay) in
+      let (bx, by) = normalize (ax +. (sin (ay *. Float.pi /. 2.) *. arc), ay -. (sin (ax *. Float.pi /. 2.) *. arc)) in
+      let power = float_of_int frame /. w.speed *. if frame < 24 then 0.65 else 1. in
+      let (bx, by) = ((bx *. power) +. (s.vx *. w.inherited), (by *. power) +. (s.vy *. w.inherited)) in
+      let (hx, hy) = point s 15 in
+      let from = (hx +. (bx *. 3.), hy -. 2. +. (by *. 3.)) in
+      if (not (Soldat_map.in_bullet_wall map from)) && Soldat_map.clear map (s.x, s.y -. 12.) from then begin
+        s.shots <- s.shots @ [ { from; velocity = (bx, by); weapon = Grenade } ];
+        s.grenades <- s.grenades - 1
+      end
+    end;
+    if c.grenade then s.can_throw <- false;
+    resume_reload s
+  end
+
+(* what of ControlSprite is the weapon's (C:426-760): the trigger, the
+ * grenade, the change, the reload *)
+let weapons (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float) : unit =
+  s.fired <- false;
+  let w = s.weapon.kind in
+  let jetting = c.jetpack && s.jets > 0 in
+  let rolling = s.body.id = Roll || s.body.id = Roll_back in
+  (* the trigger *)
+  if (not rolling) && s.body.id <> Melee && s.body.id <> Change then begin
+    if s.body.id <> Hands_up_aim || s.body.frame = 11 then
+      if c.fire && s.ceasefire = 0 then begin
+        if s.weapon.fire_count = 0 && s.weapon.ammo > 0 then
+          (* the Barrett and the minigun: held a while first *)
+          if w.startup > 0 && s.weapon.startup_count > 0 then s.weapon <- { s.weapon with startup_count = s.weapon.startup_count - 1 }
+          else fire map s ~jetting ~random
+      end
+      else s.weapon <- { s.weapon with startup_count = w.startup }
+  end
+  else begin
+    s.weapon <- { s.weapon with startup_count = w.startup };
+    s.burst <- 0
+  end;
+  if not c.fire then s.burst <- 0;
+  (* once a pull: the trigger still held, the next shot does not come *)
+  if w.single_shot && c.fire && (s.burst > 0 || c.reload) && s.weapon.fire_count < 2 then
+    s.weapon <- { s.weapon with fire_count = s.weapon.fire_count + 1 };
+  throw_grenade map s c;
+  if (not rolling) && c.change then body_apply s Change 1;
+  (* the reload's key: the clip is let go, full or not; the shotgun is
+   * loaded shell by shell instead *)
+  let w = s.weapon.kind in
+  if s.body.id <> Roll && s.body.id <> Roll_back && s.body.id <> Change && c.reload && s.weapon.ammo <> w.ammo then begin
+    if w.id = Spas then begin
+      if s.weapon.fire_count = 0 then body_apply s Reload 1 else s.reload_wanted <- true
+    end
+    else s.weapon <- { s.weapon with ammo = 0; fire_count = w.fire_interval };
+    s.burst <- 0
+  end;
+  (* a shell in, at the 14th frame of loading; and again if not full *)
+  if s.body.id = Reload && s.body.frame = 7 then frame_to s 8;
+  if ((not c.fire) || s.weapon.ammo = 0) && s.body.id = Reload && s.body.frame = 14 then begin
+    s.weapon <- { s.weapon with ammo = s.weapon.ammo + 1 };
+    if s.weapon.ammo < w.ammo then frame_to s 1
+  end;
+  (* the change: the two weapons swapped at its 25th frame *)
+  if s.body.id = Change && s.body.frame = 2 then frame_to s 3;
+  if s.body.id = Change && s.body.frame = 25 then begin
+    let held = s.weapon in
+    s.weapon <- { s.secondary with startup_count = s.secondary.kind.startup };
+    s.secondary <- held;
+    s.burst <- 0
+  end;
+  if s.body.id = Change && Soldat_anims.ended s.body && s.weapon.ammo = 0 then body_apply s Stand 1
+
+(* the weapon's counters (S:923-1010), at the end of a tick *)
+let weapon_timers (s : t) (c : control) : unit =
+  let g = s.weapon in
+  let w = g.kind in
+  if g.fire_count > 0 && (g.ammo > 0 || w.id = Spas) then s.weapon <- { g with fire_count = g.fire_count - 1 };
+  if not c.fire then s.trigger_released <- true;
+  (* empty: it reloads by itself *)
+  let hands_taken = match s.body.id with Roll | Roll_back | Melee | Change | Throw | Throw_weapon -> true | _ -> false in
+  if s.weapon.ammo = 0 && not hands_taken then begin
+    if s.body.id <> Get_up then begin
+      (* the shotgun waits for its interval, then loads; the others the
+       * other way round *)
+      if w.id = Spas then begin
+        if s.weapon.fire_count = 0 && s.trigger_released then body_apply s Reload 1
+      end
+      else if s.body.id <> Clip_in && s.body.id <> Slide_back then body_apply s Clip_out 1;
+      s.burst <- 0
+    end;
+    if w.id <> Spas then begin
+      let g = s.weapon in
+      let reload_count = max 0 (g.reload_count - 1) in
+      s.weapon <-
+        (if reload_count < 1 then { g with reload_count = w.reload_time; fire_count = w.fire_interval; startup_count = w.startup; ammo = w.ammo }
+         else { g with reload_count; fire_count = w.fire_interval })
+    end
+  end
+
+(*****************************************************************************)
 (* The keys *)
 (*****************************************************************************)
 
 (* ControlSprite, what of it moves a soldier. What it gives back is the
  * keys as it took them: never left and right at once *)
-let control (s : t) (c : control) : control =
+let control (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float) : control =
   (* left and right at once (C:176-202): in a jump the old way goes on,
    * else the new one wins *)
   let pressed_left_right = c.left && c.right in
@@ -262,6 +531,7 @@ let control (s : t) (c : control) : control =
     if s.legs.id <> Get_up && s.body.id <> Roll && s.body.id <> Roll_back then legs_apply s Fall 1;
     s.jets <- s.jets - 1
   end;
+  weapons map s c ~random;
   (* going prone (C:863-882) *)
   if !prone && s.legs.id <> Get_up && s.legs.id <> Prone && s.legs.id <> Prone_move then begin
     legs_apply s Prone 1;
@@ -386,6 +656,11 @@ let control (s : t) (c : control) : control =
     else s.fx <- way *. flyspeed
   end
   else legs_apply s (if s.on_ground then Stand else Fall) 1;
+  (* a reload's hands (C:2029-2036): the new clip in when the old one
+   * is out, then the slide *)
+  if s.weapon.reload_count = s.weapon.kind.clip_out && s.body.id <> Reload && s.body.id <> Reload_bow && s.body.id <> Roll && s.body.id <> Roll_back then
+    body_apply s Clip_in 1;
+  if s.weapon.reload_count = s.weapon.kind.clip_in then body_apply s Slide_back 1;
   (* a roll's legs and body kept together (C:2043-2066) *)
   if s.legs.id = Roll && s.body.id <> Roll then body_apply s Roll 1;
   if s.body.id = Roll && s.legs.id <> Roll then legs_apply s Roll 1;
@@ -406,13 +681,21 @@ let control (s : t) (c : control) : control =
     else if down then crouched ();
     body_apply s Stand 1
   end;
-  (* what the body does when it has nothing else to do (C:2117-2178);
-   * with weapons, when their animations are over *)
-  let busy = match s.body.id with Roll | Roll_back | Prone | Get_up | Prone_move -> true | _ -> false in
-  if (not busy) || (Soldat_anims.ended s.body && s.body.id <> Prone) then begin
+  (* what the body does when it has nothing else to do (C:2117-2178):
+   * with a loaded weapon, when its hands are free or their animation
+   * is over. Empty, they stay on the reload *)
+  let busy =
+    match s.body.id with
+    | Recoil | Small_recoil | Aim_recoil | Hands_up_recoil | Shotgun | Barret | Change | Throw_weapon | Weapon_none | Punch | Roll | Roll_back
+    | Reload_bow | Cigar | Match | Smoke | Wipe | Take_off | Groin | Piss | Mercy | Mercy2 | Victory | Own | Reload | Prone | Get_up
+    | Prone_move | Melee ->
+        true
+    | _ -> c.grenade
+  in
+  if s.weapon.ammo > 0 && ((not busy) || (Soldat_anims.ended s.body && s.body.id <> Prone) || (s.weapon.fire_count = 0 && s.body.id = Barret)) then begin
     match s.stance with
     | Standing -> body_apply s Stand 1
-    | Crouching -> body_apply s Aim 1
+    | Crouching -> body_apply s Aim (if s.body.id = Aim_recoil then 6 else 1)
     | Lying -> body_apply s Prone 26
   end;
   (* how it stands is what its legs do (C:2180-2189) *)
@@ -558,11 +841,17 @@ let collide (map : Soldat_map.t) (s : t) (c : control) : unit =
 (* A tick *)
 (*****************************************************************************)
 
-let tick (map : Soldat_map.t) ~(ticks : int) (before : t) (c : control) : t =
-  let s = { before with x = before.x } in
+let tick (map : Soldat_map.t) ~(ticks : int) ~(random : unit -> float) (before : t) (c : control) : t =
+  let s = { before with shots = [] } in
   (* client/UpdateFrame.pas: the step, then TSprite.Update *)
   euler s;
-  let c = control s c in
+  s.ceasefire <- max 0 (s.ceasefire - 1);
+  (* the shotgun's reload asked while it could not: now it can (S:515) *)
+  if s.reload_wanted && (s.weapon.kind.id <> Spas || s.weapon.fire_count = 0) then begin
+    s.reload_wanted <- false;
+    if s.weapon.kind.id = Spas && s.body.id <> Roll && s.body.id <> Roll_back && s.body.id <> Change && s.weapon.ammo <> s.weapon.kind.ammo then body_apply s Reload 1
+  end;
+  let c = control map s c ~random in
   s.direction <- (if s.aim_x >= s.x then 1 else -1);
   s.old_skeleton <- s.skeleton;
   s.skeleton <- place_skeleton s;
@@ -570,6 +859,7 @@ let tick (map : Soldat_map.t) ~(ticks : int) (before : t) (c : control) : t =
   s.body <- Soldat_anims.advance s.body;
   s.legs <- Soldat_anims.advance s.legs;
   collide map s c;
+  weapon_timers s c;
   (* the jets fill again when not used: every tick on the ground, every
    * other in the air (S:1182-1186) *)
   if s.jets < map.jet && (not c.jetpack) && (s.on_ground || ticks mod 2 = 0) then s.jets <- s.jets + 1;

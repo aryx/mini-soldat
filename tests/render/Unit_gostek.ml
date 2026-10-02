@@ -19,9 +19,9 @@ let tests =
   Testo.categorize "Gostek"
     [
       Testo.create "the table" (fun () ->
-          Alcotest.(check int) "17 parts: 16 of the body and the gun" 17 (List.length Soldat_gostek.parts);
+          Alcotest.(check int) "the 16 parts of the body" 16 (List.length Soldat_gostek.parts);
           Alcotest.(check (list string)) "the left side first, the right arm last, over the gun"
-            [ "Left_Thigh"; "Primary_Socom"; "Right_Arm"; "Right_Forearm"; "Right_Hand" ]
+            [ "Left_Thigh"; "Right_Arm"; "Right_Forearm"; "Right_Hand" ]
             (List.filteri (fun i _ -> i = 0 || i >= 13) (List.map (fun (p : Soldat_gostek.part) -> p.name) Soldat_gostek.parts));
           Alcotest.(check bool) "between points of the skeleton" true
             (List.for_all (fun (p : Soldat_gostek.part) -> p.from_ >= 1 && p.from_ <= 20 && p.to_ >= 1 && p.to_ <= 20) Soldat_gostek.parts);
@@ -72,8 +72,24 @@ let tests =
           let point n = (float_of_int n, float_of_int (n * 2)) in
           List.iter
             (fun (direction, jets, dead) ->
-              Alcotest.(check int) "17 shapes" 17 (List.length (Soldat_gostek.view colors ~point ~direction ~jets ~dead)))
+              Alcotest.(check int) "16 shapes" 16 (List.length (Soldat_gostek.view colors ~point ~direction ~jets ~dead)))
             [ (1, false, false); (-1, false, false); (1, true, false); (-1, true, false); (1, false, true); (-1, false, true) ]);
+      Testo.create "the weapons' parts" (fun () ->
+          let names parts = List.map (fun (p : Soldat_gostek.part) -> p.image) parts in
+          Alcotest.(check (list string)) "a rifle, its clip, its fire" [ "ak74"; "ak74-clip"; "ak74-fire" ] (names (Soldat_gostek.in_hands Ak74 ~clip:true ~fire:true));
+          Alcotest.(check (list string)) "the clip out, between two shots" [ "ak74" ] (names (Soldat_gostek.in_hands Ak74 ~clip:false ~fire:false));
+          Alcotest.(check (list string)) "the shotgun has no clip" [ "spas12" ] (names (Soldat_gostek.in_hands Spas ~clip:true ~fire:false));
+          Alcotest.(check (list string)) "the minigun's belt goes under it" [ "minigun-clip"; "minigun" ] (names (Soldat_gostek.in_hands Minigun ~clip:true ~fire:false));
+          Alcotest.(check (list string)) "a rifle on the back" [ "ak74" ] (names (Soldat_gostek.on_back Ak74));
+          Alcotest.(check (list string)) "a pistol is not shown there" [] (names (Soldat_gostek.on_back Socom));
+          let gun = List.hd (Soldat_gostek.in_hands Ak74 ~clip:false ~fire:false) in
+          Alcotest.(check (option string)) "its mirror" (Some "ak74-2") gun.left;
+          Alcotest.(check (pair int int)) "from the hand to the arm's end" (16, 15) (gun.from_, gun.to_);
+          (* the pistol's picture is the program's; with it in the hands, a shape more *)
+          let colors : Soldat_gostek.colors = { shirt = (220, 60, 50); trousers = (110, 30, 25); skin = (230, 180, 120) } in
+          let point n = (float_of_int n, float_of_int (n * 2)) in
+          let shapes = Soldat_gostek.view ~weapon:(Soldat_gostek.in_hands Socom ~clip:false ~fire:false) colors ~point ~direction:1 ~jets:false ~dead:false in
+          Alcotest.(check int) "17 shapes with the pistol" 17 (List.length shapes));
       Testo.create "a picture, tinted and turned over, made once" (fun () ->
           let plain = Soldat_gostek.picture "klata" (255, 255, 255) false in
           let red = Soldat_gostek.picture "klata" (255, 0, 0) false in

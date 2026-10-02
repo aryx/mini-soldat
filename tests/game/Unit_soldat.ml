@@ -75,7 +75,7 @@ let death () =
   (* a bullet of BLUE's, about to go through the player's head *)
   let shot (p : Soldat_model.play) : Soldat_model.bullet =
     let (hx, hy) = Soldat_soldier.point p.soldiers.(0).body 12 in
-    { x = hx -. 20.; y = hy; vx = 18.; vy = 0.; owner = 1; ttl = 100 }
+    Soldat_bullets.of_shot ~owner:1 { from = (hx -. 20., hy); velocity = (18., 0.); weapon = Socom }
   in
   let hits = ref 0 and p = ref p in
   while !p.soldiers.(0).dead = None && !hits < 20 do
@@ -90,23 +90,24 @@ let death () =
   let p = after 100 p in
   Alcotest.(check bool) "back after 180" true (p.soldiers.(0).dead = None);
   Alcotest.(check (float 0.1)) "with all its health" Soldat_model.full_health p.soldiers.(0).health;
-  Alcotest.(check bool) "and not to be hit at once" true (p.soldiers.(0).safe > 0);
+  Alcotest.(check bool) "and not to be hit at once" true (p.soldiers.(0).body.ceasefire > 0);
   let p = tick { p with bullets = [ shot p ] } in
   Alcotest.(check (float 0.1)) "a bullet through it then does nothing" Soldat_model.full_health p.soldiers.(0).health
 
 (* what a wall's kind does to who stands on it *)
 let walls () =
-  let on (kind : Pms.kind) (ticks : int) : Soldat_model.soldier = (after ticks (Soldat_model.start (Testutil_map.floor ~kind ()))).soldiers.(0) in
+  (* each in a room of its own: nobody shoots anybody *)
+  let on (kind : Pms.kind) (ticks : int) : Soldat_model.soldier = (after ticks (Soldat_model.start (Testutil_map.rooms_on ~kind ()))).soldiers.(0) in
   (* dropped from 20 above the floor: on it within the second *)
   Alcotest.(check bool) "a deadly floor: dead on landing" true ((on Deadly 60).dead <> None);
-  Alcotest.(check int) "by nobody's hand: no kill" 0 (on Deadly 60).kills;
+  Alcotest.(check int) "by its own hand: no kill" 0 (on Deadly 60).kills;
   (* 5 every 10 ticks: 150 is gone in 300 ticks on it *)
   let hurt = on Hurts 200 in
   Alcotest.(check bool) "a hurting floor: about half its health after 200 ticks" true (hurt.dead = None && hurt.health > 40. && hurt.health < 110.);
   Alcotest.(check bool) "dead after 400" true ((on Hurts 400).dead <> None);
   Alcotest.(check (float 0.1)) "a plain floor: nothing" Soldat_model.full_health (on Normal 400).health;
   (* wounded, on a healing floor: 2 every 12 ticks *)
-  let p = Soldat_model.start (Testutil_map.floor ~kind:Regenerates ()) in
+  let p = Soldat_model.start (Testutil_map.rooms_on ~kind:Regenerates ()) in
   let p = after 240 { p with soldiers = Array.map (fun (s : Soldat_model.soldier) -> { s with health = 50. }) p.soldiers } in
   Alcotest.(check bool) "a healing floor: from 50, well over 80 after 4 seconds" true (p.soldiers.(0).health > 80.);
   Alcotest.(check bool) "never over all of it" true ((on Regenerates 400).health <= Soldat_model.full_health)

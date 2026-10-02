@@ -8,7 +8,8 @@
  * 2 of the License, or (at your option) any later version.
  *)
 (* The game's state: the soldiers, what each wants to do this tick,
- * the bullets in flight, the map, and where the camera is.
+ * the bullets in flight, the explosions still seen, the map, where
+ * the camera is, and the seed of the game's chance.
  *
  * Everything is in Soldat's own units and coordinates (y downwards, a
  * soldier about 20 tall, speeds a tick), as the map is; only the
@@ -29,22 +30,20 @@ type soldier = {
   human : bool;
   (* its particle and its skeleton, moved by Soldat's rules *)
   body : Soldat_soldier.t;
+  (* 150 at most; dead, it goes on down as the body is hit, to -400 *)
   health : float;
-  (* ticks before the next shot *)
-  reload : int;
-  (* ticks, after appearing, during which it neither fires nor is hit
-   * (Soldat's CeaseFireCounter) *)
-  safe : int;
   (* None while alive; Some (ticks since, its ragdoll) when dead *)
   dead : (int * Soldat_ragdoll.t) option;
   kills : int;
+  (* the weapon it will appear with next *)
+  primary : Soldat_weapons.id;
 }
 
 (* what a soldier wants to do this tick: the player's keys and mouse,
  * or a bot's mind *)
-type intent = { control : Soldat_soldier.control; fire : bool }
+type intent = Soldat_soldier.control
 
-let still : intent = { control = Soldat_soldier.no_control; fire = false }
+let still : intent = Soldat_soldier.no_control
 
 (* what a bot may know (Sense.mli): where it is and how it is, and
  * its nearest enemy -- seen now, or remembered where it was last seen,
@@ -59,7 +58,31 @@ type senses = {
   enemy : (float * float) Sense.target;
 }
 
-type bullet = { x : float; y : float; vx : float; vy : float; owner : int; ttl : int }
+(* a bullet, a pellet, a grenade: Soldat's TBullet *)
+type bullet = {
+  x : float;
+  y : float;
+  vx : float;
+  vy : float;
+  (* where it was a tick before *)
+  old : float * float;
+  owner : int;
+  weapon : Soldat_weapons.id;
+  (* what a hit takes, times its speed: the weapon's Damage, halved
+   * beyond 500 units and again beyond 900 (HitMultiply) *)
+  damage : float;
+  ttl : int;
+  (* where it left from, and how many times it was halved *)
+  start : float * float;
+  halved : int;
+  (* where it last bounced off a wall: not again within 50 of there *)
+  bounced_at : float * float;
+  (* the last soldier it went through, not hit twice; none: -1 *)
+  through : int;
+}
+
+(* an explosion, for the picture: nothing of the game reads it *)
+type explosion = { at : float * float; radius : float; age : int }
 
 type play = {
   map : Soldat_map.t;
@@ -71,6 +94,9 @@ type play = {
   minds : (senses, intent) Bot.running array;
   ai_engine : bool;
   bullets : bullet list;
+  explosions : explosion list;
+  (* the game's chance: the next number comes from it (Lehmer) *)
+  seed : Lehmer.t;
   frame : int;
 }
 
@@ -97,13 +123,14 @@ type model = {
   graphics : int;
   (* frames its name still shows for, after a change *)
   graphics_shown : int;
+  (* the weapon the player appears with: the keys 1 to 9 and 0 *)
+  primary : Soldat_weapons.id;
+  (* the rounds started: a round's number is its chance's seed *)
+  rounds : int;
 }
 
 (* Soldat's DEFAULT_HEALTH *)
 let full_health = 150.
-
-(* and its DEFAULT_CEASEFIRE_TIME *)
-let ceasefire = 90
 
 (* the [i]th place to appear at, going round when the map has fewer
  * than there are soldiers *)
@@ -114,20 +141,22 @@ let farthest (map : Soldat_map.t) (others : (float * float) list) : float * floa
   let room (x, y) = List.fold_left (fun m (ox, oy) -> Float.min m (Float.hypot (ox -. x) (oy -. y))) infinity others in
   List.fold_left (fun best sp -> if room sp > room best then sp else best) (List.hd map.spawns) map.spawns
 
-let start ?(ai_engine = false) (map : Soldat_map.t) : play =
-  let soldier place name ((r, g, b) as shirt) human =
-    { name; color = rgb r g b; shirt; human; body = Soldat_soldier.create place map.jet; health = full_health; reload = 0; safe = ceasefire; dead = None; kills = 0 }
+(* [primary]: the player's weapon; [seed]: the game's chance, the same
+ * game from the same one *)
+let start ?(ai_engine = false) ?(primary : Soldat_weapons.id = Ak74) ?(seed = 1) (map : Soldat_map.t) : play =
+  let soldier place name ((r, g, b) as shirt) human primary =
+    { name; color = rgb r g b; shirt; human; body = Soldat_soldier.create ~primary place map.jet; health = full_health; dead = None; kills = 0; primary }
   in
   (* the player at the map's first place, each bot as far as can be
    * from those before it *)
   let first = spawn map 0 in
   let second = farthest map [ first ] in
   let third = farthest map [ first; second ] in
-  let soldiers = [| soldier first "YOU" (220, 60, 50) true; soldier second "BLUE" (60, 110, 220) false; soldier third "GREEN" (60, 170, 80) false |] in
-  { map; camera = first; soldiers; minds = Array.map (fun _ -> Bot.start still) soldiers; ai_engine; bullets = []; frame = 0 }
+  let soldiers = [| soldier first "YOU" (220, 60, 50) true primary; soldier second "BLUE" (60, 110, 220) false Mp5; soldier third "GREEN" (60, 170, 80) false Steyr |] in
+  { map; camera = first; soldiers; minds = Array.map (fun _ -> Bot.start still) soldiers; ai_engine; bullets = []; explosions = []; seed = Lehmer.scramble seed; frame = 0 }
 
 let model_at ?(graphics = graphics_levels) (first : scene) : model =
-  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0 }
+  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; rounds = 0 }
 
 let initial_model ?graphics (map : Soldat_map.t) : model = model_at ?graphics (Title map)
 

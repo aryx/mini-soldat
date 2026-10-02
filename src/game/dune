@@ -1,15 +1,28 @@
-; the game without its picture: a soldier that moves as Soldat's
-; (Soldat_soldier), dead its skeleton let loose (Soldat_ragdoll), the
-; state (Soldat_model), the bots (Soldat_bots), a tick and the rounds
-; (Soldat_update). Soldat's shared/: Game.pas, AI.pas, mechanics/.
+; the game without its picture: the weapons' numbers (Soldat_weapons),
+; a soldier that moves and fires as Soldat's (Soldat_soldier), dead its
+; skeleton let loose (Soldat_ragdoll), the state (Soldat_model), the
+; bullets and the explosions (Soldat_bullets), the bots (Soldat_bots),
+; a tick and the rounds (Soldat_update). Soldat's shared/: Weapons.pas,
+; Game.pas, AI.pas, mechanics/.
 (library
  (name soldat_game)
  (wrapped false)
  (libraries
    soldat_map soldat_anim
    soldat_assets ; a map asked by its name: its file
-   tiny_libs.core ; Set_
+   tiny_libs.core ; Set_; Base64: the weapons' file back to its text
+   tiny_libs.random ; Lehmer: the bullets' scatter, from a seed
    tiny_libs.graphics_2d_geometry ; Vec2
    tiny_libs.physics_2d ; Particles: the ragdolls; Collide: a bullet's way
    tiny_libs.ai ; Sense and Bot: the bots of ai=engine
    elm_playground)) ; the keys and the mouse, Scene2d
+
+; data/weapons.ini, Soldat's weapons' numbers, as a module holding it
+; in base64, so that the program carries them: Weapons_ini.base64
+(rule
+ (targets Weapons_ini.ml)
+ (deps %{project_root}/data/weapons.ini %{project_root}/scripts/build/file_to_base64_ml.ml)
+ (action
+  (with-stdout-to
+   %{targets}
+   (run ocaml %{project_root}/scripts/build/file_to_base64_ml.ml %{project_root}/data/weapons.ini))))

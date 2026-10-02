@@ -17,13 +17,15 @@
  *
  * It started as elm-playground's TinySoldat, and is on its way
  * (docs/plan.md): the maps are Soldat's (Arena2, carried in the
- * program, or any .pms file named with the flag map), and the soldier
- * moves as Soldat's does, by its rules and its numbers; its gun, its
- * bots and its looks are still the toy's. You against two bots, the
- * first to 5 kills wins. The keys are Soldat's:
+ * program, or any .pms file named with the flag map), the soldier
+ * moves and looks as Soldat's does, and fires Soldat's weapons, by its
+ * rules and its numbers; its bots are still the toy's. You against two
+ * bots, the first to 5 kills wins. The keys are Soldat's:
  *
  *   a/d    run           w  jump       s  crouch      x  lie down
  *   mouse  aim           left button: shoot     right button: the jets
+ *   r      reload        q  the other weapon    e  a grenade
+ *   1-9, 0 the weapon to appear with
  *
  * This is the main: the game is src/game's (Soldat_model,
  * Soldat_update), on src/map's arena, drawn by src/render's
@@ -36,6 +38,9 @@ let help =
   {|mini-soldat
   keys:  a/d    run              w      jump
          s      crouch           x      lie down, get up
+         r      reload           q      the other weapon
+         e      a grenade: held longer, thrown harder
+         1-9, 0 the weapon to appear with (weapon=N)
          g      the graphics: as each step of the game's making drew it
          down and a side, running: a roll; up and a side: a jump sideways
   mouse: aim; left button: shoot; right button (or shift): the jets
@@ -46,6 +51,9 @@ let help =
          graphics=N  how much of Soldat's look: 1 skeletons and flat
                    colours, 2 the soldiers' pictures, 3 the map's
                    texture and scenery (the key g goes round them)
+         weapon=N  the weapon to appear with, by its key: 1 Desert Eagles,
+                   2 HK MP5, 3 Ak-74, 4 Steyr AUG, 5 Spas-12, 6 Ruger 77,
+                   7 M79, 8 Barrett, 9 FN Minimi, 0 Minigun
          hitboxes  draw the points the game tests
          sticks    draw the soldiers' skeletons over them
          ai=engine the bots on Sense and Bot instead of by hand
@@ -92,5 +100,12 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
    * (the key g goes round the ways) *)
   let graphics = Option.value (Option.bind (List.assoc_opt "graphics" flags) int_of_string_opt) ~default:Soldat_model.graphics_levels in
   let first = match map with Map map -> Soldat_model.initial_model ~graphics map | Named name -> Soldat_model.loading_model ~graphics name in
+  (* the weapon to appear with, by its key in Soldat's menu *)
+  let primary =
+    match Option.bind (List.assoc_opt "weapon" flags) int_of_string_opt with
+    | Some n when n >= 0 && n <= 9 -> List.nth Soldat_weapons.primaries ((n + 9) mod 10)
+    | _ -> first.primary
+  in
+  let first = { first with primary } in
   let app = Playground.game Soldat_view.view Soldat_update.update first in
   Playground_platform.run_app ~flags app))

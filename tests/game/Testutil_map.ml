@@ -40,6 +40,8 @@ let floor ?(kind : Pms.kind option) () : Soldat_map.t = map (slab ?kind (-2000.)
 
 (* three rooms in a row on a floor, a wall 400 high between each and
  * the next, a place to appear at in each *)
-let rooms : Soldat_map.t =
+let rooms_on ?(kind : Pms.kind option) () : Soldat_map.t =
   map ~spawns:[ (-600., -20.); (0., -20.); (600., -20.) ]
-    (slab (-2000.) 0. 2000. 200. @ slab (-320.) (-400.) (-280.) 0. @ slab 280. (-400.) 320. 0.)
+    (slab ?kind (-2000.) 0. 2000. 200. @ slab (-320.) (-400.) (-280.) 0. @ slab 280. (-400.) 320. 0.)
+
+let rooms : Soldat_map.t = rooms_on ()

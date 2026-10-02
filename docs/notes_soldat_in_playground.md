@@ -176,7 +176,8 @@ and `OldPos`.
 | the particle of `SpriteParts` | `x`, `y`, `vx`, `vy`, `fx`, `fy` in `Soldat_soldier.t`, stepped by Soldat's Euler (`euler`) |
 | `Skeleton`, alive: 20 points placed from the animations | `skeleton`, placed each tick (`place_skeleton`), and `old_skeleton`, a tick before: kept, as there, since a tick's order shows it (it is placed before the map moves the particle) and a death needs both |
 | `Skeleton`, dead: Verlet and constraints | `Soldat_ragdoll`: a `particle array`, `Particles.step`, `Particles.relax ~iterations:1` |
-| a stick cut (a head, a leg shot off: `Constraints[i].Active := False`) | *to come*: the stick taken out of the list |
+| a stick cut (a head, a leg shot off: `Constraints[i].Active := False`) | `Soldat_ragdoll.t.cut`: the sticks' numbers, left out of what `Particles.relax` is given (`holding`); which, by the health a hit left (`cuts`) |
+| `Weapon`, `SecondaryWeapon: TGun`, `TertiaryWeapon` (the grenades) | `weapon`, `secondary : gun` (the table's row and four counters), `grenades` |
 | `Control: TControl` (the keys and where the mouse is, in the map) | `Soldat_soldier.control` |
 | `Position`: stand, crouch, prone | `stance` |
 | `LegsAnimation`, `BodyAnimation`: a copy of an animation with its current frame | `Soldat_anims.playing`: which, its frame, its count |
@@ -238,7 +239,7 @@ ones take health (in the Pascal on the server only: `{$IFDEF SERVER}`).
 | `CheckRadiusMapCollision` (the circle) | `check_radius` |
 | `CheckMapVerticesCollision` (near a corner: a push of 1 away) | `check_vertices` |
 | `CheckSkeletonMapCollision` (a dead body's points) | `Soldat_ragdoll.out_of_walls` (`Particles.keep_out` pushes to the nearest point of the outline; Soldat goes back where the point was, less its depth: kept as Soldat's) |
-| what the deadly, hurting, healing and exploding polygons do (`HandleSpecialPolyTypes`) | *to come* |
+| what the deadly, hurting, healing and exploding polygons do (`HandleSpecialPolyTypes`) | `touched`, the kinds a tick met, and `Soldat_update.wall_damage` |
 
 **The animations.** 44 of them (`shared/Anims.pas`), each a file of
 the content (`anims/*.poa`, text: a frame is 20 points, each a number
@@ -286,7 +287,9 @@ the ragdoll's; `ControlSprite` is one procedure of 2,090 lines.
 
 Read in `shared/Weapons.pas`, `shared/mechanics/Bullets.pas`, the
 firing in `TSprite.Fire` (`Sprites.pas`) and
-`server/configs/weapons.ini`. Not ported yet.
+`server/configs/weapons.ini`. Ported in step 4: `Soldat_weapons` (the
+table), `Soldat_soldier` (the trigger, the reload, the change, the
+throw), `Soldat_bullets` (what flies and what it does).
 
 **One rule to read the Pascal by: the server's branch is the game.**
 On a client a hit's damage is multiplied by `srv`, which is 0: only
@@ -323,21 +326,26 @@ Eagle's bullet in the chest: 19 * 1.81 * 0.95, about 33. A bullet
 slows down (0.99 a tick) and halves its damage past 500 then 900
 pixels, so distance counts.
 
-| Soldat | Here, *to come* |
+| Soldat | Here |
 |---|---|
-| `Guns: array[1..23] of TGun`, built in Pascal then read from `weapons.ini` | a table of records; `weapons.ini` read (in `data/`), or the table written out |
-| the gun's counters (`FireIntervalCount`, `ReloadTimeCount`, `StartUpTimeCount`, `AmmoCount`) | fields of the soldier's weapon |
-| `TSprite.Fire`: the direction (from the hand, point 15, to the cursor), the inaccuracy (bink, moving, the weapon's spread; less crouched and prone), the bullet's velocity (the weapon's speed along it, plus half the soldier's) | a function from a soldier to its bullets |
-| a bullet: `TBullet`, and its particle in `BulletParts` (Euler, gravity 2.25 times `Grav`, damping 0.99) | a record with a position and a velocity, stepped by the same Euler |
-| the bullet's styles (plain, grenade, shotgun, M79, flame, punch, arrow, cluster, knife, LAW, thrown knife, M2) | a variant |
-| `TBullet.Update`: against the map, the colliders, the soldiers, the things, in that order, on the segment from where it is to where it will be; then it moves | `Collide.segment_polygon`, `Collide.segment_circle`; the toy does this today with `Physics.went_through` |
-| against the map: the segment sampled every 2.5 pixels, `PointInPolyEdges` in the sector's polygons; a ricochet (`V * 25/35 + Perp * 10/35`) or the end | the sector's polygons, and Soldat's ricochet rule |
-| against a soldier: `LineCircleCollision` with circles of radius 7 (`PART_RADIUS`) at 7 points of its skeleton (head 12, shoulders 11 and 10, hips 6 and 5, knees 4 and 3): which one says head, chest or legs | `Collide.segment_circle` at the same 7 points |
-| through a body: a bullet fast enough goes on, slower (0.75, 0.66) | the same rule |
-| a push: the victim's velocity plus the bullet's times the weapon's `Push` | the same |
-| an explosion (`ExplosionHit`): within a radius (grenade 85, M79 64, cluster 35), damage `1 / (distance + 1)` times the weapon's, a push away, a kick to the ragdolls' points, and the other grenades near set off | the toy's blast, with Soldat's numbers and its falloff |
-| the reload: at 0 ammo, a count-down holding the gun; `ClipOut` then `ClipIn` animations at 80% and 30% of it | counters, and the animations |
-| bink (being hit shakes one's aim) and recoil (0 for every weapon but in realistic mode) | bink with the weapons; recoil later |
+| `Guns: array[1..23] of TGun`, built in Pascal then read from `weapons.ini` | `Soldat_weapons`: `data/weapons.ini` carried in the program and read (`parse`, `of_ini`), 12 rows of `t` (the 10 primaries, the USSOCOM, the grenade); what is only in the Pascal (`ClipReload`, `FireMode`, the bullet's lifetime) beside it |
+| the gun's counters (`FireIntervalCount`, `ReloadTimeCount`, `StartUpTimeCount`, `AmmoCount`) | `Soldat_soldier.gun`: `fire_count`, `reload_count`, `startup_count`, `ammo` |
+| the trigger, the change, the reload's key, the shotgun's shells (`ControlSprite`, C:426-760), the counters at a tick's end (`TSprite.Update`, S:923) | `Soldat_soldier.weapons`, `weapon_timers` |
+| `TSprite.Fire`: the direction (from the hand, point 15, to the cursor), the inaccuracy (moving, the weapon's spread; less crouched and prone), the bullet's velocity (the weapon's speed along it, plus half the soldier's); two for the Eagles, six for the shotgun and its kick; the body's recoil | `Soldat_soldier.fire`, `move_acc`, `recoil`: what leaves is put in `shots` |
+| `Random` (the scatter) | `random : unit -> float`, given to `Soldat_soldier.tick`: the game's seed (`play.seed`, `Lehmer.next`), so a round replays |
+| `TSprite.ThrowGrenade`: the `Throw` animation's frame is the throw's strength | `Soldat_soldier.throw_grenade` |
+| a bullet: `TBullet`, and its particle in `BulletParts` (Euler, gravity 2.25 times `Grav`, damping 0.99) | `Soldat_model.bullet`, stepped at the end of `Soldat_bullets.update` |
+| the bullet's styles (plain, grenade, shotgun, M79; and flame, punch, arrow, cluster, knife, LAW, thrown knife, M2) | `Soldat_weapons.style`: `Plain`, `Thrown`, `Pellets`, `Explosive`; the others *to come*, or never |
+| `TBullet.Update`: against the map, the colliders, the soldiers, the things, in that order, on the segment from where it is to where it will be; then it moves | `Soldat_bullets.update`; what is nearest along the way counts (`limit`) |
+| against the map (`CheckMapCollision`): the segment sampled every 2.5 pixels, `PointInPolyEdges` in the sector's polygons; a ricochet (`V * 25/35 + Perp * 10/35`) or the end; a grenade bounces (0.88) | `against_map`, on `Soldat_map.sector`, `in_edges`, `closest_perp` |
+| against a soldier (`CheckSpriteCollision`): `LineCircleCollision` with circles of radius 7 (`PART_RADIUS`) at 7 points of its skeleton (head 12, shoulders 11 and 10, hips 6 and 5, knees 4 and 3): which one says head, chest or legs | `line_circle` (ours: Soldat's gives where the segment *enters*, `Collide.segment_circle` its nearest point to the centre) at the same 7 points |
+| through a body: a bullet fast enough goes on, slower (0.9, 0.75, 0.66) | the same rule, `through` what `HitBody` is |
+| a push: the victim's velocity plus the bullet's times the weapon's `Push` (`NextPush`, a tick or more later: the ping) | `push`, at once; a body that dies of it leaves with it (`Soldat_ragdoll.of_soldier ~push`) |
+| `HealthHit`, `Die`: the health taken, the death's kind by what is left (-90: a limb; -400: five), a kill counted (one less for oneself) | `Soldat_bullets.hurt`, `Soldat_ragdoll.cuts` |
+| an explosion (`ExplosionHit`): within a radius (grenade 85, M79 64, cluster 35), damage `1 / (distance + 1)` times the weapon's, a push away, a kick to the ragdolls' points, and the other grenades near set off | `Soldat_bullets.explode`, `Soldat_ragdoll.blast` |
+| the reload: at 0 ammo, a count-down holding the gun; `ClipOut` then `ClipIn` and `SlideBack` animations at 80% and 30% of it | `weapon_timers`, and in `control` |
+| bink (being hit shakes one's aim) and recoil (0 for every weapon but in realistic mode) | *to come*: both move the cursor, which is the player's here |
+| the knife, the chainsaw, the LAW, the fist and the rifle's butt, the flamer, the bow, the stationary gun | *to come*, or never |
 
 ## The things
 
@@ -423,8 +431,9 @@ calls `update` once a frame, so there is nothing to interpolate.
 | a prop: its picture (`scenery-gfx/`), placed, turned, scaled each way, tinted, with an alpha, in one of three layers; pure green is transparent | `Soldat_raster.sprite`, into the same tiles: Soldat's own matrix (turned about the point one unit under its corner), read backwards, a pixel of the tile to its place in the picture. Green made transparent by `Soldat_assets` |
 | the soldier: 15 pictures and more (`gostek-gfx/`: `morda` the head, `klata` the chest, `biodro` the hip, `udo` the thigh, `noga` the lower leg, `stopa` the foot, `ramie` the arm, `reka` the forearm, `dlon` the hand), each hung between two points of the skeleton (the head from 9 to 12, a thigh from 6 to 3...), turned along them, some stretched (the thighs, the forearms), tinted the shirt's, the trousers', the skin's or the hair's colour, mirrored when facing left | `Soldat_gostek`: its table (`parts`, from `GostekGraphics.inc`), `place` (`DrawGostekSprite`'s matrix, as where the picture's middle goes and the angle), `bitmap w h picture |> rotate |> move`. A picture per (part, tint, side), made once (`picture`). *To come*: the hair, the vest, the chain, the blood, the second team |
 | the pictures are 4.5 times bigger than drawn (`mod.ini`'s `DefaultScale`): a head of 27 pixels is 6 units | `Soldat_gostek.size`: the `w` and `h` given to `bitmap` |
-| the weapon in the hands (between points 16 and 15), its clip, its fire | the USSOCOM's picture, a part like the others; *to come*: the other weapons, a clip, a muzzle's fire |
-| the interface (`client/InterfaceGraphics.pas`): bars for health, ammo, jets (a picture cut at a fraction), the cursor, the kills' console, the chat, the scores, the weapons' menu, the minimap | shapes outside the camera's group: `rectangle`s for the bars, `words` for the texts |
+| the weapon in the hands (between points 16 and 15), its clip, its fire; the other on the back (5 to 10) | `Soldat_gostek.in_hands`, `on_back`: parts like the others, from a table of the weapons' lines (`look`); their pictures are files (`Soldat_assets`), the pistol's the program's |
+| a bullet's trail, a grenade's picture, an explosion's 16 pictures | `Soldat_view.view_bullet` (a streak; `frag-grenade`, `m79-bullet`), `view_explosion` (a disc: the pictures come with the sparks) |
+| the interface (`client/InterfaceGraphics.pas`): bars for health, ammo, jets (a picture cut at a fraction), the cursor, the kills' console, the chat, the scores, the weapons' menu, the minimap | `Soldat_view.view_interface`, `view_menu`: shapes outside the camera's group, `rectangle`s for the bars, `words` for the texts and the menu (chosen by keys). *To come*: its pictures, the cursor, the console, the minimap |
 | an atlas of pictures, colour keys, premultiplied alpha, mipmaps (`client/Gfx.pas`) | the Playground's backends: Cairo, its own rasterizer, or SVG in a browser |
 
 ## The sound

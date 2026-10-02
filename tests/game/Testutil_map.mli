@@ -18,3 +18,6 @@ val floor : ?kind:Pms.kind -> unit -> Soldat_map.t
 (* three rooms in a row on a floor, a wall between each and the next,
  * a place to appear at in each: nobody sees anybody *)
 val rooms : Soldat_map.t
+
+(* the same, their floor of a kind *)
+val rooms_on : ?kind:Pms.kind -> unit -> Soldat_map.t

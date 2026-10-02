@@ -36,9 +36,13 @@ let chest (s : soldier) : float * float = (s.body.x, s.body.y -. 12.)
 
 let living_but (p : play) (i : int) : int list = List.filter (fun j -> j <> i && p.soldiers.(j).dead = None) [ 0; 1; 2 ]
 
-(* the keys for: run this way (-1, 0, 1), jump, fly *)
+(* the keys for: run this way (-1, 0, 1), jump, fly, pull the trigger *)
 let keys ~(run : float) ~(jump : bool) ~(jet : bool) ~(aim : float * float) ~(fire : bool) : intent =
-  { control = { Soldat_soldier.no_control with left = run < 0.; right = run > 0.; up = jump; jetpack = jet; aim }; fire }
+  { Soldat_soldier.no_control with left = run < 0.; right = run > 0.; up = jump; jetpack = jet; aim; fire }
+
+(* a weapon that fires once a pull wants the trigger let go between
+ * two shots: every other tick *)
+let trigger (p : play) (i : int) (seen : bool) : bool = seen && ((not p.soldiers.(i).body.weapon.kind.single_shot) || p.frame mod 2 = 0)
 
 (* the hand-written bot, the default: it takes the nearest living enemy
  * wherever it is -- through the walls -- and only asks what it can see
@@ -48,7 +52,7 @@ let bot (p : play) (i : int) : intent =
   let (mx, my) = chest me in
   let distance j = let (x, y) = chest p.soldiers.(j) in Float.hypot (x -. mx) (y -. my) in
   match List.sort (fun a b -> compare (distance a) (distance b)) (living_but p i) with
-  | [] -> { still with control = { Soldat_soldier.no_control with aim = (me.body.aim_x, me.body.aim_y) } }
+  | [] -> { still with aim = (me.body.aim_x, me.body.aim_y) }
   | target :: _ ->
       let (tx, ty) = chest p.soldiers.(target) in
       (* y goes down: above is less *)
@@ -63,7 +67,7 @@ let bot (p : play) (i : int) : intent =
       keys ~run
         ~jump:(up > 30. || (Float.abs me.body.vx < 0.2 && run <> 0.))
         ~jet:(up > 50. && me.body.jets > 20)
-        ~aim:(tx, ty +. wobble) ~fire:seen
+        ~aim:(tx, ty +. wobble) ~fire:(trigger p i seen)
 
 (*****************************************************************************)
 (* The bots on ai/ (ai=engine) *)

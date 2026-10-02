@@ -53,9 +53,23 @@
    kept ([picture]), the same one given back each time, which is what
    lets a backend keep what it made of it.
 
+   **The weapon.** The one in the hands is a picture from the hand
+   that holds it (point 16) to the end of that arm (15), drawn under
+   the right arm; its clip is a second picture at the same place,
+   gone while a reload has it out; its muzzle's fire a third, shown
+   the tick of a shot, whose pivot is before the picture's left edge
+   (cx is negative: the fire is in front of the barrel). The weapon on
+   the back hangs from the right hip to the right shoulder (5 to 10),
+   behind everything. A table gives each weapon's ([look]).
+
+   The soldier's own pictures and its pistol's are carried in the
+   program; the other weapons' are files of the content
+   (weapons-gfx/, asked through Soldat_assets), and a weapon whose
+   picture has not come is not drawn.
+
    Not yet: the hair, the vest, the chain, the blood on a wounded
    soldier's limbs, the second team's pictures, the grenades on the
-   belt, the other weapons, a clip, a muzzle's fire.
+   belt.
 
    In Soldat: client/GostekGraphics.pas (RenderGostek, DrawGostekSprite)
    and its table, client/GostekGraphics.inc.
@@ -80,9 +94,14 @@ type part = {
   tint : tint;
 }
 
-(* the parts of a living soldier standing on its feet, in the order
- * they are drawn *)
+(* the 16 parts of a soldier's body, in the order they are drawn *)
 val parts : part list
+
+(* the parts of the weapon in the hands: its picture, its clip if
+ * [clip] and it has one, its muzzle's fire if [fire]; and of the one
+ * on the back, none for a pistol *)
+val in_hands : Soldat_weapons.id -> clip:bool -> fire:bool -> part list
+val on_back : Soldat_weapons.id -> part list
 
 (* where a part's picture goes: its middle, in the game's coordinates
  * (y downwards), its width and height in units, the angle it is
@@ -96,10 +115,17 @@ val place : part -> float * float -> float * float -> int -> placed
 
 (* the soldier: [point n] is where point [n] of its skeleton is (1 to
  * 20), in the game's coordinates. [jets]: its feet are its jets';
- * [dead]: its head hangs. The shapes are the picture's: y upwards *)
-val view : colors -> point:(int -> float * float) -> direction:int -> jets:bool -> dead:bool -> shape list
+ * [dead]: its head hangs. [weapon] and [back]: the parts of its
+ * weapons. The shapes are the picture's: y upwards *)
+val view : ?weapon:part list -> ?back:part list -> colors -> point:(int -> float * float) -> direction:int -> jets:bool -> dead:bool -> shape list
 
-(* a picture's size, in units: its pixels over 4.5 *)
+(* a picture of weapons-gfx/ alone, its middle at a place of the game,
+ * turned by an angle (radians, clockwise on the screen): a grenade in
+ * the air. Nothing if it has not come *)
+val loose : string -> float * float -> float -> shape list
+
+(* a picture's size, in units: its pixels over 4.5; it fails for a
+ * picture that is not there *)
 val size : string -> float * float
 
 (* [picture name colour turned_over]: the picture of that name (a file

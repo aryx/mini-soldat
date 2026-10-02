@@ -7,14 +7,16 @@
 
 ; unit tests for the game, run by 'make test' (dune runtest): the
 ; soldier's moves on a floor made by hand, against numbers worked out
-; from Soldat's (Unit_soldier), and a round played without drawing it
+; from Soldat's (Unit_soldier), its weapons and what their bullets do,
+; the same way (Unit_weapons), and a round played without drawing it
 ; (Unit_soldat)
 (test
  (name Test)
- (modules Test Unit_soldat Unit_soldier)
+ (modules Test Unit_soldat Unit_soldier Unit_weapons)
  (libraries
    alcotest testo
    testutil_soldat soldat_map soldat_anim soldat_game
    tiny_libs.ai ; Bot: a bot's last senses
+   tiny_libs.physics_2d ; Particles: a ragdoll's points
    elm_playground
    elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)

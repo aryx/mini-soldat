@@ -117,9 +117,58 @@ be.
   scenery (none in Soldat's own content), the website's other maps
   (only Arena2's content is there: "To decide").
 
+- **Step 4, the weapons** (2026-10-02). `Soldat_weapons`: Soldat's
+  own `weapons.ini` read (carried in the program), the ten primaries,
+  the USSOCOM and the grenade. In `Soldat_soldier`, adapted from
+  `ControlSprite`, `TSprite.Fire`, `ThrowGrenade` and the weapon's part
+  of `TSprite.Update`: a weapon in the hands and one on the back, the
+  trigger (held, or once a pull), the clip and its reload with their
+  animations, the shotgun loaded shell by shell, the Barrett's and the
+  minigun's wait, the scatter by how one moves and stands, the two
+  Eagles, the six pellets and their kick, the recoil animations, the
+  change of weapon, a grenade thrown harder the longer it is held.
+  `Soldat_bullets`, adapted from `Bullets.pas`: a bullet against the
+  map (the ricochet), the colliders and the soldiers' seven circles,
+  the nearest first; damage as speed x Damage x the place's; the push;
+  going through a body; weaker beyond 500 and 900 units; a grenade
+  bouncing; the explosion, its falloff, its push, the grenades it sets
+  off, the dead thrown. `Soldat_ragdoll`: the sticks a hard death cuts
+  (a head, a thigh; five at -400). Drawn: each weapon in the hands with
+  its clip and its muzzle's fire, the other on the back, a grenade, an
+  explosion (a disc); an interface (health, ammunition, jets,
+  grenades) and Soldat's menu of weapons, by keys (1 to 9 and 0) on
+  the title and while dead. The keys: R, Q, E. A seed in the round's
+  state gives the scatter: no `Random`, a round replays.
+  What it turned out to be:
+  - the damage worked out by hand before reading closely was wrong
+    four times, and the tests said so: the Barrett's modifiers are all
+    1 (245 anywhere, not 232 in the chest); a soldier standing on the
+    ground is held against the shotgun's kick, which is for the air;
+    an explosion cuts limbs only within 1.7 units (it strikes "point
+    1", so it is all five or none): a grenade that lands near kills
+    and leaves the body whole;
+  - where the Pascal is not followed. A bullet that ends in a wall
+    there explodes at once and is tested against the soldiers after: an
+    M79 on a soldier against a wall explodes twice; here what is
+    nearest counts, once. And a push is felt at once (there a tick or
+    more later, by the ping), so a body killed by a blast is given the
+    blast's push, as one sees there;
+  - the weapons' pictures (50, 400 KB of pixels) are files, asked when
+    drawn (`Soldat_assets`), not packed in the program: the program
+    stays at 610 KB in a browser; only the pistol's are carried;
+  - a tick costs what it did (0.02 ms on Arena2, the bots firing);
+  - the game's lines went from 1,320 to 2,380 (`src/game`), the tests
+    from 64 to 81.
+  Left out, beyond what was planned (the knife, the chainsaw, the LAW,
+  the flamer, the bow, the stationary gun, realistic mode): bink (a
+  hit shaking the aim: it moves the cursor, which is the player's
+  here); the rifle's butt and the fist; a weapon thrown away (with the
+  things, step 5); the grenades on the belt; the interface's own
+  pictures and the cursor; the explosion's pictures (with the sparks,
+  step 6). The bots hold an MP5 and a Steyr and throw nothing.
+
 What is still the toy's, and so what the steps below replace: the
-soldier's gun (one, with the USSOCOM's numbers and its picture) and
-its bots.
+bots.
 
 ## The rules of the road
 
@@ -154,41 +203,15 @@ its bots.
 
 ## The steps
 
-### 4. The weapons
-
-*What one feels*: Soldat's ten primaries and four secondaries with
-their numbers, the reload, the two-shot Eagles, the shotgun's kick,
-the Barrett's wait, grenades by how long the throw is held, the M79;
-being hit and pushed, a headshot.
-
-- The table: `weapons.ini` read; the gun's counters.
-- Firing: the direction from the hand, the inaccuracy (moving, the
-  weapon's spread, bink), the bullet's speed with half the soldier's.
-- The bullet: its Euler step, against the map (the ricochet), the
-  colliders, the soldiers (7 circles: head, chest, legs), damage as
-  speed times the weapon's times the place's, going through a body,
-  the push; the explosion and its falloff.
-- Changing weapon, throwing it away, reloading, with their animations;
-  the weapon drawn in the hands, its clip, its fire.
-- The interface: health, ammo, jets, grenades; the menu to choose a
-  weapon in.
-- A head or a leg off on a hard hit: the ragdoll's sticks cut by the
-  hit's strength (a health under -90, under -400), which an M79 or a
-  grenade reaches.
-- Left out: the knife, the chainsaw, the LAW, the flamer, the bow, the
-  stationary gun, realistic mode and its recoil.
-
-*Checked by*: damage worked out by hand (an Eagle's bullet in the
-chest is 19 x 1.81 x 0.95) as tests; a fight replayed from its seed.
-
 ### 5. A deathmatch as Soldat's
 
-- The things: a weapon dropped, the medikits and the grenade kits
-  where the map puts them, picked up.
+- The things: a weapon dropped (thrown away, or by the dead), the
+  medikits and the grenade kits where the map puts them, picked up.
 - The rules: the kill limit and the time limit, respawn after 3
   seconds, the scores, the next map.
 - The bots: Soldat's (`ControlBot`), along the map's waypoints, with
-  the 16 characters of its `.bot` files; the toy's go.
+  the 16 characters of its `.bot` files (their favourite weapon, how
+  often they throw a grenade); the toy's go.
 - Left out: the bonus kits, the bots' chat.
 
 ### 6. Heard, and alive
@@ -216,8 +239,9 @@ lobby's screen.
 ## The order, and what could change it
 
 1, 2 and 3 came first: Soldat's units and its soldier, then its look,
-which settled how content is fetched (4's pictures and 6's sounds use
-it). 4 is next: the play.
+which settled how content is fetched (4's pictures used it, 6's sounds
+will). 4 was the play. 5 is next: with the weapons in, what is missing
+of a deathmatch is what lies on the ground and who one plays against.
 
 ## To decide
 

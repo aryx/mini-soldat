@@ -23,7 +23,7 @@ let facing_right : Soldat_soldier.control = { still with aim = (10000., 0.) }
 let run (map : Soldat_map.t) (s : Soldat_soldier.t) (n : int) (keys : int -> Soldat_soldier.t -> Soldat_soldier.control) : Soldat_soldier.t =
   let s = ref s in
   for i = 1 to n do
-    s := Soldat_soldier.tick map ~ticks:i !s (keys i !s)
+    s := Soldat_soldier.tick map ~ticks:i ~random:(fun () -> 0.5) !s (keys i !s)
   done;
   !s
 

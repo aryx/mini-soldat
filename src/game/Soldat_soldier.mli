@@ -24,10 +24,11 @@
      the particle's step     speed += forces (gravity, 0.06, among them);
                              place += speed; speed *= 0.99; forces := 0
      the keys                forces for the next step, and which
-                             animations
+                             animations; the trigger: a shot
      the skeleton placed     from the animations' frames, as they are
      the animations advance
      the map                 the particle pushed out of the walls
+     the weapon's counters   the wait for the next shot, the reload
 
    so what a key does is felt a tick later, as there.
 
@@ -61,14 +62,75 @@
    healing) is the game's to do (Soldat_update), a soldier's health
    being its: a tick says which kinds were touched.
 
-   Not here yet, of the Pascal: firing and the weapons, the idle
-   animations, the parachute,
-   the chain and the hair that dangle, the background polygons.
+   **The weapons.** A soldier holds one weapon and carries another on
+   its back (the USSOCOM, unless it chose it), and grenades. A weapon
+   in the hands has four counters ([gun]):
+
+     ammo            shots left in the clip
+     fire_count      ticks before the next shot (FireInterval, counted
+                     down while there is ammo)
+     reload_count    ticks left of a reload (ReloadTime, counted down
+                     while the clip is empty: it reloads by itself)
+     startup_count   ticks the trigger must still be held (the Barrett
+                     19, the minigun 25); let go, it starts again
+
+   *A shot* (TSprite.Fire) leaves from 4 behind the hand (point 15), 2
+   above, towards the cursor, turned by chance by at most
+
+       0.5 sin (pi/2 x min 0.5 (0.25 (moving + scatter)) / 0.5)
+
+   on each axis before the direction is made of length 1 again: moving
+   is the weapon's MovementAcc, 7 times when running, jumping, rolling
+   or flying, 3 times in the air or getting up, nothing when still;
+   scatter is its BulletSpread, less crouched (/ 1.3) or lying
+   (/ 1.625). Then its speed, plus half the soldier's. The chance is
+   not Random's but the game's own numbers ([random]), so that a game
+   replays the same.
+
+   Worked example: an FN Minimi (MovementAcc 0.013, BulletSpread
+   0.064) standing still may be off by 0.5 sin (pi/2 x 0.016 / 0.5) =
+   0.0251 on each axis, a degree and a half; running, 0.25 x (7 x 0.013
+   + 0.064) = 0.03875 and 0.5 sin (pi/2 x 0.03875 / 0.5) = 0.0607, three
+   and a half degrees.
+
+   The Eagles fire two bullets, each moved by its own BulletSpread,
+   the second 3 beside the first. The shotgun fires six pellets the
+   same way, and kicks its soldier back by 0.041 of the pellets' speed
+   (0.58 a tick): in the air, aimed down, that is a second jump; a
+   soldier standing on the ground is held by it. The minigun pushes
+   back a little at every bullet.
+
+   *The trigger*: held, a weapon fires each time fire_count is 0; one
+   that fires once a pull (the Eagles, the shotgun, the Ruger, the
+   Barrett, the USSOCOM) has its fire_count kept at 1 while the trigger
+   stays held after a shot.
+
+   *A reload* starts by itself on an empty clip, or with its key (the
+   clip is then let go, whatever was in it). The body plays Clip_out,
+   then Clip_in when the count is at 0.8 of its time and Slide_back at
+   0.3; at 0 the clip is full. The shotgun has no clip: its body plays
+   Reload, and each time that reaches its 14th frame a shell is in,
+   until it is full or the trigger is pulled.
+
+   *Changing weapon* is the animation Change, the two weapons swapped
+   at its 25th frame. *A grenade*: its key held plays Throw; let go
+   between frames 15 and 36 (or at 36) the grenade leaves the hand
+   towards the cursor at frame / 5 units a tick (0.65 of that before
+   frame 24): 3 to 7.2, plus all of the soldier's speed.
+
+   What left a soldier in a tick is in [shots]: the game makes bullets
+   of them (Soldat_bullets).
+
+   Not here, of the Pascal: the knife, the fist and the rifle's butt,
+   a weapon thrown away, the aim shaken by a hit (bink), the idle
+   animations, the parachute, the chain and the hair that dangle, the
+   background polygons.
 
    In Soldat: ParticleSystem.Euler (shared/Parts.pas), TSprite.Update,
    CheckMapCollision, CheckRadiusMapCollision, CheckMapVerticesCollision
-   (shared/mechanics/Sprites.pas), and ControlSprite
-   (shared/mechanics/Control.pas), a procedure of 2,090 lines.
+   TSprite.Fire, TSprite.ThrowGrenade (shared/mechanics/Sprites.pas),
+   and ControlSprite (shared/mechanics/Control.pas), a procedure of
+   2,090 lines.
 *)
 
 (* standing, crouching, lying: Soldat's Position *)
@@ -84,10 +146,23 @@ type control = {
   down : bool; (* crouch *)
   jetpack : bool;
   prone : bool;
+  fire : bool; (* the trigger *)
+  reload : bool;
+  change : bool; (* to the weapon on its back *)
+  grenade : bool; (* held to wind up, let go to throw *)
   aim : float * float;
 }
 
 val no_control : control
+
+(* a weapon and its counters: TGun *)
+type gun = { kind : Soldat_weapons.t; ammo : int; fire_count : int; reload_count : int; startup_count : int }
+
+(* a weapon as it is picked: full, ready *)
+val gun : Soldat_weapons.id -> gun
+
+(* what left a soldier: a bullet its weapon, or a grenade its hand *)
+type shot = { from : float * float; velocity : float * float; weapon : Soldat_weapons.id }
 
 (* the fields are a tick's to write, nobody else's *)
 type t = {
@@ -116,15 +191,29 @@ type t = {
   mutable old_skeleton : (float * float) array; (* and a tick before: how fast each goes *)
   mutable was_running_left : bool;
   mutable was_jumping : bool;
+  mutable weapon : gun; (* in its hands *)
+  mutable secondary : gun; (* on its back *)
+  mutable grenades : int;
+  mutable ceasefire : int; (* ticks before it may fire and be hit: 90 when it appears *)
+  mutable burst : int; (* shots since the trigger was pulled *)
+  mutable fired : bool; (* it fired, this tick *)
+  mutable can_throw : bool;
+  mutable trigger_released : bool;
+  mutable reload_wanted : bool;
+  mutable shots : shot list; (* what left it this tick, the first first *)
 }
 
-(* a soldier standing at a place, with that much fuel *)
-val create : float * float -> int -> t
+(* a soldier standing at a place, with that much fuel, [primary] in
+ * its hands (the USSOCOM if none is said), the USSOCOM on its back,
+ * one grenade *)
+val create : ?primary:Soldat_weapons.id -> float * float -> int -> t
 
 (* a tick later, on this map, asked this. [ticks] is how many the game
- * has had (the jets fill every other tick in the air). The soldier
- * given is not changed *)
-val tick : Soldat_map.t -> ticks:int -> t -> control -> t
+ * has had (the jets fill every other tick in the air); [random] gives
+ * the game's next number from 0 to 1, asked only when a shot leaves
+ * (2 times, 6 for the Eagles, 14 for the shotgun). The soldier given
+ * is not changed *)
+val tick : Soldat_map.t -> ticks:int -> random:(unit -> float) -> t -> control -> t
 
 (* where point [p] of its skeleton is, by Soldat's number, 1 to 20 *)
 val point : t -> int -> float * float

@@ -8,9 +8,10 @@
  * 2 of the License, or (at your option) any later version.
  *)
 (* A tick of the game, in Soldat's order (server/ServerLoop.pas): each
- * living soldier moves (Soldat_soldier.tick: its keys, the player's or
- * a bot's), each bullet is tested along where it is going and then
- * moves, the dead tumble and come back; then the camera.
+ * living soldier moves and fires (Soldat_soldier.tick: its keys, the
+ * player's or a bot's), each bullet is tested along where it is going
+ * and then moves (Soldat_bullets), the walls hurt who touches them,
+ * the dead tumble and come back; then the camera.
  *
  * [tick] knows no keyboard and no screen: it is given what the player
  * wants (an intent, as the bots give theirs) and where it looks. So a
@@ -18,21 +19,14 @@
  * network brought. [update] is the Playground's: it reads the keys and
  * the mouse, and calls [tick].
  *
- * The gun is still TinySoldat's one gun, with the numbers of Soldat's
- * USSOCOM (server/configs/weapons.ini): a shot every 10 ticks, a
- * bullet leaving the hand at 18 a tick plus half the soldier's speed,
- * pulled down 2.25 times as hard as a soldier, losing a hundredth of
- * its speed a tick; a hit takes speed x 1.49 x the place's (head 1.1,
- * chest 0.95, legs 0.85) of a health of 150, and pushes. A soldier
- * that just appeared neither fires nor is hit for 90 ticks (Soldat's
- * cease-fire). No ammunition,
- * no reload, no going through bodies, no ricochet, no grenades yet:
- * the weapons are docs/plan.md's step 4.
+ * **Chance.** A shot's direction is turned by chance (Soldat's
+ * Random). The game's own numbers come from a seed kept in its state
+ * (Lehmer: the next seed is 16807 times the last, modulo 2^31 - 1),
+ * drawn in the order the soldiers fire: the same seed and the same
+ * keys give the same game, on any machine.
  *
  * In Soldat: client/UpdateFrame.pas and server/ServerLoop.pas (the
- * tick), shared/mechanics/Bullets.pas (TBullet.Update,
- * CheckMapCollision, CheckSpriteCollision), TSprite.Fire and
- * TSprite.Respawn (Sprites.pas).
+ * tick), TSprite.Respawn (Sprites.pas).
  *)
 open Playground
 open Soldat_model (* its types, used all along *)
@@ -43,68 +37,37 @@ open Soldat_model (* its types, used all along *)
 
 (* Soldat's keys (client/configs/controls.cfg): A and D, W to jump, S to
  * crouch, X to lie down, the left button to fire, the right one for the
- * jets (shift too, for a pad without one). The mouse is on the screen,
- * y upwards; the soldier in the map, y downwards *)
+ * jets (shift too, for a pad without one), R to reload, Q for the other
+ * weapon, E for a grenade.
+ * The mouse is on the screen, y upwards; the soldier in the map, y
+ * downwards *)
 let human (computer : computer) (p : play) : intent =
   let k = computer.keyboard and m = computer.mouse in
   let key l = Set_.mem l k.keys in
   let z = zoom computer.screen in
   let (cx, cy) = p.camera in
   {
-    control =
-      {
-        left = key "a"; right = key "d"; up = key "w"; down = key "s"; prone = key "x";
-        jetpack = m.mrdown || k.kshift;
-        aim = (cx +. (m.mx /. z), cy -. (m.my /. z));
-      };
+    left = key "a"; right = key "d"; up = key "w"; down = key "s"; prone = key "x";
+    jetpack = m.mrdown || k.kshift;
     fire = m.mdown;
+    reload = key "r"; change = key "q"; grenade = key "e";
+    aim = (cx +. (m.mx /. z), cy -. (m.my /. z));
   }
 
+(* the key of a weapon in Soldat's menu, 1 to 9 then 0, if one is down *)
+let chosen (computer : computer) : Soldat_weapons.id option =
+  List.mapi (fun i id -> (string_of_int ((i + 1) mod 10), id)) Soldat_weapons.primaries
+  |> List.find_map (fun (key, id) -> if Set_.mem key computer.keyboard.keys then Some id else None)
+
 (*****************************************************************************)
-(* The gun *)
+(* The walls *)
 (*****************************************************************************)
-
-let fire_interval = 10
-let bullet_speed = 18.
-let bullet_damage = 1.49
-let bullet_push = 0.02
-let bullet_gravity = 2.25 *. Soldat_soldier.grav
-let bullet_timeout = 420
-
-(* PART_RADIUS: a soldier, to a bullet, is circles of this radius *)
-let part_radius = 7.
-
-(* at these points of its skeleton, the head first (Bullets.pas's
- * BodyPartsPriority) *)
-let hit_points = [ 12; 11; 10; 6; 5; 4; 3 ]
-
-(* what a hit there is worth: the legs, the chest, the head *)
-let modifier (point : int) : float = if point <= 4 then 0.85 else if point <= 11 then 0.95 else 1.1
-
-let normalize ((x, y) : float * float) : float * float =
-  let len = Float.hypot x y in
-  if len < 0.001 then (0., 0.) else (x /. len, y /. len)
-
-(* a shot: from the hand (point 15) towards the cursor *)
-let shoot (owner : int) (s : soldier) : bullet =
-  let (hx, hy) = Soldat_soldier.point s.body 15 in
-  let (dx, dy) = normalize (s.body.aim_x -. hx, s.body.aim_y -. hy) in
-  { x = hx; y = hy; vx = (dx *. bullet_speed) +. (s.body.vx *. 0.5); vy = (dy *. bullet_speed) +. (s.body.vy *. 0.5); owner; ttl = bullet_timeout }
-
-(* the bullet's way this tick ends in a wall, looked at every 2.5 units
- * or less (TBullet.CheckMapCollision), or goes through one of the
- * map's colliders (CheckColliderCollision) *)
-let hits_map (map : Soldat_map.t) (b : bullet) : bool =
-  let steps = max 1 (int_of_float (Float.max (Float.abs b.vx) (Float.abs b.vy) /. 2.5)) in
-  let rec go k = k <= steps && (Soldat_map.in_bullet_wall map (b.x +. (b.vx *. float_of_int k /. float_of_int steps), b.y +. (b.vy *. float_of_int k /. float_of_int steps)) || go (k + 1)) in
-  go 1 || List.exists (fun collider -> Collide.segment_circle ((b.x, b.y), (b.x +. b.vx, b.y +. b.vy)) collider <> None) map.colliders
 
 (* what the walls a soldier touched this tick do to its health
  * (HandleSpecialPolyTypes, S:3071, the server's branches): the deadly
  * ones take all of it and more, the hurting ones and lava 5 now and
  * then, the healing ones give 2 back every 12 ticks. Soldat hurts one
- * tick in ten by chance; here every tenth tick, a tick having no
- * chance in it *)
+ * tick in ten by chance; here every tenth tick *)
 let wall_damage (ticks : int) (s : soldier) : float =
   List.fold_left
     (fun damage (kind : Pms.kind) ->
@@ -117,12 +80,6 @@ let wall_damage (ticks : int) (s : soldier) : float =
       | _ -> damage)
     0. s.body.touched
 
-(* the first of a soldier's points the bullet's way this tick goes
- * through *)
-let hits_soldier (b : bullet) (s : soldier) : int option =
-  let way = ((b.x, b.y), (b.x +. b.vx, b.y +. b.vy)) in
-  List.find_opt (fun point -> Collide.segment_circle way (Soldat_soldier.point s.body point, part_radius) <> None) hit_points
-
 (*****************************************************************************)
 (* A tick *)
 (*****************************************************************************)
@@ -133,10 +90,13 @@ let hits_soldier (b : bullet) (s : soldier) : int option =
  * it follows the body's head *)
 let follow (p : play) (me : soldier) ((lx, ly) : float * float) : float * float =
   let (cx, cy) = p.camera in
-  let (px, py) = match me.dead with None -> (me.body.x, me.body.y) | Some (_, ragdoll) -> ragdoll.(11).pos in
+  let (px, py) = Soldat_bullets.place me in
   (cx +. (0.14 *. (px -. cx)) +. (lx /. 7.), cy +. (0.14 *. (py -. cy)) +. (ly /. 7.))
 
 let respawn_ticks = 180
+
+(* ticks an explosion is drawn for *)
+let explosion_ticks = 24
 
 (* a tick: [player] is what the human soldier wants, [look] where its
  * cursor is from the screen's middle, in the map's units *)
@@ -144,9 +104,13 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
   let p = { p with frame = p.frame + 1 } in
   let soldiers = Array.copy p.soldiers in
   let minds = Array.copy p.minds in
-  let n = Array.length soldiers in
+  let seed = ref p.seed in
+  let random () =
+    seed := Lehmer.next !seed;
+    Lehmer.to_unit !seed
+  in
   let shots = ref [] in
-  (* 1. the living soldiers: their keys, their move, their shot *)
+  (* 1. the living soldiers: their keys, their move, their shots *)
   soldiers
   |> Array.iteri (fun i s ->
          if s.dead = None then begin
@@ -159,65 +123,33 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
                it
              end
            in
-           let body = Soldat_soldier.tick p.map ~ticks:p.frame s.body it.control in
+           let body = Soldat_soldier.tick p.map ~ticks:p.frame ~random s.body it in
+           shots := !shots @ List.map (Soldat_bullets.of_shot ~owner:i) body.shots;
            (* out of the map: back at a spawn point, as Soldat does *)
-           let body = if Soldat_soldier.out_of_map p.map body then Soldat_soldier.create (spawn p.map (i + p.frame)) p.map.jet else body in
-           let s = { s with body; reload = max 0 (s.reload - 1); safe = max 0 (s.safe - 1) } in
-           let s =
-             if it.fire && s.reload = 0 && s.safe = 0 then begin
-               shots := shoot i s :: !shots;
-               { s with reload = fire_interval }
-             end
-             else s
-           in
-           soldiers.(i) <- s
+           let body = if Soldat_soldier.out_of_map p.map body then Soldat_soldier.create ~primary:s.primary (spawn p.map (i + p.frame)) p.map.jet else body in
+           soldiers.(i) <- { s with body }
          end);
   (* 2. the bullets: tested along their way, then moved *)
-  let damage = Array.make n 0. and killer = Array.make n (-1) and hit = Array.make n None in
-  let bullets =
-    (p.bullets @ List.rev !shots)
-    |> List.filter_map (fun (b : bullet) ->
-           let struck =
-             List.find_map
-               (fun i -> if i <> b.owner && soldiers.(i).dead = None && soldiers.(i).safe = 0 then Option.map (fun point -> (i, point)) (hits_soldier b soldiers.(i)) else None)
-               (List.init n Fun.id)
-           in
-           match struck with
-           | Some (i, point) ->
-               damage.(i) <- damage.(i) +. (Float.hypot b.vx b.vy *. bullet_damage *. modifier point);
-               killer.(i) <- b.owner;
-               hit.(i) <- Some (point, (b.vx *. bullet_push *. 10., b.vy *. bullet_push *. 10.));
-               let body = soldiers.(i).body in
-               soldiers.(i) <- { (soldiers.(i)) with body = { body with vx = body.vx +. (b.vx *. bullet_push); vy = body.vy +. (b.vy *. bullet_push) } };
-               None
-           | None ->
-               if b.ttl = 0 || hits_map p.map b then None
-               else
-                 (* ParticleSystem.Euler, with the bullets' gravity *)
-                 let vx = b.vx and vy = b.vy +. bullet_gravity in
-                 Some { b with x = b.x +. vx; y = b.y +. vy; vx = vx *. 0.99; vy = vy *. 0.99; ttl = b.ttl - 1 })
-  in
-  (* 3. the damage: the bullets', and the walls' (by nobody's hand); the
-   * dead become ragdolls, and come back after 3 s *)
+  let (soldiers, bullets, explosions) = Soldat_bullets.tick p.map soldiers (p.bullets @ !shots) in
+  (* 3. the walls (by one's own hand, as Soldat counts it); the dead
+   * tumble, and come back after 3 s *)
+  let world : Soldat_bullets.world = { map = p.map; soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = [||]; explosions = [] } in
   soldiers
   |> Array.iteri (fun i s ->
          match s.dead with
          | None ->
-             let health = Float.min full_health (s.health -. damage.(i) -. wall_damage p.frame s) in
-             if health < 1. then begin
-               soldiers.(i) <- { s with health = 0.; dead = Some (0, Soldat_ragdoll.of_soldier s.body hit.(i)) };
-               if killer.(i) >= 0 && killer.(i) <> i then soldiers.(killer.(i)) <- { (soldiers.(killer.(i))) with kills = soldiers.(killer.(i)).kills + 1 }
-             end
-             else soldiers.(i) <- { s with health }
+             let damage = wall_damage p.frame s in
+             if damage <> 0. then Soldat_bullets.hurt world i ~by:i ~where:1 damage
          | Some (ticks, ragdoll) ->
              if ticks > respawn_ticks then begin
                (* at the spawn point farthest from the living *)
                let living = List.filter_map (fun (o : soldier) -> if o.dead = None then Some (o.body.x, o.body.y) else None) (Array.to_list soldiers) in
                let spot = farthest p.map living in
-               soldiers.(i) <- { s with dead = None; health = full_health; reload = 0; safe = ceasefire; body = Soldat_soldier.create spot p.map.jet }
+               soldiers.(i) <- { s with dead = None; health = full_health; body = Soldat_soldier.create ~primary:s.primary spot p.map.jet }
              end
              else soldiers.(i) <- { s with dead = Some (ticks + 1, Soldat_ragdoll.tick p.map ragdoll) });
-  { p with camera = follow p soldiers.(0) look; soldiers; minds; bullets }
+  let explosions = explosions @ List.filter_map (fun (e : explosion) -> if e.age < explosion_ticks then Some { e with age = e.age + 1 } else None) p.explosions in
+  { p with camera = follow p soldiers.(0) look; soldiers; minds; bullets; explosions; seed = !seed }
 
 (*****************************************************************************)
 (* The rounds *)
@@ -233,6 +165,8 @@ let update (computer : computer) (model : model) : model =
     if Scene2d.pressed (fun k -> Set_.mem "g" k.keys) scenes then { model with graphics = (model.graphics mod graphics_levels) + 1; graphics_shown = 150 }
     else { model with graphics_shown = max 0 (model.graphics_shown - 1) }
   in
+  (* 1 to 9 and 0: the weapon to appear with, from now on *)
+  let model = match chosen computer with Some primary -> { model with primary } | None -> model in
   let scenes =
     match scenes.scene with
     | Loading name -> (
@@ -248,10 +182,13 @@ let update (computer : computer) (model : model) : model =
     | Title map | Over (_, map) ->
         (* ai=engine chooses the bots, at the start of a round *)
         let ai_engine = List.assoc_opt "ai" computer.flags = Some "engine" in
-        if space then Scene2d.go (Playing (start ~ai_engine map)) scenes else scenes
+        (* a round's chance is its number's: each one its own, and the same again *)
+        if space then Scene2d.go (Playing (start ~ai_engine ~primary:model.primary ~seed:model.rounds map)) scenes else scenes
     | Playing p -> (
         let z = zoom computer.screen in
+        let p = if p.soldiers.(0).primary <> model.primary then { p with soldiers = Array.mapi (fun i (s : soldier) -> if i = 0 then { s with primary = model.primary } else s) p.soldiers } else p in
         let p = tick p (human computer p) ~look:(computer.mouse.mx /. z, -.computer.mouse.my /. z) in
         match winner p with Some s -> Scene2d.go (Over (s.name, p.map)) scenes | None -> { scenes with scene = Playing p })
   in
-  { model with scenes }
+  let rounds = match (model.scenes.scene, scenes.scene) with ((Title _ | Over _), Playing _) -> model.rounds + 1 | _ -> model.rounds in
+  { model with scenes; rounds }

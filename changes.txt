@@ -5,6 +5,28 @@
 # (with direction from me)
 
 ** Features
+- Soldat's weapons (docs/plan.md's step 4). Soldat_weapons: its own
+  weapons.ini read, the ten primaries, the USSOCOM, the grenade.
+  Soldat_soldier, from ControlSprite, TSprite.Fire and ThrowGrenade: a
+  weapon in the hands and one on the back; the trigger, held or once a
+  pull; the clip, its reload and their animations; the shotgun's
+  shells; the Barrett's and the minigun's wait; the scatter by how one
+  moves and stands; the two Eagles; the six pellets and their kick;
+  the recoil; the change of weapon; a grenade thrown harder the longer
+  held. Soldat_bullets, from Bullets.pas: a bullet against the map
+  (the ricochet), the colliders and the soldiers' seven circles;
+  damage as speed x Damage x the place's; the push; through a body;
+  weaker with the distance; a grenade bouncing; the explosion.
+  Soldat_ragdoll: the sticks a hard death cuts
+- the keys r (reload), q (the other weapon), e (a grenade), 1 to 9 and
+  0 (the weapon to appear with; the flag weapon=N)
+- the weapons drawn: in the hands with clip and muzzle's fire, on the
+  back; a grenade; an explosion. Their pictures are files
+  (data/weapons-gfx, asked through Soldat_assets)
+- an interface: health, ammunition, jets, grenades; Soldat's menu of
+  weapons on the title and while dead
+- the scatter from a seed in the round's state (Lehmer), not Random: a
+  round replays the same
 - everything TinySoldat had in elm-playground 0.3.3: one arena of
   polygons, three soldiers (you and two bots) running, jumping and
   flying on their jets, bullets swept against the map and the

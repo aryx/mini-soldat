@@ -14,8 +14,8 @@ next. For what each piece is in Soldat's own sources, see
         |                                      v
         |   at build time            +------------------+
         +--------------------------> |    src/game      |  a tick: the soldiers move
-        |   Gen_anims, Gen_pictures, |  (Soldat_update) |  (Soldat's rules), the bullets
-        |   base64: carried in the   +------------------+  fly, the dead tumble
+        |   Gen_anims, Gen_pictures, |  (Soldat_update) |  and fire (Soldat's rules), the
+        |   base64: carried in the   +------------------+  bullets fly, the dead tumble
         |   program                            |
         |                                      v   a value: Soldat_model.model
         |   when the game runs       +------------------+
@@ -49,18 +49,19 @@ downwards only.
 | `src/map` | a `.pms` file read (`Pms`); the map the game plays on: its walls, its sectors, its spawn points (`Soldat_map`) | 900 |
 | `src/anim` | the animations' and the skeleton's files read (`Poa`); the 44 animations (`Soldat_anims`) | 390 |
 | `src/assets` | files got while the game runs, and decoded (`Soldat_assets`, `Bmp`) | 320 |
-| `src/game` | the game without its picture: a soldier (`Soldat_soldier`), a dead one (`Soldat_ragdoll`), the state (`Soldat_model`), the bots (`Soldat_bots`), a tick (`Soldat_update`) | 1,320 |
-| `src/render` | the picture: a soldier's (`Soldat_gostek`), the map's (`Soldat_scene`, `Soldat_raster`), the whole (`Soldat_view`) | 920 |
+| `src/game` | the game without its picture: the weapons' numbers (`Soldat_weapons`), a soldier and its guns (`Soldat_soldier`), a dead one (`Soldat_ragdoll`), the state (`Soldat_model`), the bullets and the explosions (`Soldat_bullets`), the bots (`Soldat_bots`), a tick (`Soldat_update`) | 2,380 |
+| `src/render` | the picture: a soldier's and its weapons' (`Soldat_gostek`), the map's (`Soldat_scene`, `Soldat_raster`), the whole and the interface (`Soldat_view`) | 1,090 |
 | `src/net` | the messages between a player and the server (`Soldat_protocol`) | 200 |
 | `src/server` | the lobby (`Soldat_lobby`) and its sockets (`Soldat_server`) | 240 |
 | `src/main` | the programs | 100 |
 
-About 4,400 lines, and 1,300 of tests. What matters in the split:
+About 5,600 lines, and 1,700 of tests. What matters in the split:
 
 - **`src/game` knows no picture and no keyboard.** `Soldat_update.tick`
   takes what the player wants (an `intent`: keys and where the cursor
-  is, what a bot returns too) and gives the next round. So tests call
-  it, a round replays the same, and a server will run it.
+  is, what a bot returns too) and gives the next round. Its chance (a
+  shot's scatter) is a seed in the round's state, not `Random`. So
+  tests call it, a round replays the same, and a server will run it.
 - **What a browser's program links is pure OCaml**: no `unix`. Only
   `src/server` uses sockets, and the game never links it.
 - **The platform is chosen when linking.** elm-playground's platform is
@@ -74,12 +75,17 @@ About 4,400 lines, and 1,300 of tests. What matters in the split:
 
 1. each living soldier: its keys (the player's, or a bot's) and its
    move, `Soldat_soldier.tick`, which is itself: the particle's step,
-   the keys as forces and animations, the skeleton placed and aimed,
-   the animations advanced, the collision with the map;
-2. each bullet: tested along where it is going (the map's walls and
-   colliders, the soldiers' seven circles), then moved;
-3. the damage: bullets and what the walls do; the dead become
-   ragdolls, tumble, and come back;
+   the keys as forces and animations, the trigger (a shot: what leaves
+   the soldier is in its `shots`), the skeleton placed and aimed, the
+   animations advanced, the collision with the map, the weapon's
+   counters;
+2. each bullet, the tick's new ones too (`Soldat_bullets.tick`):
+   tested along where it is going (the map's walls: a ricochet or the
+   end; its colliders; the soldiers' seven circles, living or dead),
+   what it hits hurt, pushed, killed at once, so that the next bullet
+   finds it so; an explosion and the grenades it sets off; then moved;
+3. what the walls do to who touches them; the dead tumble, and come
+   back;
 4. the camera.
 
 Everything is in Soldat's units and coordinates: a tick a frame, a
@@ -130,10 +136,12 @@ A frame of mini-soldat is about this list, back to front:
 Camera2d.view camera          one Group: everything of the map, moved and zoomed
   the sky                     66 Rectangles (no gradient in the Playground)
   the map, behind             Bitmaps: the tiles under the camera
-  the bullets                 a Rectangle each
-  the soldiers                17 Bitmaps each (a picture a limb), and two bars
+  the bullets                 a Rectangle each; a grenade a Bitmap
+  the soldiers                16 Bitmaps each (a picture a limb), 1 to 4 more for
+                              its weapons (in hand, its clip, its fire; on the back)
   the map, in front           Bitmaps: tiles again, over the soldiers
-the score                     Words, outside the camera
+  the explosions              two Circles each, fading
+the score, the interface      Words and Rectangles, outside the camera
 ```
 
 The game's y goes down and the Playground's up: `Soldat_view.at`

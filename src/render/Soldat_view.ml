@@ -8,7 +8,8 @@
  * 2 of the License, or (at your option) any later version.
  *)
 (* The picture of a tick: the map, the soldiers, the bullets, the
- * score.
+ * explosions, the score, and what the player has: health, ammunition,
+ * jets, grenades.
  *
  * The game is in Soldat's coordinates, y downwards; the Playground's y
  * goes up. Here, and only here, a point (x, y) of the game is drawn at
@@ -20,6 +21,16 @@
  * the skeleton's own sticks over it, and hitboxes what the game tests:
  * the particle, the points of the head and the feet, the circles a
  * bullet hits.
+ *
+ * A bullet is a streak along its way, a grenade its picture; an
+ * explosion a disc that grows and fades (Soldat's own, 16 pictures
+ * and their smoke, come with the sparks: docs/plan.md's step 6).
+ *
+ * The interface is bars and words at the bottom left, where Soldat
+ * has its own (drawn with pictures there: interface-gfx/): the health,
+ * the ammunition (which fills again as the reload goes), the jets, the
+ * grenades; and the weapons to choose from, by their keys, on the
+ * title and while dead (Soldat's menu, there clicked).
  *
  * In Soldat: client/GameRendering.pas, whose order this follows (what
  * is behind, the bullets, the soldiers, then the map's polygons over
@@ -69,32 +80,42 @@ let colors (s : soldier) : Soldat_gostek.colors =
   let (r, g, b) = s.shirt in
   { shirt = s.shirt; trousers = (r *.. 5 /.. 10, g *.. 5 /.. 10, b *.. 5 /.. 10); skin = (230, 180, 120) }
 
-let view_soldier (computer : computer) ~(graphics : int) (map : Soldat_map.t) (s : soldier) : shape list =
+(* the weapon's clip is in: with ammunition, or early or late in a
+ * reload (RenderGostek's ShowClip); the minigun's belt until late *)
+let clip_in (g : Soldat_soldier.gun) : bool =
+  g.ammo > 0 || if g.kind.id = Minigun then g.reload_count < 65 else g.reload_count < g.kind.clip_in || g.reload_count > g.kind.clip_out
+
+let view_soldier (computer : computer) ~(graphics : int) (s : soldier) : shape list =
   let b = s.body in
   let sticks = List.mem_assoc "sticks" computer.flags in
   match s.dead with
   | Some (_, ragdoll) ->
-      let points = Array.map (fun (p : Particles.particle) -> p.pos) ragdoll in
-      (if graphics >= 2 then Soldat_gostek.view (colors s) ~point:(fun n -> points.(n -.. 1)) ~direction:b.direction ~jets:false ~dead:true
-       else stick_figure s.color points None)
+      let points = Array.map (fun (p : Particles.particle) -> p.pos) ragdoll.points in
+      (* the weapon on its back stays there; the one it held is gone *)
+      (if graphics >= 2 then
+         Soldat_gostek.view ~back:(Soldat_gostek.on_back b.secondary.kind.id) (colors s) ~point:(fun n -> points.(n -.. 1)) ~direction:b.direction ~jets:false ~dead:true
+       else List.map (fun (st : Particles.stick) -> segment s.color 1.6 points.(st.a) points.(st.b)) (Soldat_ragdoll.holding ragdoll))
       @ if sticks then figure white points else []
   | None ->
       let over = at (b.x, b.y - 30.) in
-      (if graphics >= 2 then Soldat_gostek.view (colors s) ~point:(Soldat_soldier.point b) ~direction:b.direction ~jets:b.jetting ~dead:false
+      (if graphics >= 2 then
+         Soldat_gostek.view
+           ~weapon:(Soldat_gostek.in_hands b.weapon.kind.id ~clip:(clip_in b.weapon) ~fire:b.fired)
+           ~back:(Soldat_gostek.on_back b.secondary.kind.id) (colors s) ~point:(Soldat_soldier.point b) ~direction:b.direction ~jets:b.jetting ~dead:false
        else
          (* the gun: from the arm's end, away from the hand that holds it *)
          let (hx, hy) = Soldat_soldier.point b 16 and (tx, ty) = Soldat_soldier.point b 15 in
          stick_figure s.color b.skeleton (Some ((tx, ty), (tx + ((tx - hx) / 7. * 6.), ty + ((ty - hy) / 7. * 6.)))))
       @ (if sticks then figure white b.skeleton else [])
-      @ bar (rgb 220 60 60) 16. (s.health / full_health) over
-      @ bar (rgb 240 200 60) 16. (float_of_int b.jets / float_of_int (max 1 map.jet)) (fst over, snd over - 2.5)
+      (* the others' health over their heads; one's own is in the interface *)
+      @ if s.human then [] else bar (rgb 220 60 60) 16. (s.health / full_health) over
 
 (* what the game tests, over a soldier *)
 let view_tested (s : soldier) : shape list =
   if s.dead <> None then []
   else
     let b = s.body in
-    List.map (fun p -> dot (rgb 255 255 255) 7. (Soldat_soldier.point b p) |> fade 0.25) Soldat_update.hit_points
+    List.map (fun p -> dot (rgb 255 255 255) 7. (Soldat_soldier.point b p) |> fade 0.25) Soldat_bullets.hit_points
     @ List.map (dot (rgb 255 0 255) 0.8) [ (b.x, b.y); (b.x - 3.5, b.y - 12.); (b.x + 3.5, b.y - 12.); (b.x + 2., b.y + 2.); (b.x - 2., b.y + 2.) ]
 
 (* the map under a camera looking at a point of the game: what goes
@@ -113,10 +134,60 @@ let view_map (computer : computer) ~(graphics : int) (map : Soldat_map.t) : shap
   let (back, front) = scene computer ~graphics map (spawn map 0) in
   Camera2d.view { x; y; zoom = zoom computer.screen; angle = 0. } (back @ front)
 
+(* a bullet: a streak behind it, longer and brighter for a rifle's; a
+ * grenade its picture, turning as it goes; the M79's its shell, along
+ * its way *)
+let view_bullet ~(graphics : int) (b : bullet) : shape list =
+  let plain () = [ segment (rgb 250 230 120) 0.8 (b.x, b.y) (b.x - (b.vx * 0.6), b.y - (b.vy * 0.6)) ] in
+  let or_dot name angle = match if graphics >= 2 then Soldat_gostek.loose name (b.x, b.y) angle else [] with [] -> [ dot (rgb 60 70 50) 1.6 (b.x, b.y) ] | shapes -> shapes in
+  match (Soldat_weapons.get b.weapon).style with
+  | Plain -> plain ()
+  | Pellets -> [ segment (rgb 250 240 180) 0.6 (b.x, b.y) (b.x - (b.vx * 0.3), b.y - (b.vy * 0.3)) ]
+  | Thrown -> or_dot "frag-grenade" (float_of_int b.ttl * -0.2 * if b.vx >= 0. then 1. else -1.)
+  | Explosive -> or_dot "m79-bullet" (Float.atan2 b.vy b.vx)
+
+(* an explosion: a disc from a third of its reach to all of it, fading *)
+let view_explosion (e : explosion) : shape list =
+  let t = float_of_int e.age / float_of_int Soldat_update.explosion_ticks in
+  let r = e.radius * (0.3 + (0.7 * Float.min 1. (t * 3.))) in
+  [ dot (rgb 255 150 40) r e.at |> fade (0.4 * (1. - t)); dot (rgb 255 240 170) (r * 0.45) e.at |> fade (0.8 * (1. - t)) ]
+
+(* what the player has, at the bottom left: its health, its weapon's
+ * name and ammunition (filling again as it reloads), its jets, its
+ * grenades *)
+let view_interface (computer : computer) (map : Soldat_map.t) (me : soldier) : shape list =
+  let screen = computer.screen in
+  let g = me.body.weapon in
+  let line i = screen.bottom + 70. + (26. * float_of_int i) in
+  let gauge i color name fraction said =
+    let fraction = Float.max 0. (Float.min 1. fraction) in
+    let x = screen.left + 150. in
+    [ text white 1.6 name |> move (screen.left + 50.) (line i);
+      rectangle (rgb 30 30 30) 124. 14. |> move x (line i) |> fade 0.6;
+      rectangle color (120. * fraction) 10. |> move (x - (60. * (1. - fraction))) (line i);
+      text white 1.6 said |> move (screen.left + 260.) (line i) ]
+  in
+  let ammo =
+    if g.ammo > 0 || g.kind.id = Spas then float_of_int g.ammo / float_of_int g.kind.ammo
+    else 1. - (float_of_int g.reload_count / float_of_int (max 1 g.kind.reload_time))
+  in
+  gauge 3 (rgb 220 60 60) "health" (me.health / full_health) (string_of_int (int_of_float (Float.max 0. me.health)))
+  @ gauge 2 (if g.ammo > 0 then rgb 230 230 230 else rgb 130 130 130) "ammo" ammo (if g.ammo > 0 || g.kind.id = Spas then string_of_int g.ammo else "reloading")
+  @ gauge 1 (rgb 240 200 60) "jets" (float_of_int me.body.jets / float_of_int (max 1 map.jet)) ""
+  @ [ text white 1.6 (Printf.sprintf "%s    grenades %d" g.kind.name me.body.grenades) |> move (screen.left + 150.) (line 0) ]
+
+(* Soldat's menu: the ten weapons by their keys, the one chosen marked *)
+let view_menu (chosen : Soldat_weapons.id) ((x, y) : float * float) : shape list =
+  List.mapi
+    (fun i id ->
+      let w = Soldat_weapons.get id in
+      text (if id = chosen then rgb 255 220 80 else white) 1.8 (Printf.sprintf "%d  %s" ((i +.. 1) mod 10) w.name) |> move x (y - (24. * float_of_int i)))
+    Soldat_weapons.primaries
+
 (* through the camera, in Soldat's order: what is behind, the bullets,
  * the soldiers, then the map's polygons over them; over it all and
  * not moving with the map, the score *)
-let view_play (computer : computer) ~(graphics : int) (p : play) : shape list =
+let view_play (computer : computer) ~(graphics : int) ~(primary : Soldat_weapons.id) (p : play) : shape list =
   let top = computer.screen.top in
   let (x, y) = at p.camera in
   let soldiers = Array.to_list p.soldiers in
@@ -124,12 +195,14 @@ let view_play (computer : computer) ~(graphics : int) (p : play) : shape list =
   Camera2d.view
     { x; y; zoom = zoom computer.screen; angle = 0. }
     (back
-    @ List.map (fun (b : bullet) -> segment (rgb 250 230 120) 0.8 (b.x, b.y) (b.x - (b.vx * 0.6), b.y - (b.vy * 0.6))) p.bullets
-    @ List.concat_map (view_soldier computer ~graphics p.map) soldiers
+    @ List.concat_map (view_bullet ~graphics) p.bullets
+    @ List.concat_map (view_soldier computer ~graphics) soldiers
     @ front
+    @ List.concat_map view_explosion p.explosions
     @ if List.mem_assoc "hitboxes" computer.flags then List.concat_map view_tested soldiers else [])
   :: List.mapi (fun i s -> text s.color 2.5 (Printf.sprintf "%s %d" s.name s.kills) |> move (-300. + (300. * float_of_int i)) (top - 40.)) soldiers
-  @ (if p.soldiers.(0).dead <> None then [ text white 3. "respawning..." |> move_y (top - 120.) ] else [])
+  @ view_interface computer p.map p.soldiers.(0)
+  @ (if p.soldiers.(0).dead <> None then (text white 3. "respawning..." |> move_y (top - 120.)) :: view_menu primary (0., top - 180.) else [])
 
 let view (computer : computer) (model : model) : shape list =
   let graphics = model.graphics in
@@ -140,12 +213,13 @@ let view (computer : computer) (model : model) : shape list =
   | Title map ->
       [ view_map computer ~graphics map;
         text white 6. "MINI SOLDAT" |> move_y 300.;
-        text white 2. "a/d run   w jump   s crouch   x lie down" |> move_y 200.;
-        text white 2. "mouse aim   left button shoot   right button (or shift) jets" |> move_y 160.;
-        text white 2. "you against two bots: first to 5 kills   g: the graphics" |> move_y 120.;
-        text white 2. map.name |> move_y 40. ]
-      @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-50.) ]
-  | Playing p -> view_play computer ~graphics p
+        text white 2. "a/d run   w jump   s crouch   x lie down   r reload   q other weapon   e grenade" |> move_y 220.;
+        text white 2. "mouse aim   left button shoot   right button (or shift) jets" |> move_y 185.;
+        text white 2. "you against two bots: first to 5 kills   g: the graphics" |> move_y 150.;
+        text white 2. map.name |> move_y 110. ]
+      @ view_menu model.primary (0., 50.)
+      @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-230.) ]
+  | Playing p -> view_play computer ~graphics ~primary:model.primary p
   | Over (name, map) ->
       [ view_map computer ~graphics map; text white 5. (if name = "YOU" then "YOU WIN!" else name ^ " WINS") |> move_y 200. ]
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-50.) ])
