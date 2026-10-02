@@ -212,6 +212,52 @@ be.
   a collider; the bots' difficulty (it is "normal"); a thing hit by a
   bullet or thrown by a blast; the kills' console.
 
+- **Step 6, heard, and alive** (2026-10-02). The rules now say what
+  happened in a tick as values (`Soldat_event`: a shot, a step, a
+  bullet in a wall), where Soldat's code plays a sound or makes a
+  spark between two lines of its rules; from them come the sparks
+  (`Soldat_sparks`, adapted from `Sparks.pas` and every `CreateSpark`
+  of the client's branches: a shot's shell and its puff, a clip let
+  go, blood along a bullet's way, the chips and the smoke of a wall,
+  a ricochet's sparks, an explosion's fire, ring and big smoke, the
+  jets' fire, a runner's dust; 16 of Soldat's 73 styles) and the
+  tick's sounds (`Soldat_sfx`: 44 of them, 82 of Soldat's recordings),
+  played by `Soldat_sound` as Soldat's `FPlaySound` does: quieter with
+  the distance, to a side, a far fight heard as a rumble, the jets a
+  loop. Drawn by `Soldat_sparks_view` with Soldat's pictures: its 16
+  of an explosion in place of the disc; and the camera shakes.
+  What it turned out to be:
+  - the sparks are in the round's state, with a seed of their own: a
+    test says the same round is played with them and without;
+  - the Playground reads 16-bit recordings and 38 of the 82 are 8-bit:
+    rewritten here when first played, 30 lines; its `Audio` did the
+    rest (a recording, louder, panned, looped) as it was;
+  - **in a browser** both cost. 250 sparks are 250 elements of the
+    page moved every frame; and a sound made louder and panned is
+    computed again whole at each play (the Playground's `louder` and
+    `pan`: 2.6 ms for an explosion natively, far more there), where
+    one played as it is costs nothing. There: at most 150 sparks and 5
+    new sounds a tick, each recording kept at four loudnesses and
+    played from the middle, without left and right; an explosion's 26
+    pictures at half their size. A headless Chrome without a graphics
+    card then gives 40 to 60 frames a second in a fight, as it does
+    with no sound at all; before, 20 in the second of an explosion
+    (flags `sparks=N` and `mute` to compare);
+  - the website's content went from 2.8 to 9.2 MB (the sounds 2.4, the
+    sparks' pictures 3.3);
+  - where the sparks are drawn matters: Soldat draws them under the
+    map's polygons, so that a drop of blood falling into the ground is
+    not seen again; over them, it rains through the floor;
+  - the hand was wrong again, once: a soldier dropped from 60 units
+    lands at 2.16 a tick, under the 2.2 from which a fall is heard
+    (its speed keeps 0.99 of itself each tick);
+  - the game's lines went from 3,350 to 4,370 (`src/game`), the tests
+    from 92 to 99.
+  Left out: the weather, clothes shredded and a helmet shot off, a
+  bullet's whizz past one's head, the minigun's start and end, the
+  hum and the muffling after a grenade, a collider's sound, the menu's
+  and the chat's.
+
 Nothing is the toy's any more but the bot of `ai=engine`, kept as an
 example.
 
@@ -248,13 +294,6 @@ example.
 
 ## The steps
 
-### 6. Heard, and alive
-
-- The sounds: the 163 samples, heard by where they are; the 8-bit
-  ones converted.
-- The sparks: blood, shells and clips, smoke, the explosions, the
-  ricochets, the jets' fire, the dirt.
-
 ### 7. Teams and flags
 
 Team deathmatch and capture the flag (Soldat's default mode): the
@@ -275,8 +314,8 @@ lobby's screen.
 1, 2 and 3 came first: Soldat's units and its soldier, then its look,
 which settled how content is fetched (4's pictures used it, 6's sounds
 will). 4 was the play, 5 who one plays against and what lies on the
-ground. 6 is next: the game is all there to the hands and silent to
-the ears; and its explosions are still a disc.
+ground, 6 what is heard and what flies about. 7 is next: the teams and
+the flags, Soldat's default mode.
 
 ## To decide
 

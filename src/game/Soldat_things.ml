@@ -16,7 +16,7 @@
 
 type kind = Weapon of Soldat_soldier.gun | Medikit | Grenade_kit
 
-type t = { kind : kind; points : Particles.particle array; ttl : int; interest : int; still : bool; facing : int; place : int }
+type t = { kind : kind; points : Particles.particle array; ttl : int; interest : int; still : bool; facing : int; place : int; hits : int }
 
 (* shared/Constants.pas *)
 let gun_time = 1200
@@ -95,10 +95,10 @@ let weapon (s : Soldat_soldier.t) ~(alive : bool) (g : Soldat_soldier.gun) : t =
     let old = (hx, hy +. dy) in
     { (Particles.particle (fst old +. s.vx +. (ax *. throw), snd old +. s.vy +. (ay *. throw))) with old }
   in
-  { kind = Weapon g; points = [| point (2. *. scale) first; point (-2. *. scale) second |]; ttl = gun_time; interest = 0; still = false; facing = s.direction; place = -1 }
+  { kind = Weapon g; points = [| point (2. *. scale) first; point (-2. *. scale) second |]; ttl = gun_time; interest = 0; still = false; facing = s.direction; place = -1; hits = 0 }
 
 let kit_at (kind : kind) ((x, y) : float * float) (place : int) : t =
-  { kind; points = Array.map (fun (bx, by) -> Particles.particle (x +. bx, y +. by)) box; ttl = flag_timeout; interest = default_interest; still = false; facing = 1; place }
+  { kind; points = Array.map (fun (bx, by) -> Particles.particle (x +. bx, y +. by)) box; ttl = flag_timeout; interest = default_interest; still = false; facing = 1; place; hits = 0 }
 
 let places (map : Soldat_map.t) (kind : kind) : (float * float) list =
   match kind with Medikit -> map.medikit_spawns | Grenade_kit -> map.grenade_spawns | Weapon _ -> []
@@ -169,13 +169,21 @@ let lost (map : Soldat_map.t) (thing : t) : bool =
   let bound = (float_of_int map.num *. map.division) -. 10. in
   Array.exists (fun (p : Particles.particle) -> Float.abs (fst p.pos) > bound || Float.abs (snd p.pos) > bound) thing.points
 
-let tick (map : Soldat_map.t) (thing : t) : t option =
+let tick ?(heard : Soldat_event.t list ref option) (map : Soldat_map.t) (thing : t) : t option =
   let thing =
     if thing.still then thing
     else begin
       let touched = ref 0 in
+      (* it is heard as it first lands, and while it still bounces hard:
+       * a weapon up to 30 times, a kit 3 *)
+      let lands (p : Particles.particle) : unit =
+        let often = match thing.kind with Weapon _ -> 30 | Medikit | Grenade_kit -> 3 in
+        let n = thing.hits + !touched in
+        if n = 0 || (length p.pos p.old > 1.5 && n < often) then
+          Option.iter (fun l -> l := Soldat_event.Sound ((match thing.kind with Weapon _ -> Weapon_hit | Medikit | Grenade_kit -> Kit_fall), p.pos) :: !l) heard
+      in
       let points =
-        Array.map (fun p -> match out_of_walls map p with Some p -> incr touched; p | None -> p) thing.points
+        Array.map (fun p -> match out_of_walls map p with Some p -> lands p; incr touched; p | None -> p) thing.points
         |> Particles.step ~drag:(1. -. fst (physics thing.kind)) ~accel:(0., snd (physics thing.kind) *. Soldat_soldier.grav) ~dt:1.
         |> Particles.relax ~iterations:1 (sticks thing)
       in
@@ -183,7 +191,7 @@ let tick (map : Soldat_map.t) (thing : t) : t option =
       (* at rest: where it was is where it is *)
       if !touched >= 2 && (moved 0 +. moved 1) /. 2. < min_move_delta then
         { thing with points = Array.map (fun (p : Particles.particle) -> { p with old = p.pos }) points; still = true }
-      else { thing with points }
+      else { thing with points; hits = thing.hits + !touched }
     end
   in
   let ttl = max (-1000) (thing.ttl - 1) in

@@ -57,6 +57,9 @@ type t = {
   points : Particles.particle array;
   (* the sticks cut, by Soldat's numbers *)
   cut : int list;
+  (* times its points have met the map: its fall is heard the first 13
+   * (DeadCollideCount) *)
+  falls : int;
 }
 
 (* the gostek's sticks between its first 20 points (28 of its 30), as
@@ -78,7 +81,7 @@ let holding (ragdoll : t) : Particles.stick list = List.filter_map (fun (n, stic
  * given to the skeleton *)
 let of_soldier (s : Soldat_soldier.t) ~(push : float * float) : t =
   let (px, py) = push in
-  { points = Array.mapi (fun i pos -> let (ox, oy) = s.old_skeleton.(i) in { (Particles.particle pos) with old = (ox -. px, oy -. py) }) s.skeleton; cut = [] }
+  { points = Array.mapi (fun i pos -> let (ox, oy) = s.old_skeleton.(i) in { (Particles.particle pos) with old = (ox -. px, oy -. py) }) s.skeleton; cut = []; falls = 0 }
 
 (* BRUTALDEATHHEALTH and HEADCHOPDEATHHEALTH (shared/Constants.pas) *)
 let brutal_health = -400.
@@ -142,13 +145,26 @@ let out_of_walls (map : Soldat_map.t) (p : Particles.particle) : Particles.parti
       let any (kind : Pms.kind) = kind <> No_collide && kind <> Only_bullets in
       Option.value (pushed (x, y +. 1.) any p) ~default:p
 
-let tick (map : Soldat_map.t) (ragdoll : t) : t =
+let tick ?(heard : Soldat_event.t list ref option) (map : Soldat_map.t) (ragdoll : t) : t =
+  let falls = ref ragdoll.falls in
   let points =
     ragdoll.points
     |> Array.mapi (fun i p ->
            let n = i + 1 in
-           if n = 7 || n = 8 || n >= 17 then p else out_of_walls map p)
+           if n = 7 || n = 8 || n >= 17 then p
+           else begin
+             let out = out_of_walls map p in
+             (* pushed out of a wall: a body's fall, a bone's crack (S:3011) *)
+             if out != p then begin
+               let dy = Float.abs (snd out.pos -. snd out.old) in
+               let say sfx = Option.iter (fun l -> l := Soldat_event.Sound (sfx, out.pos) :: !l) heard in
+               if dy > 0.8 && !falls < 13 then say Bodyfall;
+               if dy > 2.1 && !falls < 4 then say Bonecrack;
+               incr falls
+             end;
+             out
+           end)
     |> Particles.step ~drag:(1. -. 0.9945) ~accel:(0., 1.06 *. Soldat_soldier.grav) ~dt:1.
     |> Particles.relax ~iterations:1 (holding ragdoll)
   in
-  { ragdoll with points }
+  { ragdoll with points; falls = !falls }

@@ -133,7 +133,7 @@ let tests =
           let me = p.soldiers.(0) in
           let on_me kind place : Soldat_things.t =
             { kind; points = Array.map (fun (dx, dy) -> Particles.particle (me.body.x +. dx, me.body.y +. dy)) [| (0., 0.); (-9., 0.); (-9., -8.6); (0., -8.6) |];
-              ttl = 100; interest = 350; still = true; facing = 1; place }
+              ttl = 100; interest = 350; still = true; facing = 1; place; hits = 1 }
           in
           let hurt = { p with soldiers = Array.mapi (fun i (s : Soldat_model.soldier) -> if i = 0 then { s with health = 40. } else s) p.soldiers; things = [ on_me Medikit 0 ] } in
           let q = play hurt 1 Fun.id in

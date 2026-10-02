@@ -98,6 +98,8 @@ type t = {
   mutable shots : shot list;
   (* the weapon it let go of this tick, thrown away or dying *)
   mutable dropped : gun option;
+  (* what of this tick is to be heard and seen, the last first *)
+  mutable events : Soldat_event.t list;
   (* a player's: a weapon that fires once a pull does so only in its
    * hands (a bot's fires as long as it holds the trigger) *)
   human : bool;
@@ -224,7 +226,7 @@ let create ?(primary : Soldat_weapons.id = Socom) ?(human = true) ((x, y) : floa
       was_running_left = false; was_jumping = false;
       (* with the pistol chosen, it is in the hands and nothing on the back *)
       weapon = gun primary; secondary = gun Socom; grenades = grenades_at_start;
-      ceasefire = ceasefire_time; burst = 0; fired = false; can_throw = true; trigger_released = true; reload_wanted = false; shots = []; dropped = None; human;
+      ceasefire = ceasefire_time; burst = 0; fired = false; can_throw = true; trigger_released = true; reload_wanted = false; shots = []; dropped = None; events = []; human;
     }
   in
   s.skeleton <- place_skeleton s;
@@ -232,6 +234,10 @@ let create ?(primary : Soldat_weapons.id = Socom) ?(human = true) ((x, y) : floa
   s
 
 let point (s : t) (p : int) : float * float = s.skeleton.(p - 1)
+
+(* something to be heard, from where it stands; or seen *)
+let emit (s : t) (e : Soldat_event.t) : unit = s.events <- e :: s.events
+let sound (s : t) (sfx : Soldat_sfx.t) : unit = emit s (Sound (sfx, (s.x, s.y)))
 
 (*****************************************************************************)
 (* The particle's step *)
@@ -368,6 +374,8 @@ let fire (map : Soldat_map.t) (s : t) ~(jetting : bool) ~(random : unit -> float
     s.vy <- s.vy -. ky
   end;
   s.shots <- s.shots @ shots;
+  sound s (Fire w.id);
+  emit s (Shot { weapon = w.id; hand = (hx, hy); bullet = (bx, by); aim = (ax, ay); speed = (s.vx, s.vy); facing = s.direction });
   if w.id = Spas then s.trigger_released <- false;
   s.weapon <- { s.weapon with ammo = max 0 (s.weapon.ammo - 1); fire_count = w.fire_interval };
   s.fired <- true;
@@ -389,6 +397,8 @@ let resume_reload (s : t) : unit =
 let throw_grenade (map : Soldat_map.t) (s : t) (c : control) : unit =
   if not c.grenade then s.can_throw <- true;
   if s.can_throw && c.grenade && s.body.id <> Roll && s.body.id <> Roll_back then body_apply s Throw 1;
+  (* the pin pulled, at the 15th frame *)
+  if s.body.id = Throw && s.body.frame = 15 && s.body.count = 0 && s.grenades > 0 && s.ceasefire = 0 then sound s Grenade_pullout;
   if s.body.id = Throw && ((not c.grenade) || s.body.frame = 36) then begin
     let frame = s.body.frame in
     if frame > 14 && frame < 37 && s.grenades > 0 && s.ceasefire = 0 then begin
@@ -404,6 +414,7 @@ let throw_grenade (map : Soldat_map.t) (s : t) (c : control) : unit =
       let from = (hx +. (bx *. 3.), hy -. 2. +. (by *. 3.)) in
       if (not (Soldat_map.in_bullet_wall map from)) && Soldat_map.clear map (s.x, s.y -. 12.) from then begin
         s.shots <- s.shots @ [ { from; velocity = (bx, by); weapon = Grenade } ];
+        emit s (Sound (Grenade_throw, from));
         s.grenades <- s.grenades - 1
       end
     end;
@@ -454,13 +465,26 @@ let weapons (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
     s.burst <- 0
   end;
   (* a shell in, at the 14th frame of loading; and again if not full *)
-  if s.body.id = Reload && s.body.frame = 7 then frame_to s 8;
+  if s.body.id = Reload && s.body.frame = 7 then begin
+    sound s (Reload Spas);
+    frame_to s 8
+  end;
   if ((not c.fire) || s.weapon.ammo = 0) && s.body.id = Reload && s.body.frame = 14 then begin
     s.weapon <- { s.weapon with ammo = s.weapon.ammo + 1 };
     if s.weapon.ammo < w.ammo then frame_to s 1
   end;
   (* the change: the two weapons swapped at its 25th frame *)
-  if s.body.id = Change && s.body.frame = 2 then frame_to s 3;
+  if s.body.id = Change && s.body.frame = 2 then begin
+    sound s (if s.secondary.kind.id = Socom then Change_spin else Change_weapon);
+    frame_to s 3
+  end;
+  if s.body.id = Throw_weapon && s.body.frame = 2 then sound s Throw_gun;
+  (* the shotgun pumped: its shell, at the 24th frame (C:827) *)
+  if s.body.id = Shotgun && s.body.frame = 24 then begin
+    let (hx, hy) = point s 15 and (gx, gy) = point s 16 in
+    emit s (Pumped { hand = (hx, hy); along = normalize (hx -. gx, hy -. gy); speed = (s.vx, s.vy); facing = s.direction });
+    frame_to s 25
+  end;
   if s.body.id = Change && s.body.frame = 25 then begin
     let held = s.weapon in
     s.weapon <- { s.secondary with startup_count = s.secondary.kind.startup };
@@ -501,6 +525,9 @@ let weapon_timers (s : t) (c : control) : unit =
     end;
     if w.id <> Spas then begin
       let g = s.weapon in
+      (* the reload's sound as it starts; its clip as it comes out *)
+      if g.reload_count = w.reload_time && w.id <> Hands then sound s (Reload w.id);
+      if g.reload_count = w.clip_out && w.clip_reload then emit s (Clip { weapon = w.id; hand = point s 15; speed = (s.vx, s.vy) });
       let reload_count = max 0 (g.reload_count - 1) in
       s.weapon <-
         (if reload_count < 1 then { g with reload_count = w.reload_time; fire_count = w.fire_interval; startup_count = w.startup; ammo = w.ammo }
@@ -551,11 +578,15 @@ let control (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
     else if s.stance <> Lying then s.fy <- s.fy -. jetspeed
     else s.fx <- s.fx +. (d *. jetspeed /. 2.);
     if s.legs.id <> Get_up && s.body.id <> Roll && s.body.id <> Roll_back then legs_apply s Fall 1;
+    (* their fire, from the feet, away from the legs (C:380-399) *)
+    let leg hip knee = let (ax, ay) = point s hip and (bx, by) = point s knee in normalize (ax -. bx, ay -. by) in
+    emit s (Jets { feet = (point s 1, point s 2); legs = (leg 5 4, leg 6 3); speed = (s.vx, s.vy) });
     s.jets <- s.jets - 1
   end;
   weapons map s c ~random;
   (* going prone (C:863-882) *)
   if !prone && s.legs.id <> Get_up && s.legs.id <> Prone && s.legs.id <> Prone_move then begin
+    sound s Go_prone;
     legs_apply s Prone 1;
     body_apply s Prone 1;
     s.old_direction <- s.direction;
@@ -565,6 +596,7 @@ let control (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
   if s.stance = Lying && (!prone || s.direction <> s.old_direction) && ((s.legs.id = Prone && s.legs.frame > 23) || s.legs.id = Prone_move) then begin
     if s.legs.id <> Get_up then begin
       s.legs <- Soldat_anims.start Get_up 9;
+      sound s Stand_up;
       prone := false
     end;
     body_apply s Get_up 9
@@ -606,6 +638,7 @@ let control (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
           s.stance <- Standing
         end;
         let roll : Soldat_anims.id = if forwards then Roll else Roll_back in
+        if s.legs.id <> Roll && s.legs.id <> Roll_back then sound s Roll;
         body_apply s roll 1;
         s.legs <- Soldat_anims.start roll 1
       end
@@ -617,7 +650,11 @@ let control (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
   (* up and a side: a jump sideways *)
   let up_and_side (way : float) (facing : bool) : unit =
     if s.on_ground then begin
-      (match s.legs.id with Run | Run_back | Stand | Crouch | Crouch_run | Crouch_run_back -> legs_apply s Jump_side 1 | _ -> ());
+      (match s.legs.id with
+      | Run | Run_back | Stand | Crouch | Crouch_run | Crouch_run_back ->
+          legs_apply s Jump_side 1;
+          sound s Jump
+      | _ -> ());
       if Soldat_anims.ended s.legs then legs_apply s Run 1
     end
     else if s.legs.id = Roll || s.legs.id = Roll_back then legs_apply s (if facing then Run else Run_back) 1;
@@ -656,7 +693,10 @@ let control (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
   else if left && up then up_and_side (-1.) (s.direction = -1)
   else if up then begin
     if s.on_ground then begin
-      if s.legs.id <> Jump then legs_apply s Jump 1;
+      if s.legs.id <> Jump then begin
+        legs_apply s Jump 1;
+        sound s Jump
+      end;
       if Soldat_anims.ended s.legs then legs_apply s Stand 1
     end;
     if s.legs.id = Jump then begin
@@ -666,7 +706,10 @@ let control (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
     end
   end
   else if down then begin
-    if s.on_ground then legs_apply s Crouch 1
+    if s.on_ground then begin
+      (match s.legs.id with Crouch | Crouch_run | Crouch_run_back -> () | _ -> sound s Crouch);
+      legs_apply s Crouch 1
+    end
   end
   else if right || left then begin
     let way = if right then 1. else -1. in
@@ -677,7 +720,10 @@ let control (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
     end
     else s.fx <- way *. flyspeed
   end
-  else legs_apply s (if s.on_ground then Stand else Fall) 1;
+  else begin
+    if s.on_ground && s.legs.id <> Stand then sound s Stop;
+    legs_apply s (if s.on_ground then Stand else Fall) 1
+  end;
   (* a reload's hands (C:2029-2036): the new clip in when the old one
    * is out, then the slide *)
   if s.weapon.reload_count = s.weapon.kind.clip_out && s.body.id <> Reload && s.body.id <> Reload_bow && s.body.id <> Roll && s.body.id <> Roll_back then
@@ -741,6 +787,19 @@ let check_map (map : Soldat_map.t) (s : t) (c : control) (x : float) (y : float)
   | None -> false
   | Some w ->
       s.touched <- w.kind :: s.touched;
+      (* what is heard of it (S:2671-2760): a landing, a step *)
+      if feet then begin
+        let fall = Float.abs s.vy in
+        if fall > 2.2 && fall < 3.4 && w.kind <> Bouncy then sound s Fall;
+        if fall > 3.5 then sound s Fall_hard;
+        (match s.legs.id with
+        | Run | Run_back when s.legs.frame = 16 || s.legs.frame = 32 ->
+            if Float.abs s.vx > 1. then emit s (Dust { at = pos; speed = (s.vx, s.vy); up = 0.8 });
+            sound s Step
+        | Crouch_run | Crouch_run_back when (s.legs.frame = 15 || s.legs.frame = 1) && s.legs.count = 1 -> sound s Crouch_move
+        | Prone_move when s.legs.frame = 8 && s.legs.count = 1 -> sound s Prone_move
+        | _ -> ())
+      end;
       let (step, depth, _) = Soldat_map.closest_perp w pos in
       let speed = Float.hypot s.vx s.vy in
       (* out along the perp, by how deep it is, never more than its speed *)
@@ -864,7 +923,7 @@ let collide (map : Soldat_map.t) (s : t) (c : control) : unit =
 (*****************************************************************************)
 
 let tick (map : Soldat_map.t) ~(ticks : int) ~(random : unit -> float) (before : t) (c : control) : t =
-  let s = { before with shots = []; dropped = None } in
+  let s = { before with shots = []; dropped = None; events = [] } in
   (* client/UpdateFrame.pas: the step, then TSprite.Update *)
   euler s;
   s.ceasefire <- max 0 (s.ceasefire - 1);

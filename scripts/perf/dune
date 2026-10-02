@@ -2,8 +2,17 @@
 ;   dune exec scripts/perf/Frame_bench.exe
 (executable
  (name Frame_bench)
+ (modules Frame_bench)
  (libraries
    unix ; the clock
    soldat_map soldat_game
    elm_playground
    elm_playground_software)) ; an implem of virtual elm_playground, to link
+
+; the sounds' files the game may ask for, one a line: what to copy
+; from a checkout of Soldat's content into data/sfx/
+;   for f in $(dune exec scripts/perf/Sfx_files.exe); do cp ~/opensoldat-base/shared/sfx/$f.wav data/sfx/; done
+(executable
+ (name Sfx_files)
+ (modules Sfx_files)
+ (libraries soldat_game elm_playground_software))

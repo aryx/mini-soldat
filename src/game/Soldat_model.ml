@@ -135,7 +135,7 @@ type bullet = {
   through : int;
 }
 
-(* an explosion, for the picture: nothing of the game reads it *)
+(* an explosion, where it was and how far it reached *)
 type explosion = { at : float * float; radius : float; age : int }
 
 type play = {
@@ -150,8 +150,12 @@ type play = {
    * them (Bot.mli) *)
   minds : (senses, intent) Bot.running option array;
   bullets : bullet list;
-  explosions : explosion list;
   things : Soldat_things.t list;
+  (* what is only seen (Soldat_sparks), with the seed of its own chance *)
+  sparks : Soldat_sparks.t list;
+  spark_seed : Lehmer.t;
+  (* what was heard this tick, and where: for who plays the sounds *)
+  sounds : (Soldat_sfx.t * (float * float)) list;
   (* ticks before the round ends by itself (TimeLimitCounter) *)
   time_left : int;
   (* the game's chance: the next number comes from it (Lehmer) *)

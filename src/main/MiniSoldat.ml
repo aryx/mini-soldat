@@ -60,6 +60,8 @@ let help =
          ai=engine the last of them not Soldat's but one on
                    elm-playground's Sense and Bot: it knows only what
                    it has seen, and reacts as late as a hand does
+         mute      no sound
+         sparks=N  at most N sparks at a time (558; 0: none)
          hitboxes  draw the points the game tests
          sticks    draw the soldiers' skeletons over them
          waypoints draw the map's waypoints, the bots' paths
@@ -112,6 +114,10 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
     | Some n when n >= 0 && n <= 9 -> List.nth Soldat_weapons.primaries ((n + 9) mod 10)
     | _ -> first.primary
   in
+  (* mute: nothing is played *)
+  if List.mem_assoc "mute" flags then Soldat_sound.mute := true;
+  (* sparks=N: at most that many are kept (Soldat's r_maxsparks) *)
+  Option.iter (fun n -> Soldat_sparks.most := max 0 n) (Option.bind (List.assoc_opt "sparks" flags) int_of_string_opt);
   let bots = match Option.bind (List.assoc_opt "bots" flags) int_of_string_opt with Some n when n >= 0 && n <= 15 -> n | _ -> first.bots in
   let first = { first with primary; bots } in
   let app = Playground.game Soldat_view.view Soldat_update.update first in

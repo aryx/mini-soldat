@@ -5,6 +5,17 @@
 # (with direction from me)
 
 ** Features
+- heard, and alive (docs/plan.md's step 6). The rules say what a tick
+  gave to hear and see as values (Soldat_event); the sparks are made of
+  them (Soldat_sparks, from Sparks.pas: shells, clips, blood, chips,
+  smoke, an explosion's fire, the jets') and drawn with Soldat's
+  pictures (Soldat_sparks_view), an explosion its 16 in place of the
+  disc, shaking the camera; the sounds (Soldat_sfx: 82 of Soldat's
+  recordings in data/sfx) are played by where they are
+  (Soldat_sound, from Sound.pas: quieter with the distance, to a side,
+  a far fight a rumble, the jets a loop). 8-bit recordings rewritten
+  as 16-bit
+- flags mute and sparks=N; Gen_assets' third word, half
 - a deathmatch as Soldat's (docs/plan.md's step 5). Soldat_bots, from
   AI.pas: Soldat's own bots, along the map's waypoints when they see
   nobody, by SimpleDecision's ladder of distances when they do, each

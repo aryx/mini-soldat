@@ -32,9 +32,11 @@ serve: all website
 # profile (js_of_ocaml then compiles the whole program at once and
 # drops what is not used: 160 KB instead of 4 MB), and the content the
 # game fetches (docs/assets/, which a browser asks for beside its page:
-# the maps of data/, and its textures, scenery and weapons turned into
-# plain pixels, name.rgba, since a browser is slow to decode a PNG with
-# our own decoder: Soldat_assets.mli). To commit after.
+# the maps of data/, its sounds as they are, and its textures, scenery,
+# weapons and sparks turned into plain pixels, name.rgba, since a
+# browser is slow to decode a PNG with our own decoder:
+# Soldat_assets.mli; an explosion's 26 big pictures at half their
+# size). To commit after.
 # serve-website to look at it before: http://localhost:8000/
 website:
 	dune build --profile release src/main/web/MiniSoldat.bc.js
@@ -42,13 +44,16 @@ website:
 	cp src/main/web/index.html docs/play.html
 	chmod u+w docs/MiniSoldat.bc.js
 	rm -rf docs/assets
-	mkdir -p docs/assets/textures/objects docs/assets/scenery-gfx docs/assets/weapons-gfx
+	mkdir -p docs/assets/textures/objects docs/assets/scenery-gfx docs/assets/weapons-gfx docs/assets/sparks-gfx/explosion
+	cp -r data/sfx docs/assets/
 	cp -r data/maps docs/assets/
 	dune build src/assets/Gen_assets.exe
 	_build/default/src/assets/Gen_assets.exe data/textures docs/assets/textures
 	_build/default/src/assets/Gen_assets.exe data/textures/objects docs/assets/textures/objects
 	_build/default/src/assets/Gen_assets.exe data/scenery-gfx docs/assets/scenery-gfx
 	_build/default/src/assets/Gen_assets.exe data/weapons-gfx docs/assets/weapons-gfx
+	_build/default/src/assets/Gen_assets.exe data/sparks-gfx docs/assets/sparks-gfx
+	_build/default/src/assets/Gen_assets.exe data/sparks-gfx/explosion docs/assets/sparks-gfx/explosion half
 serve-website:
 	@echo "serving docs/ at http://localhost:8000/"
 	python3 -m http.server --directory docs --bind 127.0.0.1 8000

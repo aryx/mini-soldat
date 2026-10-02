@@ -376,9 +376,20 @@ gravity, its radius, how long it stays.
 alone: a particle (Euler, a gravity of its own, damping 0.998) with a
 life in ticks and a style, a bare number from 1 to 73: smoke, blood,
 the shells and the clips each weapon drops, explosions, ricochets,
-dirt, the jets' fire, the weather. *To come*, late: a list of them in
-the model, drawn as small pictures; the Playground has `Juice`
-(`tiny_libs.juice`) for such effects, to look at then.
+dirt, the jets' fire, the weather.
+
+| Soldat | Here |
+|---|---|
+| `PlaySound` and `CreateSpark` where a thing happens, in the client's branches of the rules (`{$IFNDEF SERVER}`: about 300 calls) | the rules say what happened, as values (`Soldat_event.t`: a shot, a bullet in a wall, a sound); sparks and sounds are made of them after |
+| `TSpark`, `SparkParts` (Euler, gravity / 1.4, damping 0.998) | `Soldat_sparks.t`, a list in the round's state; `tick` |
+| a style, a number from 1 to 73 | `Soldat_sparks.kind`, 16 cases (the numbers beside them in the `.ml`) |
+| each `CreateSpark` (a shot's shell, a hit's blood, a wall's chips, an explosion's three, the jets' fire) | `Soldat_sparks.of_event`, with their numbers |
+| `Random`, for how far each flies | a seed of the sparks' own (`play.spark_seed`), apart from the game's: with or without them, the same round |
+| `CheckMapCollision` (a shell bounces, clinks, is gone at its sixth; blood leaves a splat) | in `tick` |
+| `r_maxsparks` (557) | `Soldat_sparks.most` (558; 150 in a browser), the flag `sparks=N` |
+| the camera shaken by an explosion (in `TSpark.Update`) | `Soldat_sparks.wobble`, added to the camera |
+| `TSpark.Render`: a picture, an alpha by the life left, a scale, a turn | `Soldat_sparks_view`: `bitmap |> rotate |> fade |> move`; a tint is a picture made once |
+| the weather, shredded clothes, a helmet shot off, the cigar, a burning soldier, a hot shell's smoke | *to come*, or never. The Playground's `Juice` (`tiny_libs.juice`) was not needed |
 
 ## The rules, and the bots
 
@@ -449,13 +460,17 @@ A sound has a place: it is heard at `1 - distance / 750`
 the right by how far it is across. Three loop (the jets, the chainsaw,
 the flamer); the rest play once.
 
-| Soldat | Here, *to come* |
+| Soldat | Here |
 |---|---|
-| a sample loaded | `Audio.wav bytes` (16-bit only: 63 of Soldat's are 8-bit, to convert or to teach `Wav`) |
-| played at a place | `Audio.play (sound |> Audio.louder volume |> Audio.pan side)`, the volume and the side by Soldat's rule |
-| a loop on a channel, stopped | `Audio.loop name sound`, `Audio.stop name`, or `Audio.keep_playing` each frame |
-| 128 sounds at once | 32 (`Mixer.max_playing`) |
-| in a browser | the same mixer, through the page's `AudioContext` |
+| `SFX_*`, 163 numbers, and their files (`LoadSounds`) | `Soldat_sfx.t`, the 44 the game plays (82 files: a step is one of four), `file` |
+| a sample loaded | `Soldat_sound.sound`: its bytes from the content (`Soldat_assets`, `sfx/NAME.wav`), `Audio.wav`, frozen with `Audio.recorded`, kept. `Audio.wav` reads 16-bit only and 38 of the 82 are 8-bit: `Soldat_sound.to_16_bit` rewrites those first |
+| `PlaySound (sample, place)` in the rules | a `Sound` event; the tick's are `play.sounds`, played by `Soldat_update.update` |
+| `FPlaySound`: `1 - distance / 750` of its volume from the listener, nothing beyond; its side | `Soldat_sound.heard`, then `Audio.play (sound |> Audio.louder volume |> Audio.pan side)` |
+| a shot or an explosion far away, heard as another sample that grows with the distance (`SFX_DIST_*`) | `Soldat_sound.play`, the same rule |
+| a loop on a channel, stopped (the jets) | `Audio.loop name sound`, `Audio.stop name`: `Soldat_sound.jets`, one name a soldier |
+| 128 sounds at once | at most 12 started a tick (5 in a browser), the loudest; the mixer has 32 (`Mixer.max_playing`) |
+| in a browser | the same mixer, through the page's `AudioContext`; the files fetched while the title shows (`Soldat_sound.warm`) |
+| a bullet's whizz past the listener, the minigun's start and end, a collider hit, the hum after a grenade (and its muffling of everything), the chat's and the menu's | *to come* |
 
 ## Files and content
 
@@ -482,7 +497,8 @@ required here). In the order they would hurt:
 | part of an image | the interface's bars, an atlas | rectangles; a picture each |
 | a BMP decoder | part of the scenery, the edges | `Bmp`, here: 24 bits and 8 bits with a palette, which is all of Soldat's |
 | a PNG decoder that is fast in a browser (`Png.decode` compiled by js_of_ocaml is quadratic: 14 s for 257 KB) | the textures and the scenery, fetched | the website's pictures as plain pixels, made when it is built (`Gen_assets`, `name.rgba`): twice the bytes, nothing to decode |
-| 8-bit WAV | 63 sounds | converted once |
+| 8-bit WAV | 38 of the 82 sounds played | rewritten as 16-bit when first played (`Soldat_sound.to_16_bit`) |
+| a picture tinted when drawn | a spark's two colours, the jets' | a picture a tint, made once |
 | a gradient | the sky | bands |
 | the mouse's cursor hidden | Soldat's own cursor | both shown |
 | a WebSocket to any server (`Transport` opens one to a relay: `ws://`, no path, the first two bytes `02 n` taken as a seat) | the game talking to `mini-soldat-server` | works as it is: our messages never start with `02`; `wss://` is the one thing missing |

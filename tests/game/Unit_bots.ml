@@ -153,7 +153,7 @@ let tests =
           Alcotest.(check bool) "nor at one well above" false c.grenade;
           (* hurt, a medikit 100 to its left: it goes, and its look wears the kit's interest *)
           let kit : Soldat_things.t =
-            { kind = Medikit; points = Array.map Particles.particle [| (-100., -1.); (-109., -1.); (-109., -9.6); (-100., -9.6) |]; ttl = 100; interest = 350; still = true; facing = 1; place = 0 }
+            { kind = Medikit; points = Array.map Particles.particle [| (-100., -1.); (-109., -1.); (-109., -9.6); (-100., -9.6) |]; ttl = 100; interest = 350; still = true; facing = 1; place = 0; hits = 1 }
           in
           let (c, _, looked) = keys { p with things = [ kit ] } in
           Alcotest.(check bool) "well: the kit is left" true ((not c.left) && looked = []);

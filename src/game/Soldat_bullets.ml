@@ -140,7 +140,11 @@ type world = {
   (* the bullets, each gone once it is None *)
   bullets : bullet option array;
   mutable explosions : explosion list;
+  (* what is to be heard and seen of it all, the last first *)
+  mutable events : Soldat_event.t list;
 }
+
+let emit (w : world) (e : Soldat_event.t) : unit = w.events <- e :: w.events
 
 (* a point of its skeleton, by Soldat's number: placed alive, loose dead *)
 let point (s : soldier) (n : int) : float * float = match s.dead with None -> Soldat_soldier.point s.body n | Some (_, ragdoll) -> ragdoll.points.(n - 1).pos
@@ -165,6 +169,10 @@ let hurt (w : world) (i : int) ~(by : int) ~(where : int) (amount : float) : uni
   match s.dead with
   | Some (ticks, ragdoll) -> w.soldiers.(i) <- { s with health; dead = Some (ticks, Soldat_ragdoll.cut cuts ragdoll) }
   | None when health < 1. ->
+      (* its last cry, by how it dies (TSprite.Die) *)
+      let (hx, hy) = point s 12 in
+      emit w (Sound ((if health <= Soldat_ragdoll.brutal_health then Bryzg else if cuts <> [] then Headchop else Death), (hx, hy)));
+      if cuts <> [] then List.iter (fun k -> emit w (Blood ((hx, hy), (k, -1.5)))) [ -2.; 0.; 2. ];
       (* its weapon falls from its hands *)
       w.soldiers.(i) <-
         { s with health; body = Soldat_soldier.let_go s.body; dead = Some (0, Soldat_ragdoll.cut cuts (Soldat_ragdoll.of_soldier s.body ~push:w.pushes.(i))) };
@@ -186,6 +194,7 @@ let rec explode (w : world) (b : bullet) ~(at : float * float) ~(direct : (int *
   let gun = Soldat_weapons.get (if m79 then M79 else Grenade) in
   let radius = if m79 then m79_radius else frag_radius in
   w.explosions <- { at; radius; age = 0 } :: w.explosions;
+  emit w (Blast ((if m79 then M79 else Grenade), at));
   for i = 0 to Array.length w.soldiers - 1 do
     let s = w.soldiers.(i) in
     match s.dead with
@@ -199,6 +208,7 @@ let rec explode (w : world) (b : bullet) ~(at : float * float) ~(direct : (int *
         let d = Float.hypot ax ay in
         if d < radius then begin
           let k = 1. /. (d +. 1.) in
+          emit w (Sound (Explosion_erg, place s));
           push w i (-.ax *. k *. impact, -.ay *. k *. impact *. 2.);
           if s.body.ceasefire = 0 then hurt w i ~by:b.owner ~where:1 (k *. gun.damage *. Soldat_weapons.modifier gun where)
         end
@@ -310,16 +320,24 @@ let update (w : world) (k : int) (b : bullet) : unit =
     let b =
       match style with
       | Thrown -> (
-          let lifted = match against_map w.map b ~lift:2. with Bounced b -> b | Lost -> lost := true; b | Free | Stopped _ -> b in
-          match against_map w.map lifted ~lift:0. with Bounced b -> b | Lost -> lost := true; lifted | Free | Stopped _ -> lifted)
+          let bounce (b : bullet) (b' : bullet) : bullet =
+            if Float.hypot b.vx b.vy > 1.5 then emit w (Sound (Grenade_bounce, (b.x, b.y)));
+            b'
+          in
+          let lifted = match against_map w.map b ~lift:2. with Bounced b' -> bounce b b' | Lost -> lost := true; b | Free | Stopped _ -> b in
+          match against_map w.map lifted ~lift:0. with Bounced b' -> bounce lifted b' | Lost -> lost := true; lifted | Free | Stopped _ -> lifted)
       | Plain | Pellets | Explosive -> (
           match against_map w.map b ~lift:0. with
           | Free -> b
           | Lost -> lost := true; b
-          | Bounced b -> b
+          | Bounced b' ->
+              emit w (Ricochet ((b.x, b.y), (b.vx, b.vy)));
+              b'
           | Stopped hit ->
               ended := Some (fst hit -. b.vx, snd hit -. b.vy);
               limit := Some (distance hit b.old);
+              (* a bullet's end in a wall; the M79's is its explosion *)
+              if style <> Explosive then emit w (Wall ((fst hit -. b.vx, snd hit -. b.vy), (b.vx, b.vy)));
               b)
     in
     if not !lost then begin
@@ -368,11 +386,14 @@ let update (w : world) (k : int) (b : bullet) : unit =
                 match style with
                 | Plain | Pellets ->
                     pos := hit;
+                    emit w (Blood (hit, (vx, vy)));
+                    emit w (Sound ((if was_dead then Dead_hit else Hit_arg), hit));
                     let speed = Float.hypot vx vy in
                     hurt w j ~by:b.owner ~where (speed *. b.damage *. Soldat_weapons.modifier gun where);
                     through := j;
                     let on k =
                       v := (vx *. k, vy *. k);
+                      emit w (Flesh (hit, !v));
                       each (List.filter (fun i -> i <> j) rest)
                     in
                     if was_dead then on 0.9
@@ -412,10 +433,19 @@ let update (w : world) (k : int) (b : bullet) : unit =
     end
   end
 
+let world (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : world =
+  { map; soldiers = Array.copy soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = Array.of_list (List.map Option.some bullets); explosions = []; events = [] }
+
 (* a tick of all the bullets, [fired] the ones that left this tick,
  * over these soldiers: the soldiers after, the bullets left, and the
  * explosions there were *)
 let tick (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * explosion list =
-  let w = { map; soldiers = Array.copy soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = Array.of_list (List.map Option.some bullets); explosions = [] } in
+  let w = world map soldiers bullets in
   Array.iteri (fun k b -> match w.bullets.(k) with Some _ -> update w k (Option.get b) | None -> ()) (Array.copy w.bullets);
   (w.soldiers, List.filter_map Fun.id (Array.to_list w.bullets), List.rev w.explosions)
+
+(* the same, with what is to be heard and seen of it, in its order *)
+let tick_heard (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * Soldat_event.t list =
+  let w = world map soldiers bullets in
+  Array.iteri (fun k b -> match w.bullets.(k) with Some _ -> update w k (Option.get b) | None -> ()) (Array.copy w.bullets);
+  (w.soldiers, List.filter_map Fun.id (Array.to_list w.bullets), List.rev w.events)

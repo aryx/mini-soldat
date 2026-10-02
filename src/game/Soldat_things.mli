@@ -64,6 +64,8 @@ type t = {
   facing : int;
   (* a kit: the place it is at, among the map's for its kind; else -1 *)
   place : int;
+  (* times its points have met the map *)
+  hits : int;
 }
 
 (* GUNRESISTTIME: a weapon's 20 seconds; it may be picked up once 30
@@ -85,10 +87,11 @@ val kits : Soldat_map.t -> random:(unit -> float) -> t list
 (* a kit taken, or fallen out of the map: at another place (Respawn) *)
 val again : Soldat_map.t -> random:(unit -> float) -> t -> t
 
-(* a tick later; None: gone (a weapon whose time is over, or out of
+(* a tick later; [heard] is added what was heard of it (its fall on
+ * the ground); None: gone (a weapon whose time is over, or out of
  * the map). A kit out of the map is given back as it is: [lost] says
  * so, and the game puts it [again] *)
-val tick : Soldat_map.t -> t -> t option
+val tick : ?heard:Soldat_event.t list ref -> Soldat_map.t -> t -> t option
 val lost : Soldat_map.t -> t -> bool
 
 (* how far a point (a soldier's particle) is from the thing, if within

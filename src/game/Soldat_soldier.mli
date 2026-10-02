@@ -206,6 +206,7 @@ type t = {
   mutable reload_wanted : bool;
   mutable shots : shot list; (* what left it this tick, the first first *)
   mutable dropped : gun option; (* the weapon it let go of this tick *)
+  mutable events : Soldat_event.t list; (* what of this tick is to be heard and seen, the last first *)
   human : bool; (* a player's: a weapon firing once a pull does so only for it *)
 }
 

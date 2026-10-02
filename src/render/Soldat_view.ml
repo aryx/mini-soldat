@@ -22,9 +22,11 @@
  * the particle, the points of the head and the feet, the circles a
  * bullet hits.
  *
- * A bullet is a streak along its way, a grenade its picture; an
- * explosion a disc that grows and fades (Soldat's own, 16 pictures
- * and their smoke, come with the sparks: docs/plan.md's step 6).
+ * A bullet is a streak along its way, a grenade its picture; the
+ * sparks (blood, shells, smoke, an explosion's fire) are
+ * Soldat_sparks_view's, over the soldiers and under the map's
+ * polygons, as Soldat has them: a drop that falls into the ground is
+ * not seen again.
  *
  * The interface is bars and words at the bottom left, where Soldat
  * has its own (drawn with pictures there: interface-gfx/): the health,
@@ -185,12 +187,6 @@ let view_waypoints (map : Soldat_map.t) : shape list =
            List.filter_map (fun n -> if n >= 1 && n <= Array.length map.waypoints then Some (segment (rgb 255 255 0) 0.4 (place w) (place map.waypoints.(n -.. 1)) |> fade 0.5) else None) w.connections
            @ [ dot (if w.path = 1 then rgb 255 255 0 else rgb 255 140 0) 1.5 (place w); text white 0.5 keys |> move x (y + 5.) ])
 
-(* an explosion: a disc from a third of its reach to all of it, fading *)
-let view_explosion (e : explosion) : shape list =
-  let t = float_of_int e.age / float_of_int Soldat_update.explosion_ticks in
-  let r = e.radius * (0.3 + (0.7 * Float.min 1. (t * 3.))) in
-  [ dot (rgb 255 150 40) r e.at |> fade (0.4 * (1. - t)); dot (rgb 255 240 170) (r * 0.45) e.at |> fade (0.8 * (1. - t)) ]
-
 (* what the player has, at the bottom left: its health, its weapon's
  * name and ammunition (filling again as it reloads), its jets, its
  * grenades *)
@@ -246,8 +242,8 @@ let view_play (computer : computer) ~(graphics : int) ~(primary : Soldat_weapons
     @ List.concat_map (view_bullet ~graphics) p.bullets
     @ List.concat_map (view_thing ~graphics) p.things
     @ List.concat_map (view_soldier computer ~graphics) soldiers
+    @ Soldat_sparks_view.view p.sparks
     @ front
-    @ List.concat_map view_explosion p.explosions
     @ (if List.mem_assoc "waypoints" computer.flags then view_waypoints p.map else [])
     @ if List.mem_assoc "hitboxes" computer.flags then List.concat_map view_tested soldiers else [])
   :: view_scores computer p
@@ -261,6 +257,9 @@ let view (computer : computer) (model : model) : shape list =
   (match model.scenes.scene with
   | Loading name -> [ rectangle (rgb 40 60 80) computer.screen.width computer.screen.height; text white 3. ("loading " ^ name ^ "...") ]
   | Title map ->
+      (* the sparks' pictures asked for meanwhile: a round's first
+       * explosion will not wait for them *)
+      ignore (Soldat_sparks_view.warm ());
       [ view_map computer ~graphics map;
         text white 6. "MINI SOLDAT" |> move_y 300.;
         text white 2. "a/d run   w jump   s crouch   x lie down   r reload   q other weapon   e grenade   f throw it away" |> move_y 220.;

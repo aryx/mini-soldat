@@ -12,7 +12,8 @@
  * player's or a bot's), each bullet is tested along where it is going
  * and then moves (Soldat_bullets), the walls hurt who touches them,
  * the things fall and are picked up (Soldat_things), the dead tumble
- * and come back; then the camera.
+ * and come back; then what all of that gave to see and hear: the
+ * sparks (Soldat_sparks) and the tick's sounds; then the camera.
  *
  * **A round** is a deathmatch: the first to 10 kills, or who has most
  * when 10 minutes are over (Soldat's sv_killlimit and sv_timelimit).
@@ -102,15 +103,13 @@ let follow (p : play) (me : soldier) ((lx, ly) : float * float) : float * float 
 (* sv_respawntime *)
 let respawn_ticks = 180
 
-(* ticks an explosion is drawn for *)
-let explosion_ticks = 24
-
 (* a round on a map: the player with [primary], against [bots], each
  * at a place of the map as far as can be from those before it.
  * [engine]: the last of them is not Soldat's but the one on
  * elm-playground's Sense and Bot (Soldat_engine_bot). [seed]: the
  * round's chance, the same round from the same one *)
 let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_weapons.id = Ak74) ?(seed = 1) (map : Soldat_map.t) : play =
+  let seed' = seed in
   (* which of the bots, numbered from 1 as the soldiers are, is it *)
   let engine_at = if engine && bots <> [] then List.length bots else -1 in
   let bots = List.mapi (fun i c -> if i + 1 = engine_at then Soldat_engine_bot.character else c) bots in
@@ -138,7 +137,7 @@ let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_wea
     map; camera = first; soldiers = Array.of_list (List.rev soldiers);
     brains = Array.of_list (None :: List.mapi (fun i c -> if i + 1 = engine_at then None else Some (Soldat_bots.brain c)) bots);
     minds = Array.of_list (None :: List.mapi (fun i _ -> if i + 1 = engine_at then Some (Bot.start still) else None) bots);
-    bullets = []; explosions = []; things; time_left = time_limit; seed = !seed; frame = 0;
+    bullets = []; things; sparks = []; spark_seed = Lehmer.scramble (seed' + 1000); sounds = []; time_left = time_limit; seed = !seed; frame = 0;
   }
 
 (* a tick: [player] is what the human soldier wants, [look] where its
@@ -155,6 +154,11 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
   in
   let shots = ref [] in
   let things = ref (Array.of_list p.things) in
+  (* what is to be heard and seen of this tick, each with the soldier
+   * it is of (nobody's: -1), the last first *)
+  let events = ref [] in
+  let heard = ref [] in
+  let say (owner : int) (l : Soldat_event.t list) : unit = events := List.rev_append (List.map (fun e -> (owner, e)) l) !events in
   (* 1. the living soldiers: their keys, their move, their shots *)
   soldiers
   |> Array.iteri (fun i s ->
@@ -175,26 +179,29 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
            in
            let body = Soldat_soldier.tick p.map ~ticks:p.frame ~random s.body it in
            shots := !shots @ List.map (Soldat_bullets.of_shot ~owner:i) body.shots;
+           say i (List.rev body.events);
            (* out of the map: back at a spawn point, as Soldat does *)
            let body = if Soldat_soldier.out_of_map p.map body then Soldat_soldier.create ~primary:s.primary ~human:s.human (spawn p.map (i + p.frame)) p.map.jet else body in
            soldiers.(i) <- { s with body; hit_by = -1 }
          end);
   (* 2. the bullets: tested along their way, then moved *)
-  let (soldiers, bullets, explosions) = Soldat_bullets.tick p.map soldiers (p.bullets @ !shots) in
+  let (soldiers, bullets, of_bullets) = Soldat_bullets.tick_heard p.map soldiers (p.bullets @ !shots) in
+  say (-1) of_bullets;
   (* 3. the walls (by one's own hand, as Soldat counts it) *)
-  let world : Soldat_bullets.world = { map = p.map; soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = [||]; explosions = [] } in
+  let world : Soldat_bullets.world = { (Soldat_bullets.world p.map soldiers []) with soldiers } in
   soldiers
   |> Array.iteri (fun i s ->
          if s.dead = None then begin
            let damage = wall_damage p.frame s in
            if damage <> 0. then Soldat_bullets.hurt world i ~by:i ~where:1 damage
          end);
+  say (-1) (List.rev world.events);
   (* 4. the things: they fall; a living soldier in reach takes one, the
    * nearest first; a kit taken or lost appears again elsewhere *)
   let things =
     Array.to_list !things
     |> List.filter_map (fun (thing : Soldat_things.t) ->
-           match Soldat_things.tick p.map thing with
+           match Soldat_things.tick ~heard p.map thing with
            | None -> None
            | Some thing when Soldat_things.lost p.map thing -> Some (Soldat_things.again p.map ~random thing)
            | Some thing -> (
@@ -216,15 +223,18 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
                    let s = soldiers.(i) in
                    if s.body.weapon.kind.id = Hands && s.body.body.id <> Change && thing.ttl < Soldat_things.gun_time - 30 then begin
                      soldiers.(i) <- { s with body = Soldat_soldier.take s.body g };
+                     heard := Sound (Take_gun, (s.body.x, s.body.y)) :: !heard;
                      None
                    end
                    else Some thing
                | ((_, i) :: _, Medikit) ->
                    soldiers.(i) <- { (soldiers.(i)) with health = full_health };
+                   heard := Sound (Take_medikit, (soldiers.(i).body.x, soldiers.(i).body.y)) :: !heard;
                    Some (Soldat_things.again p.map ~random thing)
                | ((_, i) :: _, Grenade_kit) ->
                    let s = soldiers.(i) in
                    soldiers.(i) <- { s with body = { s.body with grenades = Soldat_things.max_grenades } };
+                   heard := Sound (Pickup, (s.body.x, s.body.y)) :: !heard;
                    Some (Soldat_things.again p.map ~random thing)
                | ([], _) -> Some thing))
   in
@@ -248,11 +258,31 @@ let tick (p : play) (player : intent) ~(look : float * float) : play =
                (* at one of the map's places, by chance (RandomizeStart) *)
                let (x, y) = List.nth p.map.spawns (min (List.length p.map.spawns - 1) (int_of_float (random () *. float_of_int (List.length p.map.spawns)))) in
                let primary = match brains.(i) with Some brain -> Soldat_bots.weapon brain.character ~random | None -> s.primary in
-               soldiers.(i) <- { s with dead = None; health = full_health; body = Soldat_soldier.create ~primary ~human:s.human (x, y) p.map.jet }
+               soldiers.(i) <- { s with dead = None; health = full_health; body = Soldat_soldier.create ~primary ~human:s.human (x, y) p.map.jet };
+               if not s.human then heard := Sound (Spawn, (x, y)) :: !heard
              end
-             else soldiers.(i) <- { s with dead = Some (ticks + 1, Soldat_ragdoll.tick p.map ragdoll) });
-  let explosions = explosions @ List.filter_map (fun (e : explosion) -> if e.age < explosion_ticks then Some { e with age = e.age + 1 } else None) p.explosions in
-  { p with camera = follow p soldiers.(0) look; soldiers; brains; minds; bullets; explosions; things; seed = !seed }
+             else soldiers.(i) <- { s with dead = Some (ticks + 1, Soldat_ragdoll.tick ~heard p.map ragdoll) });
+  say (-1) (List.rev !heard);
+  (* 6. what it all gave to see and to hear: the sparks, with a chance
+   * of their own, and the sounds *)
+  let spark_seed = ref p.spark_seed in
+  let random () =
+    spark_seed := Lehmer.next !spark_seed;
+    Lehmer.to_unit !spark_seed
+  in
+  let (old, clinks) = Soldat_sparks.tick p.map ~random p.sparks in
+  let (fresh, sounds) =
+    List.fold_left
+      (fun (sparks, sounds) (owner, event) ->
+        let (s, h) = Soldat_sparks.of_event p.map ~random ~owner event in
+        (sparks @ s, sounds @ h))
+      ([], clinks) (List.rev !events)
+  in
+  let sparks = Soldat_sparks.capped (old @ fresh) in
+  (* the camera, shaken by an explosion's fire *)
+  let (cx, cy) = follow p soldiers.(0) look in
+  let (wx, wy) = Soldat_sparks.wobble ~random sparks in
+  { p with camera = (cx +. wx, cy +. wy); soldiers; brains; minds; bullets; things; sparks; spark_seed = !spark_seed; sounds; seed = !seed }
 
 (*****************************************************************************)
 (* The rounds *)
@@ -289,6 +319,10 @@ let update (computer : computer) (model : model) : model =
             | Ok pms -> Scene2d.go (Title (Soldat_map.of_pms pms)) scenes
             | Error _ -> Scene2d.go (Title (Lazy.force Soldat_map.arena2)) scenes))
     | Title map | Over (_, map) ->
+        (* nobody flies: no jets are heard *)
+        Soldat_sound.jets ~listener:(0., 0.) ~soldiers:16 [];
+        (* and the sounds are got meanwhile *)
+        if not !Soldat_sound.mute then ignore (Soldat_sound.warm ());
         (* a round's chance and its cast are its number's: each one its
          * own, and the same again *)
         (* ai=engine: one of them on Sense and Bot *)
@@ -298,6 +332,11 @@ let update (computer : computer) (model : model) : model =
         let z = zoom computer.screen in
         let p = if p.soldiers.(0).primary <> model.primary then { p with soldiers = Array.mapi (fun i (s : soldier) -> if i = 0 then { s with primary = model.primary } else s) p.soldiers } else p in
         let p = tick p (human computer p) ~look:(computer.mouse.mx /. z, -.computer.mouse.my /. z) in
+        (* what the tick gave to hear, from where the player is *)
+        let listener = Soldat_bullets.place p.soldiers.(0) in
+        Soldat_sound.play ~listener ~frame:p.frame p.sounds;
+        Soldat_sound.jets ~listener ~soldiers:(Array.length p.soldiers)
+          (List.filter_map (fun (i, (s : soldier)) -> if s.dead = None && s.body.jetting then Some (i, (s.body.x, s.body.y)) else None) (List.mapi (fun i s -> (i, s)) (Array.to_list p.soldiers)));
         match winner p with Some s -> Scene2d.go (Over (s.name, p.map)) scenes | None -> { scenes with scene = Playing p })
   in
   let rounds = match (model.scenes.scene, scenes.scene) with ((Title _ | Over _), Playing _) -> model.rounds + 1 | _ -> model.rounds in

@@ -49,13 +49,13 @@ downwards only.
 | `src/map` | a `.pms` file read (`Pms`); the map the game plays on: its walls, its sectors, its spawn points (`Soldat_map`) | 900 |
 | `src/anim` | the animations' and the skeleton's files read (`Poa`); the 44 animations (`Soldat_anims`) | 390 |
 | `src/assets` | files got while the game runs, and decoded (`Soldat_assets`, `Bmp`) | 320 |
-| `src/game` | the game without its picture: the weapons' numbers (`Soldat_weapons`), a soldier and its guns (`Soldat_soldier`), a dead one (`Soldat_ragdoll`), what lies on the ground (`Soldat_things`), the state (`Soldat_model`), the bullets and the explosions (`Soldat_bullets`), Soldat's bots (`Soldat_bots`), one on elm-playground's `ai` (`Soldat_engine_bot`), a tick and a round (`Soldat_update`) | 3,350 |
-| `src/render` | the picture: a soldier's and its weapons' (`Soldat_gostek`), the map's (`Soldat_scene`, `Soldat_raster`), the whole and the interface (`Soldat_view`) | 1,160 |
+| `src/game` | the game without its picture: the weapons' numbers (`Soldat_weapons`), a soldier and its guns (`Soldat_soldier`), a dead one (`Soldat_ragdoll`), what lies on the ground (`Soldat_things`), the state (`Soldat_model`), the bullets and the explosions (`Soldat_bullets`), Soldat's bots (`Soldat_bots`), one on elm-playground's `ai` (`Soldat_engine_bot`), what a tick gave to hear and see (`Soldat_event`), the sparks (`Soldat_sparks`), the sounds (`Soldat_sfx`; `Soldat_sound` plays them), a tick and a round (`Soldat_update`) | 4,370 |
+| `src/render` | the picture: a soldier's and its weapons' (`Soldat_gostek`), the map's (`Soldat_scene`, `Soldat_raster`), the sparks' (`Soldat_sparks_view`), the whole and the interface (`Soldat_view`) | 1,320 |
 | `src/net` | the messages between a player and the server (`Soldat_protocol`) | 200 |
 | `src/server` | the lobby (`Soldat_lobby`) and its sockets (`Soldat_server`) | 240 |
 | `src/main` | the programs | 100 |
 
-About 6,500 lines, and 2,100 of tests. What matters in the split:
+About 7,900 lines, and 2,300 of tests. What matters in the split:
 
 - **`src/game` knows no picture and no keyboard.** `Soldat_update.tick`
   takes what the player wants (an `intent`: keys and where the cursor
@@ -93,7 +93,18 @@ About 6,500 lines, and 2,100 of tests. What matters in the split:
    a kit taken appears again elsewhere; the weapons let go of this
    tick (thrown away, or by who just died) become things;
 5. the dead tumble, and come back at a place taken by chance;
-6. the camera.
+6. what all of that gave to hear and see. Each part above only *says*
+   what happened (`Soldat_event`: a shot, a step, a bullet in a wall),
+   where Soldat's code plays a sound or makes a spark on the spot. From
+   those: the sparks (`Soldat_sparks.of_event`, then their own step),
+   with a chance apart from the game's, and the tick's sounds
+   (`play.sounds`);
+7. the camera, shaken by an explosion.
+
+A tick is still a function. The one thing that *does* something is
+after it, in `Soldat_update.update`, the Playground's side:
+`Soldat_sound.play` on the tick's sounds, heard from where the player
+is.
 
 The model's order of modules is the game's: `Soldat_things` knows
 soldiers only as `Soldat_soldier.t`, `Soldat_model` holds things and
@@ -150,10 +161,11 @@ Camera2d.view camera          one Group: everything of the map, moved and zoomed
   the map, behind             Bitmaps: the tiles under the camera
   the bullets                 a Rectangle each; a grenade a Bitmap
   the things                  a Bitmap each: a weapon's picture, a kit's
+  the sparks                  a Bitmap each, faded: up to 558 (150 in a browser);
+                              an explosion is 6 big ones
   the soldiers                16 Bitmaps each (a picture a limb), 1 to 4 more for
                               its weapons (in hand, its clip, its fire; on the back)
   the map, in front           Bitmaps: tiles again, over the soldiers
-  the explosions              two Circles each, fading
 the scores, the time left,    Words and Rectangles, outside the camera
 the interface
 ```
