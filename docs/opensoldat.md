@@ -49,10 +49,12 @@ scripting). 60 ticks a second (`Constants.pas`'s `DEFAULT_GOALTICKS`).
 |---|---|---|
 | `src/map/Pms` | `shared/MapFile.pas` | a `.pms` read (`TMapFile`, `LoadMapFile`), field for field |
 | `src/map/Soldat_map` | `shared/PolyMap.pas`, `client/MapGraphics.pas` | its polygons in sectors, a point or a ray tested against them, which kind stops what (`TPolyMap`); the map as vertices to draw |
+| `src/anim/Poa`, `Soldat_anims` | `shared/Anims.pas`, `shared/Parts.pas` | the animations' and the skeletons' files read (`TAnimation.LoadFromFile`, `LoadPOObject`); the 44 animations, their speeds and loops (`LoadAnimObjects`), a frame advanced (`DoAnimation`) |
+| `src/game/Soldat_soldier` | `shared/mechanics/Sprites.pas`, `shared/mechanics/Control.pas`, `shared/Parts.pas` | a soldier's tick (`TSprite.Update`): its particle's step (`Euler`), its keys (`ControlSprite`), its skeleton placed, its collision with the map (`CheckMapCollision`, `CheckRadiusMapCollision`, `CheckMapVerticesCollision`) |
+| `src/game/Soldat_ragdoll` | `shared/Parts.pas`, `shared/mechanics/Sprites.pas` | a dead soldier's skeleton: Verlet and constraints (`ParticleSystem`), `CheckSkeletonMapCollision` |
 | `src/game/Soldat_model` | `shared/mechanics/Sprites.pas`, `shared/Game.pas` | a soldier (`TSprite`), what it wants to do (`TControl`); the round |
-| `src/game/Soldat_ragdoll` | `shared/Parts.pas`, `shared/Anims.pas` | Verlet particles and constraints (`ParticleSystem`); the gostek's skeleton and its animations (`TAnimation`) |
 | `src/game/Soldat_bots` | `shared/AI.pas`, `shared/Waypoints.pas` | the bots, along the map's waypoints |
-| `src/game/Soldat_update` | `shared/mechanics/Control.pas`, `Bullets.pas`, `Things.pas`; `client/UpdateFrame.pas` | the keys to a soldier's moves; bullets (`TBullet`); flags, kits, dropped weapons (`TThing`); a frame |
+| `src/game/Soldat_update` | `client/UpdateFrame.pas`, `server/ServerLoop.pas`; `shared/mechanics/Bullets.pas` | a tick's order; a bullet (`TBullet`: its step, its way against the map and the soldiers) |
 | `src/render/Soldat_view` | `client/GameRendering.pas`, `MapGraphics.pas`, `GostekGraphics.pas`, `InterfaceGraphics.pas` | the frame drawn: the map, the soldiers, the interface |
 | `src/main/MiniSoldat` | `client/Client.pas` | the program |
 | `src/net/Soldat_protocol` | `shared/network/Net.pas` | the messages, each a packed record opening with its number (`MsgID_*`) |

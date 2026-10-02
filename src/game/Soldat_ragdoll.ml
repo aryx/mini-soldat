@@ -6,41 +6,79 @@
  * modify it under the terms of the GNU Library General Public License
  * (LGPL) as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
- *)
-(* A dead soldier: Jakobsen's particles and sticks (Particles, the
- * Hitman technique), 9 particles, a stick figure falling, tumbling and
- * lying on the map's walls (Particles.keep_out).
  *
- * In Soldat the living soldier is such a skeleton too (the "gostek":
- * shared/Parts.pas's ParticleSystem, its points and sticks read from
- * objects/gostek.po), posed by its animations (shared/Anims.pas, the
- * .poa files) and let loose when it dies.
+ * Adapted from OpenSoldat's shared/mechanics/Sprites.pas and
+ * shared/Parts.pas, Copyright 2001-2020 Transhuman Design, Copyright
+ * 2020-2023 OpenSoldat contributors (the MIT License).
  *)
-open Playground
-open Basics (* float arithmetics *)
+(* A dead soldier: its own skeleton, let loose.
+ *
+ * Alive, a soldier's 20 points are put where its animations say
+ * (Soldat_soldier). Dead, they are particles joined by the gostek's
+ * sticks (Jakobsen's particles and sticks: elm-playground's Particles),
+ * falling, tumbling and lying on the map. The speed each starts with is
+ * what its last living tick left it: where it was a tick before.
+ *
+ * A tick, in Soldat's order (TSprite.Update, S:747 and S:1371): each
+ * point but the waist, the toes and the hands' ends is taken out of
+ * the walls (CheckSkeletonMapCollision: back where it was, less its
+ * depth along the nearest edge's perp); then Soldat's Verlet step,
+ * which is Particles.step with a drag of 1 - VDamping (0.9945) and a
+ * gravity of 1.06 times the game's; then the sticks, once
+ * (SatisfyConstraints: Particles.relax, one iteration).
+ *
+ * Not yet: a head or a leg off on a hard hit (a stick cut), the chain
+ * and the hair (points 21 to 24).
+ *)
 
-(* a stick figure: head, neck, hip, the knees and feet, the hands *)
-let figure = [ (0., 18.); (0., 10.); (0., -8.); (-5., -16.); (-7., -24.); (5., -16.); (7., -24.); (-10., 0.); (10., 0.) ]
-let bones : Particles.stick list =
-  List.map
-    (fun (a, b) -> { Particles.a; b; length = Vec2.length (Vec2.sub (List.nth figure b) (List.nth figure a)) })
-    [ (0, 1); (1, 2); (2, 3); (3, 4); (2, 5); (5, 6); (1, 7); (1, 8); (0, 2) ]
+type t = Particles.particle array
 
-(* the figure where the soldier fell, moving as it moved plus the hit's
- * push: its old positions a tick back along that velocity *)
-let ragdoll (b : Physics.body) ((kx, ky) : number * number) : Particles.particle array =
-  let (vx, vy) = (b.vx + kx, b.vy + ky) in
-  Array.of_list
-    (List.mapi
-       (fun i (x, y) ->
-         (* the head flies a bit faster: the figure starts tumbling *)
-         let spin = if i = 0 then 1.5 else 1. in
-         let pos = (b.x + x, b.y + y) in
-         { (Particles.particle pos) with old = (fst pos - (vx * spin / 60.), snd pos - (vy / 60.)) })
-       figure)
+(* the gostek's sticks between its first 20 points (28 of its 30), as
+ * Particles has them: from 0 *)
+let sticks : Particles.stick list =
+  Array.to_list Soldat_anims.gostek.sticks
+  |> List.filter_map (fun (a, b, length) -> if a <= 20 && b <= 20 then Some { Particles.a = a - 1; b = b - 1; length } else None)
 
-let move (map : Soldat_map.t) (ps : Particles.particle array) : Particles.particle array =
-  ps
-  |> Particles.step ~drag:0.01 ~accel:(0., -.Soldat_map.gravity) ~dt:(1. / 60.)
-  |> Particles.relax ~iterations:5 bones
-  |> Particles.keep_out map.walls
+(* the skeleton of a soldier that just died; [hit] is the point a
+ * bullet struck, if one did, and the push it gave *)
+let of_soldier (s : Soldat_soldier.t) (hit : (int * (float * float)) option) : t =
+  Array.mapi
+    (fun i pos ->
+      let (ox, oy) = s.old_skeleton.(i) in
+      let old = match hit with Some (p, (kx, ky)) when p = i + 1 -> (ox -. kx, oy -. ky) | _ -> (ox, oy) in
+      { (Particles.particle pos) with old })
+    s.skeleton
+
+(* Vec2Normalize *)
+let normalize ((x, y) : float * float) : float * float =
+  let len = Float.hypot x y in
+  if len < 0.001 then (0., 0.) else (x /. len, y /. len)
+
+(* CheckSkeletonMapCollision (S:2958) *)
+let out_of_walls (map : Soldat_map.t) (p : Particles.particle) : Particles.particle =
+  let (x, y) = p.pos in
+  let pushed (probe : float * float) (stops : Pms.kind -> bool) (p : Particles.particle) : Particles.particle option =
+    List.fold_left
+      (fun acc (w : Soldat_map.wall) ->
+        if stops w.kind && Soldat_map.in_edges probe w then begin
+          let (perp, depth, _) = Soldat_map.closest_perp w probe in
+          let (nx, ny) = normalize perp in
+          Some { p with pos = (fst p.old -. (nx *. depth), snd p.old -. (ny *. depth)) }
+        end
+        else acc)
+      None
+      (Soldat_map.sector map (fst probe) (snd probe))
+  in
+  match pushed (x -. 1., y +. 4.) Soldat_map.stops_soldier p with
+  | None -> p
+  | Some p ->
+      let any (kind : Pms.kind) = kind <> No_collide && kind <> Only_bullets in
+      Option.value (pushed (x, y +. 1.) any p) ~default:p
+
+let tick (map : Soldat_map.t) (ragdoll : t) : t =
+  ragdoll
+  |> Array.mapi (fun i p ->
+         let n = i + 1 in
+         if n = 7 || n = 8 || n >= 17 then p else out_of_walls map p)
+  |> Particles.step ~drag:(1. -. 0.9945) ~accel:(0., 1.06 *. Soldat_soldier.grav) ~dt:1.
+  |> Particles.relax ~iterations:1 sticks

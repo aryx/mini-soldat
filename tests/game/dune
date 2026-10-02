@@ -1,11 +1,20 @@
-; unit tests for the game, run by 'make test' (dune runtest): a round
-; played without drawing it -- update called frame after frame, the
-; model checked (who moved, who died, what a bot knows)
+; maps made by hand for the tests: a flat floor, nothing
+(library
+ (name testutil_soldat)
+ (wrapped false)
+ (modules Testutil_map)
+ (libraries soldat_map))
+
+; unit tests for the game, run by 'make test' (dune runtest): the
+; soldier's moves on a floor made by hand, against numbers worked out
+; from Soldat's (Unit_soldier), and a round played without drawing it
+; (Unit_soldat)
 (test
  (name Test)
+ (modules Test Unit_soldat Unit_soldier)
  (libraries
    alcotest testo
-   soldat_game
+   testutil_soldat soldat_map soldat_anim soldat_game
    tiny_libs.ai ; Bot: a bot's last senses
    elm_playground
    elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)

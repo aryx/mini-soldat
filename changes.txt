@@ -12,6 +12,37 @@
   (particles and sticks), respawning, the first to 5 kills; the bots
   by hand or, with ai=engine, on Sense and Bot; the flag hitboxes
 - renamed MiniSoldat (the title screen, the help)
+- the soldier moves as Soldat's does (Soldat_soldier, adapted from
+  Sprites.pas and Control.pas): one particle stepped by Soldat's Euler
+  (gravity 0.06 a tick, a speed kept at 0.99), the keys as forces and
+  animations in ControlSprite's order and with its constants (a run,
+  a jump given during its animation's frames 9 to 14, a jump sideways,
+  a crouch and a crouched walk, lying down, crawling and getting up,
+  a roll, a backflip, the jets and their fuel), the collision with
+  the map by points in one sector (the head, the feet, a circle, the
+  corners) with its friction rules, ice and bouncy polygons. Soldat's
+  keys: a/d, w, s, x, the mouse's two buttons
+- Soldat's 44 animations and the gostek's skeleton: their files read
+  (Poa), packed into the program at build time (Gen_anims: 1.2 MB of
+  text as 180 KB of singles), each with its speed and its loop
+  (Soldat_anims)
+- the game is in Soldat's units and coordinates: a tick a frame, a
+  soldier 20 tall, y downwards; the picture alone turns y over
+- a soldier drawn as its skeleton's sticks; dead, that skeleton let
+  loose (Particles.step and relax with Soldat's damping and gravity,
+  CheckSkeletonMapCollision)
+- Soldat's camera: 0.14 of the way to the player a tick, moved by a
+  seventh of the mouse; 640 units across
+- the map's own sectors: a point is tested against its sector's walls
+  alone, by their perps, as PolyMap.pas does. A tick on Arena2: 0.02
+  ms, from 2.6; on the biggest map 0.1, from 12.5
+- the toy's gun with the USSOCOM's numbers (speed, damage by the place
+  hit, push, fire interval), a bullet tested along its way against the
+  sector's walls and 7 circles of a soldier's skeleton; Soldat's 90
+  ticks without fire or hits after appearing, its health of 150, its
+  3 seconds before coming back; the soldiers appear far apart
+- gone with the toy's soldier: the rigid-body world, the map made
+  twice as big, the grenades (until the weapons), map=toy
 - Soldat's own maps: a .pms file read (Pms, after MapFile.pas: the
   polygons and their kinds, the sectors, the props, the colliders, the
   spawn points, the waypoints) and made into the game's map
@@ -60,8 +91,17 @@
   linked as they are (no copy of the source with its main taken out)
 - Dockerfile and docker.yml Github Actions CI check (OCaml 4.14.4 and
   5.5.1), make build-docker
-- tests/map (6): Arena2 read from the bytes carried, what is in it,
-  what is refused; the game's map made of it; what stops what
+- tests/game (17): the soldier's moves on a floor made by hand,
+  against numbers worked out from Soldat's constants (a fall's top
+  speed 5.94, a run's 2.9, a jump's 8 ticks of wind-up and 85 of
+  height, a crouched walk's 1.0...); a round replays the same; six
+  bullets in the head
+- tests/anim (8): the files' reader, the 44 animations' frames, how
+  one advances
+- tests/map (8): Arena2 read from the bytes carried, what is in it,
+  what is refused; the game's map made of it: its perps, its sectors
+  (which list a wall where its outline is, not its inside); what
+  stops what
 - scripts/perf/Frame_bench: a frame's time without drawing, on the
   toy and Arena2, or on any .pms files named (all 99: 0.7 to 12.5 ms)
 - tests/server (9): the protocol's worked example and what it refuses,
@@ -77,6 +117,11 @@
 - docs/opensoldat.md: Soldat's sources (MIT) and content (CC BY 4.0),
   what is in them, and which of its files each module stands for
 - data/: Soldat's content copied here, CC BY 4.0 (data/README.md)
+- LICENSE-OpenSoldat.md: the MIT notice of the Pascal the soldier is
+  adapted from
+- Soldat_update.tick takes the player's intent and where it looks, and
+  knows no keyboard and no screen: what a test calls, and a server
+  will
 - the map is a value the round carries (Soldat_map.t), no longer
   constants of a module
 - docs/notes_soldat_in_playground.md: Soldat's terms, ideas and code

@@ -1,31 +1,47 @@
 (* Soldat_map: the map a game is played on.
 
-   What the game needs of a map, whatever it was made from: polygons
-   to draw, those that stop a soldier and those that stop a bullet, the
-   places a soldier appears at, the sky's colours, and how far it goes.
-   Two makers: [of_pms], from one of Soldat's own maps as its file has
-   it (Pms.mli), and [toy], the one screen TinySoldat was played on,
-   kept for the tests and for comparison (the flag map=toy).
+   What the game needs of one of Soldat's maps (Pms.mli): its polygons
+   as walls to test points against, found by where they are; the
+   places a soldier appears at; and its picture.
 
-   From Soldat's coordinates to the game's:
+   The walls are in Soldat's own coordinates, y downwards, as the game
+   is (the soldier's code is Soldat's, with its signs). Only the
+   picture is turned over, the Playground's y going up: [back] and
+   [front] are shapes at (x, -y).
 
-   - y is turned over: Soldat's grows downwards, the Playground's
-     upwards;
-   - everything is twice as big ([scale]). Soldat's soldier is about 20
-     of its units tall and the one inherited from TinySoldat 44 pixels,
-     with its speeds and its gravity tuned to that: for now the map is
-     brought to the soldier. It goes away the day the soldier is
-     Soldat's own;
-   - a triangle's corners are put counterclockwise, which the physics
-     wants and the file does not promise; one with no area is dropped.
+   **The sectors.** A map has a few hundred polygons and a soldier
+   touches three. Soldat lays a grid over the map; the map's file says,
+   for each square, a sector, which polygons touch it, and a point
+   is tested against the polygons of its own sector alone:
 
-   What a polygon stops is its kind's business (Pms.kind), here without
-   teams or flags, which the game does not have yet: a soldier is
-   stopped by the plain ones and by all those that do something to it
-   (ice, the deadly ones, lava...), not by those for bullets only, for
-   the eye, for one team or for the background; a bullet the same, with
-   "players only" for "bullets only". What the kinds do (slide, hurt,
-   kill, bounce) is not done yet: all are plain ground.
+       sector of (x, y) = (round (x / division), round (y / division))
+
+   from -num to num each way; the outermost ring is never looked at (a
+   point there touches nothing: it is out of the map). So what a test
+   costs does not grow with the map. The grid is the file's own, not
+   one made again here: which polygons a point may touch is the map's
+   author's (the editor's) say. And it says something one would not
+   guess: a sector lists the polygons whose *outline* crosses it. Deep
+   inside a big polygon no sector lists it (14 of Arena2's 134 are not
+   seen from their own middle): a soldier is stopped at a wall's skin,
+   and one that got through it would fall through the wall, as in
+   Soldat.
+
+   **A wall** is a triangle with, for each of its three edges, a
+   vector across it pointing *into* the triangle (a *perp*: the file
+   has them). A point is in a wall when it is on the inner side of the
+   three edges ([in_edges], by the perps) or, the test the soldier's
+   feet use, on the same side of the three edges ([in_wall], by the
+   corners alone). To push a point out, [closest_perp] gives the perp
+   of the edge it is nearest and how far from it: the point is moved
+   back along it.
+
+   What a polygon stops is its kind's business (Pms.kind), here
+   without teams or flags, which the game does not have yet: a soldier
+   is stopped by the plain ones and by all those that do something to
+   it (ice, the deadly ones, lava...), not by those for bullets only,
+   for the eye, for one team, for flag carriers or for the background;
+   a bullet the same, with "players only" for "bullets only".
 
    A polygon is filled with one colour: the mean of its three corners'
    times the mean colour of the map's texture (Texture_tints), a first
@@ -34,53 +50,77 @@
    (Soldat's maps have many: walls one cannot see). Its props (the
    scenery) are not drawn yet.
 
-   In Soldat: shared/PolyMap.pas (TPolyMap: the polygons, their kinds,
-   the sectors, CollisionTest and RayCast, where which kind stops what
-   is decided) and client/MapGraphics.pas (the map as vertices to
-   draw).
+   In Soldat: shared/PolyMap.pas (TPolyMap: LoadData, PointInPoly,
+   PointInPolyEdges, ClosestPerpendicular, RayCast) and
+   client/MapGraphics.pas (the map as vertices to draw); which kind
+   stops a soldier is TSprite.CheckMapCollision's and TeamCollides's
+   (shared/mechanics/Sprites.pas).
 *)
 open Playground
 
-type t = {
-  name : string;
-  (* behind the soldiers: the sky, then the background polygons *)
-  back : shape list;
-  (* over them, as Soldat draws its polygons: their feet sink in a
-   * little *)
-  front : shape list;
-  (* what stops a soldier: convex polygons, counterclockwise, and the
-   * same as bodies nothing moves, for the Physics layer's world *)
-  walls : (number * number) list list;
-  bodies : Physics.body list;
-  (* what stops a bullet, and a line of sight *)
-  bullet_walls : (number * number) list list;
-  bullet_bodies : Physics.body list;
-  (* where a soldier appears: never empty *)
-  spawns : (number * number) list;
-  (* how far the map goes: what the camera stays within *)
-  bounds : Camera2d.rect;
+type wall = {
+  a : float * float;
+  b : float * float;
+  c : float * float;
+  (* for the edges a-b, b-c and c-a: of length 1, pointing in *)
+  perps : (float * float) array;
+  (* how much of its speed a bouncy one gives back: the length the
+   * third perp had in the file *)
+  bounciness : float;
+  kind : Pms.kind;
 }
 
-(* how many pixels of the game a unit of Soldat's is: 2 *)
-val scale : number
-
-(* what pulls everything down, in pixels per second per second *)
-val gravity : number
+type t = {
+  name : string;
+  (* the picture, y upwards: behind the soldiers (the sky, then the
+   * background polygons), and over them, as Soldat draws the others *)
+  back : shape list;
+  front : shape list;
+  walls : wall array;
+  (* a sector's side, how many there are each way from the middle, and
+   * for each the walls that touch it (their places in [walls]) *)
+  division : float;
+  num : int;
+  sectors : int array array;
+  (* where a soldier appears: never empty *)
+  spawns : (float * float) list;
+  (* the fuel a soldier's jets start with, in ticks *)
+  jet : int;
+}
 
 (* the game's map for one of Soldat's *)
 val of_pms : Pms.t -> t
-
-(* TinySoldat's one screen: hills, two walls, five platforms, a bunker *)
-val toy : t
 
 (* the map the game starts on, carried in the program: Soldat's Arena2
  * (data/maps/Arena2.pms) *)
 val arena2 : t Lazy.t
 
-(* nothing of the map between a and b: one sees the other, and a
- * bullet would get there *)
-val clear : t -> number * number -> number * number -> bool
+(* the walls of the sector (x, y) is in: none out of the map *)
+val sector : t -> float -> float -> wall list
+
+(* a point in a wall: by its corners, by its perps *)
+val in_wall : float * float -> wall -> bool
+val in_edges : float * float -> wall -> bool
+
+(* [closest_perp wall p]: the perp of the edge [p] is nearest, how far
+ * [p] is from that edge's line, and which edge (1, 2 or 3) *)
+val closest_perp : wall -> float * float -> (float * float) * float * int
+
+(* how far [p] is from the line through two points *)
+val point_line_distance : float * float -> float * float -> float * float -> float
 
 (* which kinds stop a soldier, and a bullet *)
 val stops_soldier : Pms.kind -> bool
 val stops_bullet : Pms.kind -> bool
+
+(* the point is in a wall that stops a bullet: a bullet ends there, a
+ * line of sight too *)
+val in_bullet_wall : t -> float * float -> bool
+
+(* nothing of the map between a and b: one sees the other. Looked at
+ * every 4 units on the way *)
+val clear : t -> float * float -> float * float -> bool
+
+(* farther than this from the middle, either way, is out of the map
+ * (50 short of its last sector) *)
+val edge : t -> float

@@ -18,14 +18,14 @@ module; this note has the ideas.
 
 | Soldat says | Meaning | Here |
 |---|---|---|
-| *gostek* | the soldier's body: a skeleton of points and sticks (`objects/gostek.po`) with a picture on each limb (`gostek-gfx/`). Polish for "guy" | `Soldat_ragdoll` for now (9 particles, dead soldiers only); *to come*: the real skeleton |
-| *sprite* | a soldier, not a picture: `TSprite`, in `Sprite[1..MAX_SPRITES]` | `Soldat_model.soldier` |
+| *gostek* | the soldier's body: a skeleton of points and sticks (`objects/gostek.po`) with a picture on each limb (`gostek-gfx/`). Polish for "guy" | `Soldat_anims.gostek`, drawn as its sticks; *to come*: its pictures |
+| *sprite* | a soldier, not a picture: `TSprite`, in `Sprite[1..MAX_SPRITES]` | `Soldat_soldier.t` (what moves), in `Soldat_model.soldier` (its health, its kills) |
 | *part* | a particle: `ParticleSystem` (`shared/Parts.pas`) | `Particles.particle` |
 | *constraint* | a stick between two particles, with its rest length | `Particles.stick` |
 | *skeleton* | a `ParticleSystem` with constraints: the gostek's, a flag's, a kit's | a `particle array` and its `stick list` |
 | *poly* | a triangle of the map, with its kind (`PolyType`) | `Pms.polygon`, `Pms.kind` |
 | *perp* | a polygon's edge normal, stored in the map file | `Pms.polygon.perps` |
-| *sector* | a square of the grid laid over the map, listing the polygons that touch it | `Pms.t.sectors` |
+| *sector* | a square of the grid laid over the map, listing the polygons whose outline crosses it | `Soldat_map.sector` |
 | *prop*, *scenery* | a picture placed on the map; the picture's file | `Pms.prop`, `Pms.t.scenery` (read, not drawn yet) |
 | *collider* | a circle that stops bullets | `Pms.collider` (read, not used yet) |
 | *thing* | what lies on the map and can be picked up or carried: flags, kits, dropped weapons (`TThing`) | *to come* |
@@ -48,10 +48,10 @@ from a world to shapes.
 |---|---|
 | the global arrays, mutated each tick | one immutable value, `Soldat_model.play` |
 | `Active: Boolean` in each slot of an array | a list or an array of exactly what exists |
-| `Update_Frame` (`client/UpdateFrame.pas`), the server's loop (`server/ServerLoop.pas`) | `Soldat_update.update` |
+| `Update_Frame` (`client/UpdateFrame.pas`), the server's loop (`server/ServerLoop.pas`) | `Soldat_update.tick` |
 | `RenderFrame` (`client/GameRendering.pas`), OpenGL through `client/Gfx.pas` | `Soldat_view.view`, a list of the Playground's shapes |
 | `client/Input.pas`, `client/ControlGame.pas`: SDL's events | `computer.keyboard`, `computer.mouse` |
-| `TControl`, a soldier's keys this tick, set by the keyboard, a bot or the network | `Soldat_model.intent` |
+| `TControl`, a soldier's keys this tick, set by the keyboard, a bot or the network | `Soldat_soldier.control`, in `Soldat_model.intent` |
 | the window, the timer, the loop: SDL, `client/Client.pas` | `Playground_platform.run_app` |
 | a client and a server built from `shared/` with `{$IFDEF SERVER}` | libraries: `src/game` linked by the game and, one day, by the server |
 
@@ -64,13 +64,9 @@ the Playground's.
 | | Soldat | Here |
 |---|---|---|
 | time | a tick, 1/60 s; speeds are per tick, accelerations per tick squared (`TimeStep := 1`) | the same: a frame is a tick |
-| length | a pixel of its view | twice that for now (`Soldat_map.scale`), until the soldier is Soldat's |
-| y | grows downwards | grows upwards: turned over when a map is read |
-| gravity | `Grav = 0.06` a tick squared (`shared/Game.pas`), times each system's `GravityMultiplier` | `Soldat_map.gravity`, the toy's 800 pixels a second squared, for now |
-
-*To come* with the soldier's port: Soldat's own units (a scale of 1,
-gravity 0.06), y turned over in one place only, when drawing and when
-reading the mouse.
+| length | a pixel of its view, 640 across | the same; the camera's zoom makes 640 of them the screen's width |
+| y | grows downwards | the same in the map and the game; the Playground's grows upwards: turned over when drawing (`Soldat_view.at`) and when reading the mouse (`Soldat_update.human`), nowhere else |
+| gravity | `Grav = 0.06` a tick squared (`shared/Game.pas`), times each system's `GravityMultiplier` | `Soldat_soldier.grav` |
 
 ## The physics
 
@@ -128,11 +124,11 @@ whatever the other end is); `Particles.relax` moves it by all of it.
 If a ragdoll that hangs from a pinned point feels different, that is
 why, and the place to add an option.
 
-**Not the rigid-body solver.** TinySoldat's soldier is an upright box
+**Not the rigid-body solver.** TinySoldat's soldier was an upright box
 in a `Physics.world` (`Solver`, `Contact`, `Broadphase`): nothing in
-Soldat is a rigid body. The port moves the soldier to the particle
-above, and the `Physics.world` goes away, with its cost (a time
-proportional to the map's walls, each frame).
+Soldat is a rigid body. The soldier is now the particle above, and
+the `Physics.world` is gone, with its cost (a time proportional to the
+map's walls, each frame: 2.6 ms on Arena2, now 0.02).
 
 ## The map and what touches it
 
@@ -140,10 +136,10 @@ proportional to the map's walls, each frame).
 |---|---|
 | `LoadMapFile` (`shared/MapFile.pas`) | `Pms.parse` |
 | `TPolyMap.LoadData` | `Soldat_map.of_pms` |
-| `PointInPoly`, `PointInPolyEdges` (a point on the inner side of the three perps) | `Collide.point_in_polygon` |
-| `ClosestPerpendicular` (the nearest edge, and how far), over `PointLineDistance` (`shared/Calc.pas`) | `Collide.nearest_on_outline` |
-| `CollisionTest`: the point's sector (`Round(Pos.x / SectorsDivision)`), its polygons, the first one the point is in, and the vector to push it out by (the perp, 1.5 times the depth) | `Particles.keep_out`, given the sector's polygons only: *to come*, today every wall is looked at |
-| `RayCast`: a segment against the sectors' polygons | `Collide.segment_polygon`, today against every wall (`Soldat_map.clear`) |
+| the sectors (`Round(Pos.x / SectorsDivision)`, never the outermost ring) | `Soldat_map.sector`: the file's own grid, Pascal's rounding |
+| `PointInPoly` (the same side of the three edges), `PointInPolyEdges` (the inner side of the three perps) | `Soldat_map.in_wall`, `in_edges`: Soldat's two tests kept as they are, since they differ on an edge and the file's perps are the map author's. `Collide.point_in_polygon` is the same idea |
+| `ClosestPerpendicular` (the nearest edge's perp, and how far), over `PointLineDistance` (`shared/Calc.pas`) | `Soldat_map.closest_perp`, `point_line_distance` (`Collide.nearest_on_outline` gives the point, not the perp) |
+| `RayCast`: a segment against the sectors' polygons | `Soldat_map.clear`: the segment looked at every 4 units, each point in its sector's walls; `in_bullet_wall` for its use on one point |
 | `LineCircleCollision` (`shared/Calc.pas`): a bullet's path against a collider | `Collide.segment_circle` |
 | which kind stops what (`EXCLUDED1`, the `Team` and `Flag` tests of `RayCast`) | `Soldat_map.stops_soldier`, `stops_bullet` (no teams, no flags yet) |
 | `Bounciness`: the length of a polygon's third perp | `Pms.polygon.perps.(2)` (not used yet) |
@@ -152,8 +148,9 @@ proportional to the map's walls, each frame).
 ## The soldier
 
 Read in `shared/mechanics/Sprites.pas` (`TSprite`),
-`shared/mechanics/Control.pas` (`ControlSprite`) and `shared/Anims.pas`.
-None of it is ported yet: this is what the port has to be.
+`shared/mechanics/Control.pas` (`ControlSprite`) and `shared/Anims.pas`,
+and ported: `Soldat_soldier` (the particle, the keys, the map),
+`Soldat_anims` and `Poa` (the animations), `Soldat_ragdoll` (dead).
 
 **Two things, one of which moves.** A soldier has no position of its
 own: it is particle number `Num` of `SpriteParts`, a point near its
@@ -174,18 +171,18 @@ its head (`SpriteParts.Pos[Num] := Skeleton.Pos[12]`). The speed the
 ragdoll starts with is what the last living tick left between `Pos`
 and `OldPos`.
 
-| Soldat | Here, *to come* |
+| Soldat | Here |
 |---|---|
-| the particle of `SpriteParts` | a position and a velocity in the soldier's record, stepped by Soldat's Euler |
-| `Skeleton`, alive: 20 points placed from the animations | a function of the soldier (its particle, its two animations and their frames, its direction): computed when needed, not stored |
-| `Skeleton`, dead: Verlet and constraints | a `particle array` and its `stick list`: `Particles.step`, `Particles.relax ~iterations:1` |
-| a stick cut (a head, a leg shot off: `Constraints[i].Active := False`) | the stick taken out of the list |
-| `Control: TControl` (the keys and where the mouse is, in the map) | `Soldat_model.intent`, grown to Soldat's keys |
-| `Position`: stand, crouch, prone | a variant |
-| `LegsAnimation`, `BodyAnimation`: a copy of an animation with its current frame | which animation, and the frame it is at |
+| the particle of `SpriteParts` | `x`, `y`, `vx`, `vy`, `fx`, `fy` in `Soldat_soldier.t`, stepped by Soldat's Euler (`euler`) |
+| `Skeleton`, alive: 20 points placed from the animations | `skeleton`, placed each tick (`place_skeleton`), and `old_skeleton`, a tick before: kept, as there, since a tick's order shows it (it is placed before the map moves the particle) and a death needs both |
+| `Skeleton`, dead: Verlet and constraints | `Soldat_ragdoll`: a `particle array`, `Particles.step`, `Particles.relax ~iterations:1` |
+| a stick cut (a head, a leg shot off: `Constraints[i].Active := False`) | *to come*: the stick taken out of the list |
+| `Control: TControl` (the keys and where the mouse is, in the map) | `Soldat_soldier.control` |
+| `Position`: stand, crouch, prone | `stance` |
+| `LegsAnimation`, `BodyAnimation`: a copy of an animation with its current frame | `Soldat_anims.playing`: which, its frame, its count |
 | `OnGround`, `OnGroundPermanent` (the same, over two ticks) | fields of the soldier |
-| `JetsCount`, from the map's `StartJet` | the fuel |
-| `Health`, `DeadMeat`, `RespawnCounter` | as today |
+| `JetsCount`, from the map's `StartJet` | `jets`, from `Soldat_map.t.jet` |
+| `Health`, `DeadMeat`, `RespawnCounter`, `CeaseFireCounter` | `Soldat_model.soldier`'s `health`, `dead`, `safe` |
 
 **A tick**, in Soldat's order (`client/UpdateFrame.pas`, then
 `TSprite.Update`), which the port keeps, because the forces of one
@@ -235,12 +232,13 @@ kind acts here: ice leaves out the standing friction, a bouncy one
 gives back the speed times its bounciness, the deadly and hurting
 ones take health (in the Pascal on the server only: `{$IFDEF SERVER}`).
 
-| Soldat | Here, *to come* |
+| Soldat | Here |
 |---|---|
-| `CheckMapCollision` (a point of the soldier) | `Collide.point_in_polygon` over the sector's polygons, `Collide.nearest_on_outline` for the push; the friction rules are Soldat's own, to port |
-| `CheckRadiusMapCollision` (the circle) | `Collide.circle_convex` or the Pascal's edge tests, to compare |
-| `CheckMapVerticesCollision` (near a corner: a push of 1 away) | a few lines |
-| `CheckSkeletonMapCollision` (a dead body's points) | `Particles.keep_out`, given the sector's polygons |
+| `CheckMapCollision` (a point of the soldier) | `Soldat_soldier.check_map`, with its friction rules |
+| `CheckRadiusMapCollision` (the circle) | `check_radius` |
+| `CheckMapVerticesCollision` (near a corner: a push of 1 away) | `check_vertices` |
+| `CheckSkeletonMapCollision` (a dead body's points) | `Soldat_ragdoll.out_of_walls` (`Particles.keep_out` pushes to the nearest point of the outline; Soldat goes back where the point was, less its depth: kept as Soldat's) |
+| what the deadly, hurting, healing and exploding polygons do (`HandleSpecialPolyTypes`) | *to come* |
 
 **The animations.** 44 of them (`shared/Anims.pas`), each a file of
 the content (`anims/*.poa`, text: a frame is 20 points, each a number
@@ -255,14 +253,15 @@ file's y is depth, unused). A skeleton is a `.po` file, alike: the
 points, `CONSTRAINTS`, then pairs of points, a stick's length being
 the distance between its two points as read.
 
-| Soldat | Here, *to come* |
+| Soldat | Here |
 |---|---|
-| `TAnimation.LoadFromFile` | a reader of `.poa`, as `Pms` is of `.pms`; the files in `data/anims/`, embedded |
-| `ParticleSystem.LoadPOObject` | a reader of `.po`, giving particles and sticks |
-| `TAnimation.DoAnimation` (a frame every `Speed` ticks; the last frame held, or back to the first) | a function on (animation, frame, count) |
-| `LegsApplyAnimation`, `BodyApplyAnimation` (change only to another animation; never out of prone) | the same two rules |
+| `TAnimation.LoadFromFile` | `Poa.animation`; the files in `data/anims/`, packed into the program at build time (`Gen_anims`: the singles Soldat keeps them in, 180 KB) |
+| `ParticleSystem.LoadPOObject` | `Poa.skeleton` |
+| the 44 global animations, their speeds and loops (`LoadAnimObjects`) | `Soldat_anims.all`, `point`, `frames` |
+| `TAnimation.DoAnimation` (a frame every `Speed` ticks; the last frame held, or back to the first) | `Soldat_anims.advance` |
+| `LegsApplyAnimation`, `BodyApplyAnimation` (change only to another animation; never out of prone) | `Soldat_soldier.legs_apply`, `body_apply` |
 
-**Aiming.** The mouse's place in the map is in the soldier's controls.
+**Aiming** (*to come*, but for the direction). The mouse's place in the map is in the soldier's controls.
 The head (point 12) is put beside the neck (9) across the line to the
 cursor; the two hands (15, 19) are put 7 and 8 units from the hand the
 animation holds (16), towards the cursor, unless the body is busy
@@ -379,7 +378,7 @@ the model, drawn as small pictures; the Playground has `Juice`
 | the modes (`GAMESTYLE_*`): deathmatch, pointmatch, teammatch, capture the flag (the default), rambo, infiltration, hold the flag | a variant; deathmatch first, as today |
 | a round's end: a kill limit (10) or a time limit (10 minutes), then the scores for 320 ticks, then the next map | the toy's "first to 5"; then Soldat's |
 | respawn: 180 ticks after dying (in team modes, in waves) | the toy's 120 frames; then Soldat's |
-| the tick's order (`server/ServerLoop.pas`): the soldiers' particles stepped, each soldier updated (its keys, or its bot's), each bullet updated (its collisions), the bullets' particles stepped, each thing updated; the client adds the sparks | `Soldat_update.update_play`, in that order |
+| the tick's order (`server/ServerLoop.pas`): the soldiers' particles stepped, each soldier updated (its keys, or its bot's), each bullet updated (its collisions), the bullets' particles stepped, each thing updated; the client adds the sparks | `Soldat_update.tick`, in that order |
 | a bot (`shared/AI.pas`, `ControlBot`): it only presses keys and moves the mouse, in the same `TControl` a player fills | as today: a bot returns an `intent` |
 | its way: no path-finding. It goes to the nearest waypoint, picks one of its connections at random, and holds the keys that waypoint says (left, right, up, down, jets): the map's author walked it | `Pms.waypoint`; the Playground's `ai` (`Sense`, `Bot`) for what it may know and how fast it reacts, if wanted beside it |
 | its target: the nearest enemy its head sees (a ray on the map, 651 pixels at most) | `Soldat_map.clear` |
@@ -415,8 +414,8 @@ calls `update` once a frame, so there is nothing to interpolate.
 
 | Soldat | Here |
 |---|---|
-| the camera's rule above | `Camera2d.t` in the model, its rule three lines of `update`; `Camera2d.view`, `to_world` for the mouse. Today `Camera2d.follow`, a little different: *to come*, Soldat's |
-| 640 by 480, y down | the Playground's screen is 1000 by 1000, y up: a camera zoom, or `window.screen_size` |
+| the camera's rule above | `Soldat_update.follow`: a point of the model, three lines; `Camera2d.view` shows through it |
+| 640 by 480, y down | the Playground's screen is 1000 by 1000, y up: a zoom of the screen's width over 640 (`Soldat_model.zoom`), y turned over |
 | the sky: two colours, from the top to the bottom of the map's range (25 sectors each way), the screen's width | bands of `rectangle`s (no gradient in the Playground); or a picture one pixel wide, stretched |
 | a polygon: the map's texture (512 by 512, repeated), each corner with its u, v and its colour, which multiplies the texture | `polygon`, one colour: the corners' mean times the texture's mean (`Texture_tints`). **Nothing** in the Playground draws a textured or shaded triangle |
 | the edges (`r_smoothedges`): along each outer edge of the map, a strip of `textures/edges/`, to soften it | *to come*, with the textures |

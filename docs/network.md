@@ -37,10 +37,10 @@ In the order it would be built:
    (`Transport`: sockets natively, the browser's WebSocket in a page).
 2. **A room is a game**: its map, its mode, its score, the server
    stepping it. `src/game` is already apart from `src/render` for this:
-   the server links the one and not the other. `Soldat_update.update_play`
-   takes the player's keys from the Playground's `computer` today; it
-   has to take one `intent` per player instead, wherever it comes from
-   (the keyboard, a bot, the network).
+   the server links the one and not the other. `Soldat_update.tick`
+   already knows no keyboard: it takes the one player's `intent`, and
+   has to take one per player instead, wherever each comes from (the
+   keyboard, a bot, the network).
 3. **The game's messages**, in `Soldat_protocol` beside the lobby's: a
    player's inputs up, the world down. As Quake did, the server owns
    the game: elm-playground's `Snapshot` (the server applies each

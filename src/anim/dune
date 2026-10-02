@@ -1,0 +1,43 @@
+; the soldier's animations and its skeleton: their files read (Poa),
+; and the 44 animations Soldat has, with their speeds, carried in the
+; program (Soldat_anims, over Anims_data). Soldat's shared/Anims.pas.
+(library
+ (name soldat_poa)
+ (wrapped false)
+ (modules Poa))
+
+; the build's own program, turning the files of data/ into a module
+(executable
+ (name Gen_anims)
+ (modules Gen_anims)
+ (libraries soldat_poa))
+
+; coupling: this list is Soldat_anims.all's, in its order
+(rule
+ (targets Anims_data.ml)
+ (deps (glob_files %{project_root}/data/anims/*.poa) %{project_root}/data/objects/gostek.po)
+ (action
+  (with-stdout-to
+   %{targets}
+   (chdir %{project_root}/data
+    (run %{exe:Gen_anims.exe} objects/gostek.po
+      anims/stoi.poa anims/biega.poa anims/biegatyl.poa anims/skok.poa
+      anims/skokwbok.poa anims/spada.poa anims/kuca.poa anims/kucaidzie.poa
+      anims/laduje.poa anims/rzuca.poa anims/odrzut.poa anims/odrzut2.poa
+      anims/shotgun.poa anims/clipout.poa anims/clipin.poa anims/slideback.poa
+      anims/change.poa anims/wyrzuca.poa anims/bezbroni.poa anims/bije.poa
+      anims/strzala.poa anims/barret.poa anims/skokdolobrot.poa
+      anims/skokdolobrottyl.poa anims/kucaidzietyl.poa anims/cigar.poa
+      anims/match.poa anims/smoke.poa anims/wipe.poa anims/krocze.poa
+      anims/szcza.poa anims/samo.poa anims/samo2.poa anims/takeoff.poa
+      anims/lezy.poa anims/cieszy.poa anims/celuje.poa anims/gora.poa
+      anims/lezyidzie.poa anims/wstaje.poa anims/celujeodrzut.poa
+      anims/goraodrzut.poa anims/kolba.poa anims/rucha.poa)))))
+
+(library
+ (name soldat_anim)
+ (wrapped false)
+ (modules Soldat_anims Anims_data)
+ (libraries
+   soldat_poa
+   tiny_libs.core)) ; Base64

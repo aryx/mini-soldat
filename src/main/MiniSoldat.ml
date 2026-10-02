@@ -15,13 +15,15 @@
  * map of polygons, shooting and throwing grenades, and falling as
  * ragdolls.
  *
- * For now what elm-playground's TinySoldat was, a toy of 600 lines on
- * the Playground's physics, you against two bots, the first to 5 kills
- * wins -- but on one of Soldat's own maps: Arena2, carried in the
- * program, or any .pms file named with the flag map (Pms.mli).
+ * It started as elm-playground's TinySoldat, and is on its way
+ * (docs/plan.md): the maps are Soldat's (Arena2, carried in the
+ * program, or any .pms file named with the flag map), and the soldier
+ * moves as Soldat's does, by its rules and its numbers; its gun, its
+ * bots and its looks are still the toy's. You against two bots, the
+ * first to 5 kills wins. The keys are Soldat's:
  *
- *   a/d    run           w  jump; hold it in the air: the jets (fuel)
- *   mouse  aim           click (or space): shoot    q: a grenade
+ *   a/d    run           w  jump       s  crouch      x  lie down
+ *   mouse  aim           left button: shoot     right button: the jets
  *
  * This is the main: the game is src/game's (Soldat_model,
  * Soldat_update), on src/map's arena, drawn by src/render's
@@ -32,12 +34,12 @@
 
 let help =
   {|mini-soldat
-  keys:  a/d    run              w      jump; held in the air: jets
-         space  shoot            q      a grenade
-  mouse: aim; click to shoot
+  keys:  a/d    run              w      jump
+         s      crouch           x      lie down, get up
+         down and a side, running: a roll; up and a side: a jump sideways
+  mouse: aim; left button: shoot; right button (or shift): the jets
   flags: map=FILE  one of Soldat's maps, a .pms file (Arena2 without it)
-         map=toy   TinySoldat's one screen
-         hitboxes  draw what the physics sees
+         hitboxes  draw the points the game tests
          ai=engine the bots on Sense and Bot instead of by hand
   e.g.   ./bin/mini-soldat map=~/opensoldat-base/shared/maps/ctf_Ash.pms
 |}
@@ -55,12 +57,10 @@ let read_file (caps : < Cap.open_in ; .. >) (file : string) : string =
       set_binary_mode_in chan true;
       really_input_string chan (in_channel_length chan))
 
-(* the map the flags ask for: the one carried, the toy, or a file's (in
- * a browser there is no file to open: the map carried, then) *)
+(* the map the flags ask for: the one carried, or a file's *)
 let map_of_flags (caps : < Cap.open_in ; .. >) (flags : (string * string) list) : Soldat_map.t =
   match List.assoc_opt "map" flags with
   | None | Some "" | Some "arena2" -> Lazy.force Soldat_map.arena2
-  | Some "toy" -> Soldat_map.toy
   | Some file -> (
       match Pms.parse (read_file caps file) with
       | Ok pms -> Soldat_map.of_pms pms

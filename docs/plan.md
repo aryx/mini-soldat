@@ -20,10 +20,40 @@ be.
 - Soldat's maps: any `.pms` read and played on, in flat colours, a
   camera following the player. Arena2 carried in the program.
 
+- **Step 1, the soldier moves as Soldat's does** (2026-10-02).
+  `Soldat_soldier`, adapted from `Sprites.pas` and `Control.pas`: the
+  particle and Soldat's Euler step, the keys as forces and animations
+  in `ControlSprite`'s order (run, jump, jump sideways, crouch, prone
+  and crawl, roll, backflip, jets), the collision by points in the
+  map's own sectors with its friction rules, ice and bouncy polygons.
+  `Soldat_anims`: the 44 animations and the gostek's skeleton, packed
+  into the program at build time. The game is in Soldat's units, y
+  downwards; a soldier is drawn as its skeleton's sticks, and dead is
+  that skeleton let loose; Soldat's camera and its 640 units across.
+  What it turned out to be, beyond what was planned:
+  - a tick costs 0.02 ms on Arena2 (it was 2.6) and 0.1 on the biggest
+    map (12.5): the sectors;
+  - the file's sectors list a wall where its *outline* is, not its
+    inside: a soldier is stopped at a wall's skin, as in Soldat, and
+    the grid could not have been made again here without changing
+    that;
+  - the toy's screen (`map=toy`) went: nothing of it fits Soldat's
+    units. The tests have a floor made by hand instead;
+  - the ragdoll is already the real skeleton (planned for step 2),
+    without the cut sticks; the spawn protection came with it, the
+    bots being deadly otherwise;
+  - the numbers checked are worked out by hand from the Pascal's
+    formulas, and agree: a fall's top speed 5.94 a tick, a run's 2.9,
+    a jump on the ground for its first 8 ticks then 85 up. Whether
+    that *is* Soldat still wants the real game beside it: see "To
+    decide".
+  Left out, as planned: the head and the arms turned to the cursor,
+  the idle animations, the parachute, the chain and the hair, what
+  deadly and hurting polygons do, the background polygons.
+
 What is still the toy's, and so what the steps below replace: the
-soldier (a rigid box, speeds invented, the map made twice as big to
-fit it), its one gun and its grenades, its ragdoll of 9 points, its
-bots, every picture.
+soldier's gun (one, with the USSOCOM's numbers), its bots, every
+picture.
 
 ## The rules of the road
 
@@ -35,9 +65,12 @@ bots, every picture.
    where they came from. The *server's* branches are the rules (on a
    client, damage is multiplied by zero); the client's are what is
    seen and heard.
-3. **Soldat's units from step 1 on**: a tick is a frame, a unit is a
-   unit (`Soldat_map.scale` goes), gravity is 0.06. y is turned over in
-   one place, when reading a file and the mouse and when drawing.
+3. **Soldat's units and coordinates**: a tick is a frame, a unit is a
+   unit, gravity is 0.06, and y goes downwards, in `src/map` and
+   `src/game` alike: the Pascal's signs and numbers are kept as they
+   are. y is turned over in two places only, both the Playground's
+   side: the picture (`Soldat_view.at`) and the mouse
+   (`Soldat_update.human`).
 4. **`src/game` stays pure**, without drawing and without the keyboard:
    a tick takes one `intent` per soldier, wherever it comes from (the
    keys, a bot, the network). That is what lets the server run the
@@ -55,38 +88,6 @@ bots, every picture.
 
 ## The steps
 
-### 1. The soldier moves as Soldat's does
-
-*What one feels*: running, the wind-up before a jump, the side jump,
-the crouch, going prone and crawling, the roll, the backflip, the
-jets and their fuel, standing still on a slope and sliding on ice.
-Drawn as a stick figure: the skeleton's own sticks.
-
-- The particle: Soldat's Euler step, its forces, `MAX_VELOCITY`.
-- The animations: a reader of `.poa` and `.po` (44 animations, the
-  gostek's 24 points and 30 sticks), their speeds and loops as in
-  `Anims.pas`; the two animations a soldier has (legs, body), their
-  frames numbered from 1. The files are 1.3 MB of text: turned at
-  build time into a compact table the program carries.
-- The keys: `ControlSprite`'s chain of cases, in its priority, with
-  its constants; `Position` (stand, crouch, prone); the direction from
-  the cursor. Soldat's keys: left, right, jump, crouch, prone, jets.
-- The collision: the feet, the head, the circle and the corners
-  against the polygons of the point's sector (`Pms`'s sectors, used at
-  last), the friction rules; ice and bouncy polygons, since they are
-  in that code.
-- The camera's own rule, and Soldat's view: 640 by 480 units.
-- Gone: the `Physics.world`, the soldier's box, the map made twice as
-  big, and with them the time each wall costs each frame.
-- Kept from the toy for now: its gun (re-scaled) and its bots (they
-  press the new keys). Its grenades wait for step 4.
-- Left out: the idle animations, the parachute, the dangling chain.
-
-*Checked by*: numbers worked out by hand from the Pascal (the fall's
-top speed, a run's, how high a jump goes, how long the fuel lasts) as
-tests; all 99 maps still played on (`Frame_bench`), now in a time that
-does not grow with the map; and by playing it next to the real game.
-
 ### 2. The soldier looks as Soldat's does, alive and dead
 
 *What one sees*: the gostek, its limbs' pictures on its skeleton, in
@@ -99,9 +100,8 @@ on a hard hit.
 - The pictures: the 48 of `gostek-gfx/` needed, tinted and mirrored
   once into the pictures drawn.
 - Aiming: the head and the two hands placed by the cursor.
-- Death: the skeleton let loose (`Particles.step`, `relax`, `keep_out`
-  with the sector's polygons), the sticks cut by the hit's strength;
-  respawn, and its 90 ticks without fire.
+- Death: the sticks cut by the hit's strength (the skeleton let loose
+  is done, with step 1), the chain and the hair.
 - **The first place elm-playground may have to change**: a browser
   keeps only the last 32 pictures given to `bitmap`, and three
   soldiers are past that. To measure first; then either the limit
@@ -195,9 +195,9 @@ lobby's screen.
 
 ## The order, and what could change it
 
-1 comes first whatever else: every later step stands on Soldat's
-units and its soldier. 2 follows because a stick figure is hard to
-judge a feel by. 3 and 4 can swap: 3 first if the look matters most
+1 came first: every later step stands on Soldat's units and its
+soldier. 2 follows because a stick figure is hard to judge a feel by.
+3 and 4 can swap: 3 first if the look matters most
 (and it settles how content is fetched, which 4's pictures and 6's
 sounds then use), 4 first if the play does.
 

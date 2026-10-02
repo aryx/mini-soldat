@@ -4,7 +4,7 @@
  (name soldat_render)
  (wrapped false)
  (libraries
-   soldat_map soldat_game
+   soldat_map soldat_anim soldat_game
    tiny_libs.core ; Basics
-   tiny_libs.physics_2d ; Particles: a ragdoll's sticks
+   tiny_libs.physics_2d ; Particles: the skeleton's sticks
    elm_playground))

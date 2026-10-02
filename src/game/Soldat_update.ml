@@ -7,101 +7,132 @@
  * (LGPL) as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  *)
-(* A frame of the game: the soldiers act (the player's keys, the bots'
- * minds), the world steps, the bullets fly, the grenades blow up, the
- * dead become ragdolls and come back.
+(* A tick of the game, in Soldat's order (server/ServerLoop.pas): each
+ * living soldier moves (Soldat_soldier.tick: its keys, the player's or
+ * a bot's), each bullet is tested along where it is going and then
+ * moves, the dead tumble and come back; then the camera.
  *
- * - The bullets fly at 1500 pixels per second, 25 pixels a tick, more
- *   than a wall's or a soldier's width: tested by where they went
- *   (Physics.went_through, Collide's swept tests), not where they are
- *   -- tunneling.
- * - The grenades are bouncy bodies in the world, and their blast pushes
- *   the soldiers and the ragdolls away, weaker with the distance.
+ * [tick] knows no keyboard and no screen: it is given what the player
+ * wants (an intent, as the bots give theirs) and where it looks. So a
+ * test calls it, and one day a server will, with the intents the
+ * network brought. [update] is the Playground's: it reads the keys and
+ * the mouse, and calls [tick].
  *
- * In Soldat: shared/mechanics/Control.pas (the keys to a soldier's
- * moves), Sprites.pas (the soldier's frame), Bullets.pas, Things.pas,
- * and the frame itself, client/UpdateFrame.pas and
- * server/ServerLoop.pas.
+ * The gun is still TinySoldat's one gun, with the numbers of Soldat's
+ * USSOCOM (server/configs/weapons.ini): a shot every 10 ticks, a
+ * bullet leaving the hand at 18 a tick plus half the soldier's speed,
+ * pulled down 2.25 times as hard as a soldier, losing a hundredth of
+ * its speed a tick; a hit takes speed x 1.49 x the place's (head 1.1,
+ * chest 0.95, legs 0.85) of a health of 150, and pushes. A soldier
+ * that just appeared neither fires nor is hit for 90 ticks (Soldat's
+ * cease-fire). No ammunition,
+ * no reload, no going through bodies, no ricochet, no grenades yet:
+ * the weapons are docs/plan.md's step 4.
+ *
+ * In Soldat: client/UpdateFrame.pas and server/ServerLoop.pas (the
+ * tick), shared/mechanics/Bullets.pas (TBullet.Update,
+ * CheckMapCollision, CheckSpriteCollision), TSprite.Fire and
+ * TSprite.Respawn (Sprites.pas).
  *)
 open Playground
-open Basics (* float arithmetics *)
 open Soldat_model (* its types, used all along *)
 
 (*****************************************************************************)
 (* The player *)
 (*****************************************************************************)
 
-let human (computer : computer) (scenes : model) (p : play) : intent =
+(* Soldat's keys (client/configs/controls.cfg): A and D, W to jump, S to
+ * crouch, X to lie down, the left button to fire, the right one for the
+ * jets (shift too, for a pad without one). The mouse is on the screen,
+ * y upwards; the soldier in the map, y downwards *)
+let human (computer : computer) (p : play) : intent =
   let k = computer.keyboard and m = computer.mouse in
-  let me = body_of p 0 in
-  (* the mouse is on the screen, the soldier in the map *)
-  let (mx, my) = Camera2d.to_world p.camera m.mx m.my in
-  let letter l = Set_.mem l k.keys in
+  let key l = Set_.mem l k.keys in
+  let z = zoom computer.screen in
+  let (cx, cy) = p.camera in
   {
-    run = (if letter "d" then 1. else 0.) - if letter "a" then 1. else 0.;
-    jump = Scene2d.pressed (fun k -> Set_.mem "w" k.keys) scenes;
-    jet = letter "w";
-    shoot = m.mdown || k.kspace;
-    grenade = Scene2d.pressed (fun k -> Set_.mem "q" k.keys) scenes;
-    aim = degrees (mx - me.x) (my - me.y);
+    control =
+      {
+        left = key "a"; right = key "d"; up = key "w"; down = key "s"; prone = key "x";
+        jetpack = m.mrdown || k.kshift;
+        aim = (cx +. (m.mx /. z), cy -. (m.my /. z));
+      };
+    fire = m.mdown;
   }
 
 (*****************************************************************************)
-(* A soldier *)
+(* The gun *)
 (*****************************************************************************)
 
-(* feet on something: a thin box under the soldier touching the map or
- * another soldier *)
-let grounded (p : play) (b : Physics.body) : bool =
-  let feet = Physics.body (rectangle white 18. 6.) |> Physics.at b.x (b.y - 24.) in
-  List.exists (fun other -> other != b && Physics.touching feet other) p.world.bodies
+let fire_interval = 10
+let bullet_speed = 18.
+let bullet_damage = 1.49
+let bullet_push = 0.02
+let bullet_gravity = 2.25 *. Soldat_soldier.grav
+let bullet_timeout = 420
 
-(* the soldier's body driven by its intent, before the world's step *)
-let drive (p : play) (s : soldier) (it : intent) (b : Physics.body) : soldier * Physics.body =
-  let on_ground = grounded p b in
-  (* running: towards the speed wanted, fast on the ground, slowly in
-   * the air *)
-  let wanted = it.run * 300. in
-  let vx = b.vx + ((wanted - b.vx) * if on_ground then 0.3 else 0.05) in
-  let vy = if it.jump && on_ground then 450. else b.vy in
-  let jetting = it.jet && (not on_ground) && s.fuel > 0. in
-  let b = b |> Physics.moving vx vy |> fun b -> if jetting then Physics.push 0. 1900. b else b in
-  let fuel = if jetting then s.fuel - 1.2 else if on_ground then min 100. (s.fuel + 2.) else s.fuel in
-  ({ s with fuel; aim = it.aim }, b)
+(* PART_RADIUS: a soldier, to a bullet, is circles of this radius *)
+let part_radius = 7.
 
-(* a body pointing where the soldier aims: what shot_from fires from *)
-let gun (s : soldier) (b : Physics.body) : Physics.body = b |> Physics.at b.x (b.y + 10.) |> Physics.pointing s.aim
+(* at these points of its skeleton, the head first (Bullets.pas's
+ * BodyPartsPriority) *)
+let hit_points = [ 12; 11; 10; 6; 5; 4; 3 ]
 
-let bullet_shape = circle (rgb 250 230 120) 2.5
-let grenade_shape = circle (rgb 50 70 40) 7.
+(* what a hit there is worth: the legs, the chest, the head *)
+let modifier (point : int) : float = if point <= 4 then 0.85 else if point <= 11 then 0.95 else 1.1
 
-let blast_radius = 160.
+let normalize ((x, y) : float * float) : float * float =
+  let len = Float.hypot x y in
+  if len < 0.001 then (0., 0.) else (x /. len, y /. len)
+
+(* a shot: from the hand (point 15) towards the cursor *)
+let shoot (owner : int) (s : soldier) : bullet =
+  let (hx, hy) = Soldat_soldier.point s.body 15 in
+  let (dx, dy) = normalize (s.body.aim_x -. hx, s.body.aim_y -. hy) in
+  { x = hx; y = hy; vx = (dx *. bullet_speed) +. (s.body.vx *. 0.5); vy = (dy *. bullet_speed) +. (s.body.vy *. 0.5); owner; ttl = bullet_timeout }
+
+(* the bullet's way this tick ends in a wall: looked at every 2.5 units
+ * or less (TBullet.CheckMapCollision) *)
+let hits_map (map : Soldat_map.t) (b : bullet) : bool =
+  let steps = max 1 (int_of_float (Float.max (Float.abs b.vx) (Float.abs b.vy) /. 2.5)) in
+  let rec go k = k <= steps && (Soldat_map.in_bullet_wall map (b.x +. (b.vx *. float_of_int k /. float_of_int steps), b.y +. (b.vy *. float_of_int k /. float_of_int steps)) || go (k + 1)) in
+  go 1
+
+(* the first of a soldier's points the bullet's way this tick goes
+ * through *)
+let hits_soldier (b : bullet) (s : soldier) : int option =
+  let way = ((b.x, b.y), (b.x +. b.vx, b.y +. b.vy)) in
+  List.find_opt (fun point -> Collide.segment_circle way (Soldat_soldier.point s.body point, part_radius) <> None) hit_points
 
 (*****************************************************************************)
-(* A frame *)
+(* A tick *)
 (*****************************************************************************)
 
-(* the camera after a frame: towards a point between the player and
- * where it aims, as Soldat's is, so that one sees farther where one
- * looks; never beyond the map. A dead player's stays where it died *)
-let follow (computer : computer) (p : play) (soldiers : soldier array) (me : Physics.body) : Camera2d.t =
-  let m = computer.mouse in
-  let cam = if soldiers.(0).dead = None then Camera2d.follow 0.15 (me.x + (m.mx * 0.5)) (me.y + (m.my * 0.5)) p.camera else p.camera in
-  Camera2d.clamp computer.screen p.map.bounds cam
+(* Soldat's camera (client/UpdateFrame.pas): 0.14 of the way to the
+ * player each tick, and moved by a seventh of [look], where the cursor
+ * is from the screen's middle: one sees farther where one points. Dead,
+ * it follows the body's head *)
+let follow (p : play) (me : soldier) ((lx, ly) : float * float) : float * float =
+  let (cx, cy) = p.camera in
+  let (px, py) = match me.dead with None -> (me.body.x, me.body.y) | Some (_, ragdoll) -> ragdoll.(11).pos in
+  (cx +. (0.14 *. (px -. cx)) +. (lx /. 7.), cy +. (0.14 *. (py -. cy)) +. (ly /. 7.))
 
-let update_play (computer : computer) (scenes : model) (p : play) : play =
-  let p = { p with frame = p.frame +.. 1 } in
-  let n_map = p.n_map in
-  let bodies = Array.of_list p.world.bodies in
+let respawn_ticks = 180
+
+(* a tick: [player] is what the human soldier wants, [look] where its
+ * cursor is from the screen's middle, in the map's units *)
+let tick (p : play) (player : intent) ~(look : float * float) : play =
+  let p = { p with frame = p.frame + 1 } in
   let soldiers = Array.copy p.soldiers in
   let minds = Array.copy p.minds in
-  let new_bullets = ref [] and new_grenades = ref [] in
-  (* 1. the living soldiers act *)
+  let n = Array.length soldiers in
+  let shots = ref [] in
+  (* 1. the living soldiers: their keys, their move, their shot *)
   soldiers
   |> Array.iteri (fun i s ->
-         if s.dead = None then (
+         if s.dead = None then begin
            let it =
-             if s.human then human computer scenes p
+             if s.human then player
              else if not p.ai_engine then Soldat_bots.bot p i
              else begin
                let (it, mind') = Bot.step Soldat_bots.mind (p, i) minds.(i) in
@@ -109,123 +140,64 @@ let update_play (computer : computer) (scenes : model) (p : play) : play =
                it
              end
            in
-           let (s, b) = drive p s it bodies.(n_map +.. i) in
-           bodies.(n_map +.. i) <- b;
-           let s = if s.reload > 0 then { s with reload = s.reload -.. 1 } else s in
-           let s = if s.grenade_reload > 0 then { s with grenade_reload = s.grenade_reload -.. 1 } else s in
+           let body = Soldat_soldier.tick p.map ~ticks:p.frame s.body it.control in
+           (* out of the map: back at a spawn point, as Soldat does *)
+           let body = if Soldat_soldier.out_of_map p.map body then Soldat_soldier.create (spawn p.map (i + p.frame)) p.map.jet else body in
+           let s = { s with body; reload = max 0 (s.reload - 1); safe = max 0 (s.safe - 1) } in
            let s =
-             if it.shoot && s.reload = 0 then (
-               new_bullets := { b = Physics.body bullet_shape |> Physics.shot_from 1500. 26. (gun s b); owner = i; ttl = 60 } :: !new_bullets;
-               { s with reload = 8 })
+             if it.fire && s.reload = 0 && s.safe = 0 then begin
+               shots := shoot i s :: !shots;
+               { s with reload = fire_interval }
+             end
              else s
            in
-           let s =
-             if it.grenade && s.grenade_reload = 0 then (
-               new_grenades :=
-                 (Physics.body grenade_shape |> Physics.shot_from 550. 26. (gun s b) |> Physics.bouncy 0.5 |> Physics.rough 0.5 |> Physics.heavy 0.3, i)
-                 :: !new_grenades;
-               { s with grenade_reload = (if s.human then 60 else 240) })
-             else s
-           in
-           soldiers.(i) <- s));
-  (* 2. the world steps: the map, the soldiers, the grenades *)
-  let world = Physics.simulate ~gravity:Soldat_map.gravity { p.world with bodies = Array.to_list bodies @ List.map fst !new_grenades } in
-  let bodies = Array.of_list world.bodies in
-  let grenades = p.grenades @ List.map (fun (_, i) -> { fuse = 120; thrower = i }) !new_grenades in
-  let damage = Array.make 3 0. and killer = Array.make 3 (-1) and knock = Array.make 3 (0., 0.) in
-  let hurt i amount by (kx, ky) =
-    if soldiers.(i).dead = None then (
-      damage.(i) <- damage.(i) + amount;
-      killer.(i) <- by;
-      knock.(i) <- (fst knock.(i) + kx, snd knock.(i) + ky))
-  in
-  (* 3. the bullets: swept against the map and the soldiers *)
+           soldiers.(i) <- s
+         end);
+  (* 2. the bullets: tested along their way, then moved *)
+  let damage = Array.make n 0. and killer = Array.make n (-1) and hit = Array.make n None in
   let bullets =
-    (p.bullets @ !new_bullets)
-    |> List.filter_map (fun (bl : bullet) ->
-           let b = bl.b |> Physics.fall 150. |> Physics.step in
-           let hit_soldier =
-             List.find_opt (fun i -> i <> bl.owner && soldiers.(i).dead = None && Physics.went_through b bodies.(n_map +.. i)) [ 0; 1; 2 ]
+    (p.bullets @ List.rev !shots)
+    |> List.filter_map (fun (b : bullet) ->
+           let struck =
+             List.find_map
+               (fun i -> if i <> b.owner && soldiers.(i).dead = None && soldiers.(i).safe = 0 then Option.map (fun point -> (i, point)) (hits_soldier b soldiers.(i)) else None)
+               (List.init n Fun.id)
            in
-           match hit_soldier with
-           | Some i ->
-               hurt i 20. bl.owner (b.vx * 0.15, b.vy * 0.15);
+           match struck with
+           | Some (i, point) ->
+               damage.(i) <- damage.(i) +. (Float.hypot b.vx b.vy *. bullet_damage *. modifier point);
+               killer.(i) <- b.owner;
+               hit.(i) <- Some (point, (b.vx *. bullet_push *. 10., b.vy *. bullet_push *. 10.));
+               let body = soldiers.(i).body in
+               soldiers.(i) <- { (soldiers.(i)) with body = { body with vx = body.vx +. (b.vx *. bullet_push); vy = body.vy +. (b.vy *. bullet_push) } };
                None
            | None ->
-               if bl.ttl = 0 || List.exists (Physics.went_through b) p.map.bullet_bodies then None
-               else Some { bl with b; ttl = bl.ttl -.. 1 })
+               if b.ttl = 0 || hits_map p.map b then None
+               else
+                 (* ParticleSystem.Euler, with the bullets' gravity *)
+                 let vx = b.vx and vy = b.vy +. bullet_gravity in
+                 Some { b with x = b.x +. vx; y = b.y +. vy; vx = vx *. 0.99; vy = vy *. 0.99; ttl = b.ttl - 1 })
   in
-  (* 4. the grenades' fuses, and their blasts *)
-  let n_soldiers = 3 in
-  let grenade_body k = bodies.(n_map +.. n_soldiers +.. k) in
-  let blasts = ref (List.filter_map (fun bl -> if bl.age < 20 then Some { bl with age = bl.age +.. 1 } else None) p.blasts) in
-  let ragdoll_kicks = ref [] in
-  grenades
-  |> List.iteri (fun k g ->
-         if g.fuse = 0 then (
-           let gb = grenade_body k in
-           blasts := { x = gb.x; y = gb.y; age = 0 } :: !blasts;
-           ragdoll_kicks := (gb.x, gb.y) :: !ragdoll_kicks;
-           for i = 0 to n_soldiers -.. 1 do
-             let sb = bodies.(n_map +.. i) in
-             let d = Float.hypot (sb.x - gb.x) (sb.y - gb.y) in
-             if d < blast_radius then (
-               let f = 1. - (d / blast_radius) in
-               let (ux, uy) = if d = 0. then (0., 1.) else ((sb.x - gb.x) / d, (sb.y - gb.y) / d) in
-               hurt i (90. * f) g.thrower (ux * 600. * f, (uy * 600. * f) + (200. * f));
-               if soldiers.(i).dead = None then bodies.(n_map +.. i) <- sb |> Physics.moving (sb.vx + (ux * 600. * f)) (sb.vy + (uy * 600. * f) + (200. * f)))
-           done));
-  (* the grenades that blew up leave the world (they're at its end) *)
-  let keep = List.map (fun g -> g.fuse > 0) grenades in
-  let bodies_list =
-    Array.to_list bodies |> List.filteri (fun i _ -> i < n_map +.. n_soldiers || List.nth keep (i -.. n_map -.. n_soldiers))
-  in
-  let grenades = List.filter_map (fun g -> if g.fuse > 0 then Some { g with fuse = g.fuse -.. 1 } else None) grenades in
-  let bodies = Array.of_list bodies_list in
-  (* fallen out of the map: dead, by nobody's hand *)
-  for i = 0 to n_soldiers -.. 1 do
-    if bodies.(n_map +.. i).y < p.map.bounds.bottom - 600. then hurt i 1000. i (0., 0.)
-  done;
-  (* 5. the damage: deaths become ragdolls, the dead respawn after 2 s *)
+  (* 3. the damage: the dead become ragdolls, and come back after 3 s *)
   soldiers
   |> Array.iteri (fun i s ->
          match s.dead with
          | None ->
-             let health = s.health - damage.(i) in
-             if health <= 0. then (
-               let b = bodies.(n_map +.. i) in
-               soldiers.(i) <- { s with health = 0.; dead = Some (0, Soldat_ragdoll.ragdoll b knock.(i)) };
-               if killer.(i) >= 0 && killer.(i) <> i then
-                 soldiers.(killer.(i)) <- { (soldiers.(killer.(i))) with kills = soldiers.(killer.(i)).kills +.. 1 };
-               bodies.(n_map +.. i) <- parked p.map s.color)
+             let health = s.health -. damage.(i) in
+             if health < 1. then begin
+               soldiers.(i) <- { s with health = 0.; dead = Some (0, Soldat_ragdoll.of_soldier s.body hit.(i)) };
+               if killer.(i) >= 0 && killer.(i) <> i then soldiers.(killer.(i)) <- { (soldiers.(killer.(i))) with kills = soldiers.(killer.(i)).kills + 1 }
+             end
              else soldiers.(i) <- { s with health }
-         | Some (n, ps) ->
-             (* the blasts kick the ragdolls too: their old positions
-              * moved back, away from the blast *)
-             let ps =
-               List.fold_left
-                 (fun ps (gx, gy) ->
-                   Array.map
-                     (fun (q : Particles.particle) ->
-                       let (x, y) = q.pos in
-                       let d = Float.hypot (x - gx) (y - gy) in
-                       if d < blast_radius && d > 0. then
-                         let f = 12. * (1. - (d / blast_radius)) in
-                         { q with old = (fst q.old - ((x - gx) / d * f), snd q.old - ((y - gy) / d * f)) }
-                       else q)
-                     ps)
-                 ps !ragdoll_kicks
-             in
-             if n > 120 then (
-               (* respawn at the spawn point farthest from the living *)
-               let living = List.filter (fun j -> soldiers.(j).dead = None) [ 0; 1; 2 ] in
-               let room (x, y) = List.fold_left (fun m j -> let b = bodies.(n_map +.. j) in min m (Float.hypot (b.x - x) (b.y - y))) infinity living in
-               let spot = List.fold_left (fun best sp -> if room sp > room best then sp else best) (List.hd p.map.spawns) p.map.spawns in
-               bodies.(n_map +.. i) <- soldier_body s.color spot;
-               soldiers.(i) <- { s with dead = None; health = 100.; fuel = 100. })
-             else soldiers.(i) <- { s with dead = Some (n +.. 1, Soldat_ragdoll.move p.map ps) });
-  let camera = follow computer p soldiers bodies.(n_map) in
-  { p with camera; world = { world with bodies = Array.to_list bodies }; soldiers; minds; bullets; grenades; blasts = !blasts }
+         | Some (ticks, ragdoll) ->
+             if ticks > respawn_ticks then begin
+               (* at the spawn point farthest from the living *)
+               let living = List.filter_map (fun (o : soldier) -> if o.dead = None then Some (o.body.x, o.body.y) else None) (Array.to_list soldiers) in
+               let spot = farthest p.map living in
+               soldiers.(i) <- { s with dead = None; health = full_health; reload = 0; safe = ceasefire; body = Soldat_soldier.create spot p.map.jet }
+             end
+             else soldiers.(i) <- { s with dead = Some (ticks + 1, Soldat_ragdoll.tick p.map ragdoll) });
+  { p with camera = follow p soldiers.(0) look; soldiers; minds; bullets }
 
 (*****************************************************************************)
 (* The rounds *)
@@ -242,5 +214,6 @@ let update (computer : computer) (model : model) : model =
       let ai_engine = List.assoc_opt "ai" computer.flags = Some "engine" in
       if space then Scene2d.go (Playing (start ~ai_engine map)) scenes else scenes
   | Playing p -> (
-      let p = update_play computer scenes p in
+      let z = zoom computer.screen in
+      let p = tick p (human computer p) ~look:(computer.mouse.mx /. z, -.computer.mouse.my /. z) in
       match winner p with Some s -> Scene2d.go (Over (s.name, p.map)) scenes | None -> { scenes with scene = Playing p })

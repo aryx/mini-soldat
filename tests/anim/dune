@@ -1,0 +1,9 @@
+; unit tests for the animations, run by 'make test' (dune runtest):
+; the files' reader on its worked example and on what is wrong (Unit_poa),
+; the 44 animations as the program carries them (Unit_anims)
+(test
+ (name Test)
+ (deps
+   %{project_root}/data/anims/stoi.poa
+   %{project_root}/data/objects/gostek.po)
+ (libraries alcotest testo soldat_poa soldat_anim))

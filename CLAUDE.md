@@ -69,20 +69,42 @@ taking one `intent` per soldier, no `Random` in a tick, the server's
 branches of the Pascal for the rules): a step done is moved to its
 "Done".
 
-What is still TinySoldat's and so to be replaced by a port: the
-soldier (a rigid box in a `Physics.world`, its speeds invented, with
-the map twice as big to fit it: `Soldat_map.scale`), its one gun, its
-bots, its drawing. The rigid-body world costs a time proportional to
-the map's walls each frame (`scripts/perf/Frame_bench`: 12 ms on the
-biggest maps, more in a browser); Soldat looks only at the sector a
-point is in, which the port brings.
+Ported so far (`docs/plan.md`'s "Done"): the maps (`Pms`,
+`Soldat_map`), the soldier's moves (`Soldat_soldier`), its animations
+(`Soldat_anims`). Still TinySoldat's and so to be replaced by a port:
+the gun (one, with the USSOCOM's numbers), the bots, the drawing (a
+stick figure, flat polygons).
+
+How a port is written here, as `Soldat_soldier.ml` is:
+
+- its header says what it is adapted from and keeps OpenSoldat's
+  notice (the MIT License: `LICENSE-OpenSoldat.md`);
+- it follows the Pascal's order and says where each part comes from
+  (`S:2623`: `Sprites.pas`, line 2623 of the checkout), so that the
+  two can be read side by side; the constants keep the Pascal's names,
+  in small letters (`runspeed`, `slidelimit`);
+- the game's coordinates are Soldat's, y downwards: its signs are kept
+  (`fy <- -.jumpspeed` is a force upwards). Only `Soldat_view.at` and
+  `Soldat_update.human` turn y over;
+- animations' frames and skeletons' points are numbered from 1, as in
+  the Pascal, which names them all along (`s.legs.frame > 8`,
+  `Soldat_soldier.point s 12` the head);
+- a soldier's record has mutable fields, written by `tick` alone, on a
+  copy: the Pascal changes `Sprite[i]` in place a hundred times a tick
+  and is ported as such; from outside a tick is a function;
+- the `{$IFDEF SERVER}` branches are the rules, the client's what is
+  seen; what is left out (the network, the sparks, the sounds, the
+  idle animations...) is said in the `.mli`;
+- its numbers are checked by tests worked out by hand from the
+  Pascal's formulas (`tests/game/Unit_soldier.ml`), on a map made by
+  hand (`Testutil_map`).
 
 ## Commands
 
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build @default (the web program's page too)
-make test              # dune runtest -f, the three suites
+make test              # dune runtest -f, the four suites
 make run               # dune exec mini-soldat
 make run-software      # dune exec mini-soldat-software
 make serve             # the game in a browser, http://localhost:8001/
@@ -93,7 +115,7 @@ make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5
 ```
 
 One suite, or one test (Testo; each `tests/<suite>/Test.ml` is its own
-runner; the suites are `map`, `game` and `server`):
+runner; the suites are `map`, `anim`, `game` and `server`):
 
 ```bash
 dune build @tests/game/runtest --force
@@ -102,16 +124,20 @@ dune exec tests/game/Test.exe -- run -s engine   # tests whose name contains it
 
 Program flags are words, `name` or `name=value`
 (`./bin/mini-soldat hitboxes ai=engine`), read from `computer.flags`:
-`hitboxes` (draw what the physics sees), `ai=engine` (the bots on
+`hitboxes` (draw the points the game tests), `ai=engine` (the bots on
 `Sense` and `Bot`), and, read by the main before the game starts,
-`map=FILE` (a `.pms`; `~/` understood), `map=toy` (TinySoldat's
-screen, what the game's tests play on), nothing: Arena2, carried in
+`map=FILE` (a `.pms`; `~/` understood), nothing: Arena2, carried in
 the program (`data/maps/Arena2.pms` as base64, `src/map/dune`'s rule).
 
+The keys are Soldat's: a/d, w (jump), s (crouch), x (prone), the left
+button (fire), the right one or shift (jets); space starts a round. In
+a `-script`, `d:10-70` holds d; the mouse stays at the screen's middle,
+so the soldier faces right and aims at itself.
+
 `dune exec scripts/perf/Frame_bench.exe -- ~/work/GAMES/opensoldat-base/shared/maps/*.pms`
-reads every map of Soldat's, plays 300 frames on each and prints a
-frame's time: the check that a change to `Pms` or `Soldat_map` still
-takes them all (two minutes).
+reads every map of Soldat's, plays 300 ticks on each and prints a
+tick's time: the check that a change to `Pms`, `Soldat_map` or the
+soldier still takes them all (a few seconds; 0.01 to 0.1 ms a tick).
 
 The Playground's own flags start with a dash, and make a change
 checkable without a screen: `-dump-frame n file.png` writes the nth
@@ -152,18 +178,23 @@ commit them when the game changed and the site should show it.
 
 ## Layout
 
-`README.md` has it: `src/map` (the map), `src/game` (the game without
-its picture), `src/render` (the picture), `src/main` (the program, and
+`README.md` has it: `src/map` (the map), `src/anim` (the animations),
+`src/game` (the game without its picture), `src/render` (the picture),
+`src/main` (the program, and
 `software/` and `web/` the same source on the software platform and in
 a browser), `src/net` (the protocol), `src/server` (the lobby, the
 server, and `main/` its program), each folder a library (`(wrapped
 false)`, modules named `Soldat_*`), in the order they depend on each
 other. The game is a Model-View-Update program: `Soldat_model.model`,
-`Soldat_update.update`, `Soldat_view.view`, all pure; nothing mutable
-outside `update_play`'s own arrays.
+`Soldat_update.update`, `Soldat_view.view`. `Soldat_update.tick` is
+the game's step and knows neither keyboard nor screen: it takes the
+player's `intent` and where it looks; `update` reads those from the
+Playground's `computer` and calls it. A round replays the same from
+the same intents (a test says so): nothing in a tick is random.
 
 What the browser's program links must be pure OCaml (no `unix`):
-`src/map`, `src/game`, `src/render` and `src/net` are, and must stay
+`src/map`, `src/anim`, `src/game`, `src/render` and `src/net` are, and
+must stay
 so; `src/server` is not and is never linked by the game. The server's
 rule is a value too (`Soldat_lobby.receive`: a message in, the lobby
 and the messages to send out), the sockets only in `Soldat_server`, so

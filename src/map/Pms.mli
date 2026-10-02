@@ -37,9 +37,8 @@
    props of layer 1, the other polygons -- over the soldiers, whose
    feet sink a little into the ground -- and the props of layer 2.
 
-   Soldat's y grows downwards, as a screen's rows do, and the
-   coordinates here are the file's: [Soldat_map] turns them into the
-   game's.
+   Soldat's y grows downwards, as a screen's rows do. The coordinates
+   here are the file's, and the game keeps them.
 
    What is read is checked: a count beyond Soldat's own limits (5,000
    polygons, 500 props, 128 colliders, 255 spawn points, 5,000
