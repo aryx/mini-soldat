@@ -1,0 +1,8 @@
+; what the game and its server say to each other, as bytes
+; (Soldat_protocol). Pure OCaml: the server links it, and so will the
+; game in a browser. Soldat's shared/network/Net.pas.
+(library
+ (name soldat_net)
+ (wrapped false)
+ (libraries
+   tiny_libs.networking_protocols)) ; Wire: values as bytes and back

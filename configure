@@ -133,7 +133,7 @@ echo ""
 VERSION=0.3.3
 ELM_PLAYGROUND=git+https://github.com/aryx/ocaml-elm-playground#$VERSION
 # what mini-soldat uses
-PACKAGES="tiny_libs elm_playground elm_playground_software"
+PACKAGES="tiny_libs elm_playground elm_playground_software elm_playground_web"
 [ "$software" -eq 1 ] || PACKAGES="$PACKAGES elm_playground_native"
 # and what opam needs to install those, when they are pinned: the
 # packages elm_playground's opam file depends on (its own kits use
@@ -175,7 +175,7 @@ if [ "$outside_opam" -eq 1 ]; then
     # mini-soldat.opam: the other dependencies are installed by name
     # (theirs came with them)
     # coupling: the (depends ...) of dune-project
-    opam install --confirm-level=unsafe-yes -y testo alcotest
+    opam install --confirm-level=unsafe-yes -y caps testo alcotest
 else
     # --with-test for what 'make test' needs (testo, alcotest)
     opam install --confirm-level=unsafe-yes --deps-only --with-test -y ./mini-soldat.opam

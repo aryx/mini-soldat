@@ -43,8 +43,9 @@ It stands on elm-playground's packages, 0.3.3 or later: the Playground
 for its window, its drawing and its physics, on one of its two native
 platforms (SDL for the window either way, and Cairo,
 `elm_playground_native`, or the Playground's own rasterizer,
-`elm_playground_software`), and `tiny_libs` for the 2D physics
-underneath and the bots' senses.
+`elm_playground_software`) or in a browser (`elm_playground_web`), and
+`tiny_libs` for the 2D physics underneath, the bots' senses and the
+server's networking.
 
 ```bash
 ./configure    # the opam dependencies, and checks for SDL2 and Cairo
@@ -69,6 +70,35 @@ Then `./bin/mini-soldat` (a symlink into `_build`, alive after a
 `make`), or `make run`: drawn by Cairo when its platform is installed,
 else by the Playground's own rasterizer. `./bin/mini-soldat-software`
 (`make run-software`) is always the latter.
+
+## In a browser
+
+The same game is compiled to JavaScript by js_of_ocaml, on the
+Playground's web platform (`elm_playground_web`: its shapes drawn as
+SVG). `make serve` builds it and serves it at http://localhost:8001/;
+its flags go after a `?` (`index.html?hitboxes&ai=engine`).
+
+The website is `docs/`, what GitHub Pages serves: a page written by
+hand (`docs/index.html`), and the game (`docs/play.html`,
+`docs/MiniSoldat.bc.js`), copied there by `make website` (to commit
+after; `make serve-website` to look at it first, at
+http://localhost:8000/). Once Pages is enabled for the repository
+("Deploy from a branch", `/docs`), it is at
+https://aryx.github.io/mini-soldat/.
+
+## The server
+
+`./bin/mini-soldat-server` is where players will meet to play over the
+network. For now it is a lobby: players connect (WebSocket, so a
+browser can), name themselves, enter rooms and talk; the games played
+in the rooms are to come ([docs/network.md](docs/network.md)).
+
+```bash
+./bin/mini-soldat-server                       # 127.0.0.1:23073, this computer only
+./bin/mini-soldat-server bind=0.0.0.0 port=23073 capacity=32
+```
+
+Nothing in the game talks to it yet: its tests do (`tests/server`).
 
 ## Playing
 
@@ -95,10 +125,23 @@ src/game/     the game without its picture: the state (Soldat_model),
               a dead soldier's ragdoll (Soldat_ragdoll), the bots
               (Soldat_bots), a frame and the rounds (Soldat_update)
 src/render/   the picture of a frame, as shapes (Soldat_view)
-src/main/     the main: the Playground run (MiniSoldat.ml)
-tests/        game: rounds played without drawing them
-docs/         opensoldat.md: Soldat's sources and content, what is in
-              them, and which of its files each module here stands for
+src/main/     the main: the Playground run (MiniSoldat.ml); software/
+              and web/ the same source on the software platform and in
+              a browser (web/index.html its page)
+src/net/      what a player's program and the server say to each other,
+              as bytes (Soldat_protocol)
+src/server/   the server: who is in which room, as a value
+              (Soldat_lobby), the sockets around it (Soldat_server),
+              and main/ its program (MiniSoldatServer.ml)
+tests/        game: rounds played without drawing them; server: the
+              protocol's bytes, the lobby's rule, the server over
+              localhost
+docs/         the website (index.html, written by hand; play.html and
+              MiniSoldat.bc.js, copied by 'make website');
+              opensoldat.md: Soldat's sources and content, what is in
+              them, and which of its files each module here stands for;
+              network.md: playing over the network, what is there and
+              what is to come
 ```
 
 ## License

@@ -1,0 +1,11 @@
+; unit tests for the server, run by 'make test' (dune runtest): the
+; protocol's bytes (Unit_protocol), the lobby's rule called as a
+; function (Unit_lobby), and the whole server talked to over localhost
+; by real WebSocket clients (Unit_server)
+(test
+ (name Test)
+ (libraries
+   unix caps alcotest testo
+   soldat_net soldat_server
+   tiny_libs.networking_protocols ; Transport: a client's two ends
+   tiny_libs.networking_unix)) ; Relay_client: a native WebSocket client

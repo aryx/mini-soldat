@@ -1,0 +1,10 @@
+; the server: who is connected and in which room, as a value
+; (Soldat_lobby), and the sockets around it (Soldat_server). Soldat's
+; server/: Server.pas, ServerLoop.pas.
+(library
+ (name soldat_server)
+ (wrapped false)
+ (libraries
+   soldat_net
+   caps ; Cap.network: the authority to listen
+   tiny_libs.networking_unix)) ; Server: WebSocket connections, one event loop

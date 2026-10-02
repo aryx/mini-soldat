@@ -1,0 +1,8 @@
+; the server's program: mini-soldat-server (MiniSoldatServer.ml). No
+; window, no SDL: sockets only.
+(executable
+ (name MiniSoldatServer)
+ (public_name mini-soldat-server)
+ (libraries
+   caps ; Cap.main: the authority to listen, from the program's start
+   soldat_server))

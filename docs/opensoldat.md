@@ -54,6 +54,8 @@ scripting). 60 ticks a second (`Constants.pas`'s `DEFAULT_GOALTICKS`).
 | `src/game/Soldat_update` | `shared/mechanics/Control.pas`, `Bullets.pas`, `Things.pas`; `client/UpdateFrame.pas` | the keys to a soldier's moves; bullets (`TBullet`); flags, kits, dropped weapons (`TThing`); a frame |
 | `src/render/Soldat_view` | `client/GameRendering.pas`, `MapGraphics.pas`, `GostekGraphics.pas`, `InterfaceGraphics.pas` | the frame drawn: the map, the soldiers, the interface |
 | `src/main/MiniSoldat` | `client/Client.pas` | the program |
-| nothing yet | `shared/Weapons.pas`, `shared/mechanics/Sparks.pas`, `client/Sound.pas`, `shared/network/`, `shared/Demo.pas`, `server/` | the weapons' table (`TGun`), the sparks, the sound, the network, the demos, the server |
+| `src/net/Soldat_protocol` | `shared/network/Net.pas` | the messages, each a packed record opening with its number (`MsgID_*`) |
+| `src/server/Soldat_lobby`, `Soldat_server`, `main/MiniSoldatServer` | `server/Server.pas`, `ServerLoop.pas`, `Main.pas`; `server/LobbyClient.pas` | the dedicated server, one game each; the list of servers is another program's, which each server registers with |
+| nothing yet | `shared/Weapons.pas`, `shared/mechanics/Sparks.pas`, `client/Sound.pas`, `shared/network/Network*.pas`, `shared/Demo.pas`, `server/scriptcore/` | the weapons' table (`TGun`), the sparks, the sound, the game's own messages (sprites, bullets, things), the demos, the server's scripting |
 
 Each module's opening comment says the same for itself.
