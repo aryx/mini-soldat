@@ -52,8 +52,13 @@
    slope), running keeps 0.97 of the speed a tick, a crouched walk
    0.85; ice is a floor without the stop.
 
-   Not here yet, of the Pascal: firing and the weapons, the head and
-   the arms turned to the cursor, the idle animations, the parachute,
+   **Aiming.** Once placed, the skeleton's head and hands are turned
+   to the cursor: the head's point is put beside the neck, across the
+   line to the cursor, and the arms' ends 7 and 8 from the hand the
+   animation holds, towards it. A bullet leaves from there (point 15).
+
+   Not here yet, of the Pascal: firing and the weapons, the idle
+   animations, the parachute,
    the chain and the hair that dangle, what deadly and hurting
    polygons do, the background polygons.
 
@@ -100,6 +105,7 @@ type t = {
   mutable on_ground_last : bool;
   mutable on_ground_permanent : bool;
   mutable jets : int; (* the fuel, in ticks *)
+  mutable jetting : bool; (* the jets pushed, this tick *)
   mutable aim_x : float;
   mutable aim_y : float;
   mutable skeleton : (float * float) array; (* its 20 points, the first at 0 *)

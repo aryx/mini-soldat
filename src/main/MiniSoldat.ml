@@ -40,6 +40,7 @@ let help =
   mouse: aim; left button: shoot; right button (or shift): the jets
   flags: map=FILE  one of Soldat's maps, a .pms file (Arena2 without it)
          hitboxes  draw the points the game tests
+         sticks    draw the soldiers' skeletons over them
          ai=engine the bots on Sense and Bot instead of by hand
   e.g.   ./bin/mini-soldat map=~/opensoldat-base/shared/maps/ctf_Ash.pms
 |}

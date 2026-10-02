@@ -71,9 +71,9 @@ branches of the Pascal for the rules): a step done is moved to its
 
 Ported so far (`docs/plan.md`'s "Done"): the maps (`Pms`,
 `Soldat_map`), the soldier's moves (`Soldat_soldier`), its animations
-(`Soldat_anims`). Still TinySoldat's and so to be replaced by a port:
-the gun (one, with the USSOCOM's numbers), the bots, the drawing (a
-stick figure, flat polygons).
+(`Soldat_anims`), its look (`Soldat_gostek`). Still TinySoldat's and so
+to be replaced by a port: the gun (one, with the USSOCOM's numbers),
+the bots, the map's drawing (flat polygons).
 
 How a port is written here, as `Soldat_soldier.ml` is:
 
@@ -99,12 +99,22 @@ How a port is written here, as `Soldat_soldier.ml` is:
   Pascal's formulas (`tests/game/Unit_soldier.ml`), on a map made by
   hand (`Testutil_map`).
 
+Content the program carries is packed at build time by a small
+program of its own (`src/anim/Gen_anims`, `src/render/Gen_pictures`,
+each run by a dune rule over files of `data/`): the animations as
+singles, the pictures as pixels, in base64. A picture is drawn with
+the Playground's `bitmap`, which neither tints nor mirrors: the one
+wanted is made once (`Soldat_gostek.picture`) and the very same value
+given each time, since a backend knows a picture by itself. In a
+browser only the last 32 are kept by elm-playground: count them
+(`docs/plan.md`, "To decide").
+
 ## Commands
 
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build @default (the web program's page too)
-make test              # dune runtest -f, the four suites
+make test              # dune runtest -f, the five suites
 make run               # dune exec mini-soldat
 make run-software      # dune exec mini-soldat-software
 make serve             # the game in a browser, http://localhost:8001/
@@ -115,7 +125,7 @@ make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5
 ```
 
 One suite, or one test (Testo; each `tests/<suite>/Test.ml` is its own
-runner; the suites are `map`, `anim`, `game` and `server`):
+runner; the suites are `map`, `anim`, `game`, `render` and `server`):
 
 ```bash
 dune build @tests/game/runtest --force
@@ -124,15 +134,20 @@ dune exec tests/game/Test.exe -- run -s engine   # tests whose name contains it
 
 Program flags are words, `name` or `name=value`
 (`./bin/mini-soldat hitboxes ai=engine`), read from `computer.flags`:
-`hitboxes` (draw the points the game tests), `ai=engine` (the bots on
+`hitboxes` (draw the points the game tests), `sticks` (the skeletons
+over the soldiers), `ai=engine` (the bots on
 `Sense` and `Bot`), and, read by the main before the game starts,
 `map=FILE` (a `.pms`; `~/` understood), nothing: Arena2, carried in
 the program (`data/maps/Arena2.pms` as base64, `src/map/dune`'s rule).
 
 The keys are Soldat's: a/d, w (jump), s (crouch), x (prone), the left
 button (fire), the right one or shift (jets); space starts a round. In
-a `-script`, `d:10-70` holds d; the mouse stays at the screen's middle,
-so the soldier faces right and aims at itself.
+a `-script`, `d:10-70` holds d, `at(300;120):3-200` puts the mouse
+there (the screen's units, from its middle, y upwards) and `click:60-90`
+holds its button; without an `at` the mouse is at the screen's middle
+and the soldier aims at itself. The camera leans a mouse's offset
+towards it: with the mouse at (mx, my), the player is drawn near
+(500 - mx, 500 + my) of a dumped 1000 by 1000 frame.
 
 `dune exec scripts/perf/Frame_bench.exe -- ~/work/GAMES/opensoldat-base/shared/maps/*.pms`
 reads every map of Soldat's, plays 300 ticks on each and prints a
@@ -179,7 +194,8 @@ commit them when the game changed and the site should show it.
 ## Layout
 
 `README.md` has it: `src/map` (the map), `src/anim` (the animations),
-`src/game` (the game without its picture), `src/render` (the picture),
+`src/game` (the game without its picture), `src/render` (the picture:
+`Soldat_view`, and `Soldat_gostek` the soldier's),
 `src/main` (the program, and
 `software/` and `web/` the same source on the software platform and in
 a browser), `src/net` (the protocol), `src/server` (the lobby, the

@@ -15,11 +15,11 @@
  * (x, -y) ([at]), through a camera that shows 640 units across, as
  * Soldat does.
  *
- * A soldier is drawn as its skeleton's own sticks, the gostek's, in
- * its colour: enough to see how it moves. Its pictures (a sprite on
- * each limb) are docs/plan.md's step 2. The flag hitboxes shows what
- * the game tests: the particle, the points of the head and the feet,
- * the circles a bullet hits.
+ * A soldier is drawn as Soldat draws it, a picture on each limb of
+ * its skeleton (Soldat_gostek), alive or dead. The flag sticks adds
+ * the skeleton's own sticks over it, and hitboxes what the game tests:
+ * the particle, the points of the head and the feet, the circles a
+ * bullet hits.
  *
  * In Soldat: client/GameRendering.pas, whose order this follows (what
  * is behind, the bullets, the soldiers, then the map's polygons over
@@ -50,21 +50,28 @@ let bar (color : color) (width : number) (fraction : number) ((x, y) : float * f
   let fraction = Float.max 0. (Float.min 1. fraction) in
   [ rectangle (rgb 40 40 40) width 1.5 |> move x y; rectangle color (width * fraction) 1.5 |> move (x - (width * (1. - fraction) / 2.)) y ]
 
-(* the skeleton's sticks, and a head *)
+(* the skeleton's sticks alone: what the flag sticks shows *)
 let figure (color : color) (points : (float * float) array) : shape list =
-  List.map (fun (st : Particles.stick) -> segment color 1.6 points.(st.a) points.(st.b)) Soldat_ragdoll.sticks @ [ dot color 2.6 points.(11) ]
+  List.map (fun (st : Particles.stick) -> segment color 0.5 points.(st.a) points.(st.b)) Soldat_ragdoll.sticks
 
-let view_soldier (map : Soldat_map.t) (s : soldier) : shape list =
+(* a soldier's colours: its shirt its own, its trousers the same,
+ * darker, its skin a skin's *)
+let colors (s : soldier) : Soldat_gostek.colors =
+  let (r, g, b) = s.shirt in
+  { shirt = s.shirt; trousers = (r *.. 5 /.. 10, g *.. 5 /.. 10, b *.. 5 /.. 10); skin = (230, 180, 120) }
+
+let view_soldier (computer : computer) (map : Soldat_map.t) (s : soldier) : shape list =
+  let b = s.body in
+  let sticks = List.mem_assoc "sticks" computer.flags in
   match s.dead with
-  | Some (_, ragdoll) -> figure s.color (Array.map (fun (p : Particles.particle) -> p.pos) ragdoll)
+  | Some (_, ragdoll) ->
+      let points = Array.map (fun (p : Particles.particle) -> p.pos) ragdoll in
+      Soldat_gostek.view (colors s) ~point:(fun n -> points.(n -.. 1)) ~direction:b.direction ~jets:false ~dead:true
+      @ if sticks then figure white points else []
   | None ->
-      let b = s.body in
-      (* the gun: from the hand towards the cursor *)
-      let (hx, hy) = Soldat_soldier.point b 15 in
-      let d = Float.hypot (b.aim_x - hx) (b.aim_y - hy) in
-      let gun = if d < 1. then [] else [ segment (rgb 30 30 30) 1.4 (hx, hy) (hx + ((b.aim_x - hx) / d * 9.), hy + ((b.aim_y - hy) / d * 9.)) ] in
       let over = at (b.x, b.y - 30.) in
-      figure s.color b.skeleton @ gun
+      Soldat_gostek.view (colors s) ~point:(Soldat_soldier.point b) ~direction:b.direction ~jets:b.jetting ~dead:false
+      @ (if sticks then figure white b.skeleton else [])
       @ bar (rgb 220 60 60) 16. (s.health / full_health) over
       @ bar (rgb 240 200 60) 16. (float_of_int b.jets / float_of_int (max 1 map.jet)) (fst over, snd over - 2.5)
 
@@ -93,7 +100,7 @@ let view_play (computer : computer) (p : play) : shape list =
     { x; y; zoom = zoom computer.screen; angle = 0. }
     (p.map.back
     @ List.map (fun (b : bullet) -> segment (rgb 250 230 120) 0.8 (b.x, b.y) (b.x - (b.vx * 0.6), b.y - (b.vy * 0.6))) p.bullets
-    @ List.concat_map (view_soldier p.map) soldiers
+    @ List.concat_map (view_soldier computer p.map) soldiers
     @ p.map.front
     @ if List.mem_assoc "hitboxes" computer.flags then List.concat_map view_tested soldiers else [])
   :: List.mapi (fun i s -> text s.color 2.5 (Printf.sprintf "%s %d" s.name s.kills) |> move (-300. + (300. * float_of_int i)) (top - 40.)) soldiers

@@ -131,6 +131,22 @@ let tests =
           Alcotest.(check int) "left" (-1) s.direction;
           let (hx, _) = Soldat_soldier.point s 12 in
           Alcotest.(check bool) "its head near its particle" true (Float.abs (hx -. s.x) < 6.));
+      Testo.create "the head and the hands turned to the cursor" (fun () ->
+          let s0 = standing () in
+          let aimed aim = run floor s0 5 (fun _ _ -> { still with aim }) in
+          let dist (ax, ay) (bx, by) = Float.hypot (ax -. bx) (ay -. by) in
+          let check name aim =
+            let s = aimed aim in
+            let hand = Soldat_soldier.point s 16 and tip = Soldat_soldier.point s 15 in
+            Alcotest.(check (near 0.01)) (name ^ ": the arm's end 7 from the hand") 7. (dist hand tip);
+            (* from the hand to the arm's end, and from the hand to the cursor: the same way *)
+            let (dx, dy) = (fst tip -. fst hand, snd tip -. snd hand) and (cx, cy) = (s.aim_x -. fst hand, s.aim_y -. snd hand) in
+            Alcotest.(check bool) (name ^ ": towards the cursor") true (((dx *. cx) +. (dy *. cy)) /. (dist (0., 0.) (dx, dy) *. dist (0., 0.) (cx, cy)) > 0.9);
+            Alcotest.(check (near 0.01)) (name ^ ": the head's point 0.1 from the neck") 0.1 (dist (Soldat_soldier.point s 9) (Soldat_soldier.point s 12))
+          in
+          check "up and to the right" (s0.x +. 200., s0.y -. 150.);
+          check "down and to the left" (s0.x -. 200., s0.y +. 80.);
+          check "straight up" (s0.x +. 1., s0.y -. 300.));
       Testo.create "a tick does not change the soldier it is given" (fun () ->
           let s = standing () in
           let (x, y, legs) = (s.x, s.y, s.legs) in

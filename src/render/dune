@@ -1,10 +1,39 @@
-; the picture of a frame, as the Playground's shapes (Soldat_view.ml).
-; Soldat's client/GameRendering.pas and the *Graphics.pas around it.
+; the picture of a tick, as the Playground's shapes: the soldier's
+; parts on its skeleton (Soldat_gostek, over Pictures_data), the whole
+; (Soldat_view). Soldat's client/GameRendering.pas and the
+; *Graphics.pas around it.
 (library
  (name soldat_render)
  (wrapped false)
+ (modules Soldat_view Soldat_gostek Pictures_data)
  (libraries
    soldat_map soldat_anim soldat_game
-   tiny_libs.core ; Basics
+   tiny_libs.core ; Basics, Base64
+   tiny_libs.graphics_rgba ; Rgba_image: a picture in memory
    tiny_libs.physics_2d ; Particles: the skeleton's sticks
    elm_playground))
+
+; the build's own program, turning the pictures of data/ into a module
+(executable
+ (name Gen_pictures)
+ (modules Gen_pictures)
+ (libraries
+   tiny_libs.graphics_rgba
+   tiny_libs.graphics_png)) ; Png.decode
+
+; coupling: the names are Soldat_gostek.parts' images
+(rule
+ (targets Pictures_data.ml)
+ (deps (glob_files %{project_root}/data/gostek-gfx/*.png) (glob_files %{project_root}/data/weapons-gfx/*.png))
+ (action
+  (with-stdout-to
+   %{targets}
+   (chdir %{project_root}/data
+    (run %{exe:Gen_pictures.exe}
+      gostek-gfx/stopa.png gostek-gfx/stopa2.png gostek-gfx/noga.png gostek-gfx/noga2.png
+      gostek-gfx/udo.png gostek-gfx/udo2.png gostek-gfx/biodro.png gostek-gfx/biodro2.png
+      gostek-gfx/klata.png gostek-gfx/klata2.png gostek-gfx/morda.png gostek-gfx/morda2.png
+      gostek-gfx/ramie.png gostek-gfx/ramie2.png gostek-gfx/reka.png
+      gostek-gfx/dlon.png gostek-gfx/dlon2.png gostek-gfx/helm.png gostek-gfx/helm2.png
+      gostek-gfx/lecistopa.png gostek-gfx/lecistopa2.png
+      weapons-gfx/colt1911.png weapons-gfx/colt1911-2.png)))))

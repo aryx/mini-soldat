@@ -18,7 +18,7 @@ module; this note has the ideas.
 
 | Soldat says | Meaning | Here |
 |---|---|---|
-| *gostek* | the soldier's body: a skeleton of points and sticks (`objects/gostek.po`) with a picture on each limb (`gostek-gfx/`). Polish for "guy" | `Soldat_anims.gostek`, drawn as its sticks; *to come*: its pictures |
+| *gostek* | the soldier's body: a skeleton of points and sticks (`objects/gostek.po`) with a picture on each limb (`gostek-gfx/`). Polish for "guy" | `Soldat_anims.gostek` (the skeleton), `Soldat_gostek` (the pictures on it) |
 | *sprite* | a soldier, not a picture: `TSprite`, in `Sprite[1..MAX_SPRITES]` | `Soldat_soldier.t` (what moves), in `Soldat_model.soldier` (its health, its kills) |
 | *part* | a particle: `ParticleSystem` (`shared/Parts.pas`) | `Particles.particle` |
 | *constraint* | a stick between two particles, with its rest length | `Particles.stick` |
@@ -261,7 +261,7 @@ the distance between its two points as read.
 | `TAnimation.DoAnimation` (a frame every `Speed` ticks; the last frame held, or back to the first) | `Soldat_anims.advance` |
 | `LegsApplyAnimation`, `BodyApplyAnimation` (change only to another animation; never out of prone) | `Soldat_soldier.legs_apply`, `body_apply` |
 
-**Aiming** (*to come*, but for the direction). The mouse's place in the map is in the soldier's controls.
+**Aiming** (`Soldat_soldier.aim_skeleton`). The mouse's place in the map is in the soldier's controls.
 The head (point 12) is put beside the neck (9) across the line to the
 cursor; the two hands (15, 19) are put 7 and 8 units from the hand the
 animation holds (16), towards the cursor, unless the body is busy
@@ -421,9 +421,9 @@ calls `update` once a frame, so there is nothing to interpolate.
 | the edges (`r_smoothedges`): along each outer edge of the map, a strip of `textures/edges/`, to soften it | *to come*, with the textures |
 | a transparent polygon (alpha 0): a wall one cannot see | not drawn |
 | a prop: its picture (`scenery-gfx/`), placed, turned, scaled each way, tinted, with an alpha, in one of three layers; pure green is transparent | `bitmap w h picture |> rotate |> move`: *to come*. The tint and the green are to be put into the pixels first (`Pixels.map`) |
-| the soldier: 15 pictures and more (`gostek-gfx/`: `morda` the head, `klata` the chest, `biodro` the hip, `udo` the thigh, `noga` the lower leg, `stopa` the foot, `ramie` the arm, `reka` the forearm, `dlon` the hand), each hung between two points of the skeleton (the head from 9 to 12, a thigh from 6 to 3...), turned along them, some stretched (the thighs, the forearms), tinted the shirt's, the trousers', the skin's or the hair's colour, mirrored when facing left | `bitmap` again, a picture per (part, tint, side), made once: *to come*. The table of parts (`GostekGraphics.inc`, 131 lines) becomes a table here |
-| the pictures are 4.5 times bigger than drawn (`mod.ini`'s `DefaultScale`): a head of 27 pixels is 6 units | the `w` and `h` given to `bitmap` |
-| the weapon in the hands (between points 16 and 15), its clip, its fire | the same, three more pictures |
+| the soldier: 15 pictures and more (`gostek-gfx/`: `morda` the head, `klata` the chest, `biodro` the hip, `udo` the thigh, `noga` the lower leg, `stopa` the foot, `ramie` the arm, `reka` the forearm, `dlon` the hand), each hung between two points of the skeleton (the head from 9 to 12, a thigh from 6 to 3...), turned along them, some stretched (the thighs, the forearms), tinted the shirt's, the trousers', the skin's or the hair's colour, mirrored when facing left | `Soldat_gostek`: its table (`parts`, from `GostekGraphics.inc`), `place` (`DrawGostekSprite`'s matrix, as where the picture's middle goes and the angle), `bitmap w h picture |> rotate |> move`. A picture per (part, tint, side), made once (`picture`). *To come*: the hair, the vest, the chain, the blood, the second team |
+| the pictures are 4.5 times bigger than drawn (`mod.ini`'s `DefaultScale`): a head of 27 pixels is 6 units | `Soldat_gostek.size`: the `w` and `h` given to `bitmap` |
+| the weapon in the hands (between points 16 and 15), its clip, its fire | the USSOCOM's picture, a part like the others; *to come*: the other weapons, a clip, a muzzle's fire |
 | the interface (`client/InterfaceGraphics.pas`): bars for health, ammo, jets (a picture cut at a fraction), the cursor, the kills' console, the chat, the scores, the weapons' menu, the minimap | shapes outside the camera's group: `rectangle`s for the bars, `words` for the texts |
 | an atlas of pictures, colour keys, premultiplied alpha, mipmaps (`client/Gfx.pas`) | the Playground's backends: Cairo, its own rasterizer, or SVG in a browser |
 
@@ -461,10 +461,10 @@ required here). In the order they would hurt:
 | Lacking | Needed for | Without it |
 |---|---|---|
 | a textured triangle, shaded by its corners | the map as Soldat draws it | flat colours (today); or the map drawn once into pictures by our own code, shown with `bitmap` |
-| an image tinted | the soldier's shirt, trousers, skin; the props' colours | a picture made per tint, once |
-| an image mirrored | a soldier facing left | a picture made per side, once |
+| an image tinted | the soldier's shirt, trousers, skin; the props' colours | a picture made per tint, once: done for the soldier (`Soldat_gostek.picture`) |
+| an image mirrored | a soldier facing left | Soldat has a second picture for most parts; the others are made turned over, once: done |
 | an image's `fade` on Cairo (it is ignored there; the software platform and the browser do it) | a soldier fading in, the props' alpha | the alpha put into the pixels |
-| more than 32 pictures kept in a browser (each new `bitmap` is encoded as a PNG; only the last 32 are kept) | a soldier is 15 pictures and more: three soldiers and the scenery are past it | pictures by URL (`image`), which cannot be tinted; or the limit raised |
+| more than 32 pictures kept in a browser (each new `bitmap` is encoded as a PNG; only the last 32 are kept, by age) | a soldier is 11 pictures at a time, 7 of them its own: three soldiers use 25 to 29, and 52 over time | measured: 55 to 60 frames a second, a pause of up to 50 ms when a soldier turns. Past three soldiers, the limit has to be raised there |
 | part of an image | the interface's bars, an atlas | rectangles; a picture each |
 | a BMP decoder | part of the scenery, the edges | converted once, in `data/` |
 | 8-bit WAV | 63 sounds | converted once |

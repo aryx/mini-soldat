@@ -52,6 +52,7 @@ type t = {
   mutable on_ground_last : bool;
   mutable on_ground_permanent : bool;
   mutable jets : int;
+  mutable jetting : bool;
   mutable aim_x : float;
   mutable aim_y : float;
   mutable skeleton : (float * float) array;
@@ -127,6 +128,42 @@ let place_skeleton (s : t) : (float * float) array =
         let (x, y) = Soldat_anims.point s.body.id s.body.frame p in
         (s.x +. (d *. x), hip_y -. (s.y -. by) +. s.y +. y))
 
+(* the head and the hands turned to the cursor (S:635-745), on a
+ * skeleton just placed. The head (point 12) is put beside the neck (9),
+ * across the line to the cursor: what hangs from 9 to 12 then looks
+ * that way. The two ends of the arms (15, 19) are put 7 and 8 from the
+ * hand the animation holds (16), towards the cursor -- unless the body
+ * is busy with its hands *)
+let aim_skeleton (s : t) (points : (float * float) array) : unit =
+  let d = float_of_int s.direction in
+  let get p = points.(p - 1) and set p v = points.(p - 1) <- v in
+  (* from the cursor to a point, of length 1 *)
+  let from_cursor (x, y) =
+    let (dx, dy) = (x -. s.aim_x, y -. s.aim_y) in
+    let len = Float.hypot dx dy in
+    if len < 0.001 then (0., 0.) else (dx /. len, dy /. len)
+  in
+  let (nx, ny) = from_cursor (get 12) in
+  let (neck_x, neck_y) = get 9 in
+  set 12 (neck_x -. (d *. ny *. 0.1), neck_y +. (d *. nx *. 0.1));
+  let busy =
+    match s.body.id with
+    | Reload | Reload_bow | Clip_in | Clip_out | Slide_back | Change | Throw_weapon | Weapon_none | Punch | Roll | Roll_back | Cigar | Match
+    | Smoke | Wipe | Take_off | Groin | Piss | Mercy | Mercy2 | Victory | Own | Melee ->
+        true
+    | _ -> false
+  in
+  if not busy then begin
+    let throwing = s.body.id = Throw in
+    let (hand_x, hand_y) = get 16 in
+    let (nx, ny) = from_cursor (get 15) in
+    let arm = if throwing then -5. else -7. in
+    set 15 (hand_x +. (nx *. arm), hand_y +. (ny *. arm));
+    let (nx, ny) = from_cursor (get 19) in
+    let arm = if throwing then -6. else -8. in
+    set 19 (hand_x +. (nx *. arm), hand_y -. 4. +. (ny *. arm))
+  end
+
 let create ((x, y) : float * float) (jets : int) : t =
   let s =
     {
@@ -136,7 +173,7 @@ let create ((x, y) : float * float) (jets : int) : t =
       legs = Soldat_anims.start Stand 1;
       body = Soldat_anims.start Stand 1;
       on_ground = false; on_ground_last = false; on_ground_permanent = false;
-      jets;
+      jets; jetting = false;
       aim_x = x; aim_y = y;
       skeleton = [||]; old_skeleton = [||];
       was_running_left = false; was_jumping = false;
@@ -206,6 +243,7 @@ let control (s : t) (c : control) : control =
   s.aim_x <- Float.round (Float.round (fst c.aim) +. s.vx);
   s.aim_y <- Float.round (Float.round (snd c.aim) +. s.vy);
   let d = float_of_int s.direction in
+  s.jetting <- false;
   (* the jets, and the backflip that takes their key (C:350-424) *)
   if
     c.jetpack
@@ -216,6 +254,7 @@ let control (s : t) (c : control) : control =
     legs_apply s Roll_back 1
   end
   else if c.jetpack && s.jets > 0 then begin
+    s.jetting <- true;
     if s.on_ground then s.fy <- -2.5 *. jetspeed
     else if s.stance <> Lying then s.fy <- s.fy -. jetspeed
     else s.fx <- s.fx +. (d *. jetspeed /. 2.);
@@ -523,6 +562,7 @@ let tick (map : Soldat_map.t) ~(ticks : int) (before : t) (c : control) : t =
   s.direction <- (if s.aim_x >= s.x then 1 else -1);
   s.old_skeleton <- s.skeleton;
   s.skeleton <- place_skeleton s;
+  aim_skeleton s s.skeleton;
   s.body <- Soldat_anims.advance s.body;
   s.legs <- Soldat_anims.advance s.legs;
   collide map s c;

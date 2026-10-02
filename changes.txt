@@ -12,6 +12,19 @@
   (particles and sticks), respawning, the first to 5 kills; the bots
   by hand or, with ai=engine, on Sense and Bot; the flag hitboxes
 - renamed MiniSoldat (the title screen, the help)
+- the soldier looks as Soldat's does (Soldat_gostek, adapted from
+  GostekGraphics.pas and its table): 16 parts and a helmet, each one
+  of Soldat's pictures hung between two points of the skeleton,
+  turned along them, the thighs and the forearms stretching, mirrored
+  facing left, tinted the shirt's, the trousers' and the skin's
+  colours; the jets' feet; the pistol in the hands; dead, the same on
+  the skeleton let loose
+- its head and its hands turn to the cursor (Sprites.pas's rotation of
+  points 12, 15 and 19); a bullet leaves from the hand
+- the soldier's pictures packed into the program at build time, as
+  their pixels (Gen_pictures: 82 KB), each tinted and turned over once
+  when first needed
+- flag sticks: the skeletons drawn over the soldiers
 - the soldier moves as Soldat's does (Soldat_soldier, adapted from
   Sprites.pas and Control.pas): one particle stepped by Soldat's Euler
   (gravity 0.06 a tick, a speed kept at 0.99), the keys as forces and
@@ -98,6 +111,8 @@
   bullets in the head
 - tests/anim (8): the files' reader, the 44 animations' frames, how
   one advances
+- tests/render (7): where a part's picture goes, worked out by hand
+  from Soldat's arithmetic; a picture tinted and turned over
 - tests/map (8): Arena2 read from the bytes carried, what is in it,
   what is refused; the game's map made of it: its perps, its sectors
   (which list a wall where its outline is, not its inside); what

@@ -24,6 +24,8 @@ open Playground
 type soldier = {
   name : string;
   color : color;
+  (* the same, as red, green and blue: its shirt's *)
+  shirt : int * int * int;
   human : bool;
   (* its particle and its skeleton, moved by Soldat's rules *)
   body : Soldat_soldier.t;
@@ -94,15 +96,15 @@ let farthest (map : Soldat_map.t) (others : (float * float) list) : float * floa
   List.fold_left (fun best sp -> if room sp > room best then sp else best) (List.hd map.spawns) map.spawns
 
 let start ?(ai_engine = false) (map : Soldat_map.t) : play =
-  let soldier place name color human =
-    { name; color; human; body = Soldat_soldier.create place map.jet; health = full_health; reload = 0; safe = ceasefire; dead = None; kills = 0 }
+  let soldier place name ((r, g, b) as shirt) human =
+    { name; color = rgb r g b; shirt; human; body = Soldat_soldier.create place map.jet; health = full_health; reload = 0; safe = ceasefire; dead = None; kills = 0 }
   in
   (* the player at the map's first place, each bot as far as can be
    * from those before it *)
   let first = spawn map 0 in
   let second = farthest map [ first ] in
   let third = farthest map [ first; second ] in
-  let soldiers = [| soldier first "YOU" (rgb 220 60 50) true; soldier second "BLUE" (rgb 60 110 220) false; soldier third "GREEN" (rgb 60 170 80) false |] in
+  let soldiers = [| soldier first "YOU" (220, 60, 50) true; soldier second "BLUE" (60, 110, 220) false; soldier third "GREEN" (60, 170, 80) false |] in
   { map; camera = first; soldiers; minds = Array.map (fun _ -> Bot.start still) soldiers; ai_engine; bullets = []; frame = 0 }
 
 let initial_model (map : Soldat_map.t) : model = Scene2d.start (Title map)

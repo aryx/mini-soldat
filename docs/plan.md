@@ -51,9 +51,36 @@ be.
   the idle animations, the parachute, the chain and the hair, what
   deadly and hurting polygons do, the background polygons.
 
+- **Step 2, the soldier looks as Soldat's does** (2026-10-02).
+  `Soldat_gostek`, adapted from `GostekGraphics.pas` and its table:
+  the 16 parts of a soldier's body and its helmet, each a picture of
+  Soldat's (`data/gostek-gfx`) hung between two points of the
+  skeleton, turned along them, its pivot on the first, the thighs and
+  the forearms stretching, mirrored when it faces left (a second
+  picture, or its own turned over); tinted the shirt's, the trousers'
+  and the skin's colours; the jets' feet when it flies; the pistol's
+  picture in its hands. The head and the hands turn to the cursor
+  (`Soldat_soldier.aim_skeleton`), and a bullet leaves from the hand.
+  Dead, the same pictures on the skeleton let loose. The pictures are
+  packed into the program at build time as their pixels (82 KB), and
+  each one needed is tinted and turned over once.
+  What it turned out to be:
+  - the Playground neither tints nor mirrors a picture: each is made
+    once per colour and side, as planned. Three soldiers use 25 to 29
+    pictures at a time and 52 in all;
+  - **in a browser** that is just under the 32 pictures elm-playground
+    keeps: 55 to 60 frames a second, with a pause of up to 50 ms when
+    a soldier turns (its other side's pictures are made, and push the
+    oldest out). It will not hold with more soldiers: see "To decide";
+  - a head or a leg shot off (a stick cut) did not come: no weapon
+    yet hits hard enough (it takes a health under -90, and the pistol
+    takes 30 a bullet). It goes with the weapons, step 4.
+  Left out, as planned: the hair, the vest, the chain, the blood on a
+  wounded soldier's limbs, the second team's pictures.
+
 What is still the toy's, and so what the steps below replace: the
-soldier's gun (one, with the USSOCOM's numbers), its bots, every
-picture.
+soldier's gun (one, with the USSOCOM's numbers and its picture), its
+bots, the map's flat polygons.
 
 ## The rules of the road
 
@@ -87,31 +114,6 @@ picture.
    of the note.
 
 ## The steps
-
-### 2. The soldier looks as Soldat's does, alive and dead
-
-*What one sees*: the gostek, its limbs' pictures on its skeleton, in
-its colours, turning its head and its arms to the cursor, facing left
-or right; shot, a ragdoll of its own skeleton, a leg or the head off
-on a hard hit.
-
-- The table of parts (`GostekGraphics.inc`): which picture between
-  which two points, its pivot, whether it stretches, its tint.
-- The pictures: the 48 of `gostek-gfx/` needed, tinted and mirrored
-  once into the pictures drawn.
-- Aiming: the head and the two hands placed by the cursor.
-- Death: the sticks cut by the hit's strength (the skeleton let loose
-  is done, with step 1), the chain and the hair.
-- **The first place elm-playground may have to change**: a browser
-  keeps only the last 32 pictures given to `bitmap`, and three
-  soldiers are past that. To measure first; then either the limit
-  raised there, or the pictures given by URL.
-- Left out: the vest, the hair and the helmets, the blood on the
-  limbs, the other team's pictures.
-
-*Checked by*: a frame compared, point for point, with where the Pascal
-puts the skeleton for a given animation frame; frames dumped and
-looked at.
 
 ### 3. The map looks as Soldat's does
 
@@ -155,6 +157,9 @@ being hit and pushed, a headshot.
   the weapon drawn in the hands, its clip, its fire.
 - The interface: health, ammo, jets, grenades; the menu to choose a
   weapon in.
+- A head or a leg off on a hard hit: the ragdoll's sticks cut by the
+  hit's strength (a health under -90, under -400), which an M79 or a
+  grenade reaches.
 - Left out: the knife, the chainsaw, the LAW, the flamer, the bow, the
   stationary gun, realistic mode and its recoil.
 
@@ -195,9 +200,9 @@ lobby's screen.
 
 ## The order, and what could change it
 
-1 came first: every later step stands on Soldat's units and its
-soldier. 2 follows because a stick figure is hard to judge a feel by.
-3 and 4 can swap: 3 first if the look matters most
+1 and 2 came first: every later step stands on Soldat's units and its
+soldier, and a stick figure is hard to judge a feel by. 3 and 4 can
+swap: 3 first if the look matters most
 (and it settles how content is fetched, which 4's pictures and 6's
 sounds then use), 4 first if the play does.
 
@@ -214,6 +219,13 @@ sounds then use), 4 first if the play does.
   making it print a soldier's position each tick for given keys would
   turn "it feels the same" into a test; it is a day's work that is not
   the game.
+- **More than 32 pictures in a browser**: elm-playground's web
+  platform keeps the last 32 pictures given to `bitmap`
+  (`last_bitmaps`), and three soldiers already use 29. Raising that
+  (or keeping them by use rather than by age) is a change of a few
+  lines there, then a version of it required here. Needed before
+  there are more soldiers (step 5's bots, step 8's players), and it
+  would take away today's pauses.
 - **The content on the website**: fetching maps, textures and sounds
   means publishing Soldat's content (CC BY 4.0, credited) under
   `docs/`, about 100 MB if all of it; or only what a few maps need.

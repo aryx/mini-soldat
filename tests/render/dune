@@ -1,0 +1,11 @@
+; unit tests for the picture, run by 'make test' (dune runtest): where
+; the soldier's parts go, by Soldat's arithmetic, and the pictures made
+; (Unit_gostek)
+(test
+ (name Test)
+ (libraries
+   alcotest testo
+   soldat_render
+   tiny_libs.graphics_rgba
+   elm_playground
+   elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)
