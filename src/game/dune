@@ -1,0 +1,14 @@
+; the game without its picture: the state (Soldat_model), a dead
+; soldier's ragdoll (Soldat_ragdoll), the bots (Soldat_bots), a frame
+; and the rounds (Soldat_update). Soldat's shared/: Game.pas, AI.pas,
+; mechanics/.
+(library
+ (name soldat_game)
+ (wrapped false)
+ (libraries
+   soldat_map
+   tiny_libs.core ; Basics, Set_
+   tiny_libs.graphics_2d_geometry ; Vec2
+   tiny_libs.physics_2d ; Particles: the ragdolls
+   tiny_libs.ai ; Sense and Bot: the bots of ai=engine
+   elm_playground)) ; the Physics layer's world, Scene2d

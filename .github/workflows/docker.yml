@@ -1,0 +1,23 @@
+# Build mini-soldat via docker.
+# See also Dockerfile at the root of the project.
+# coupling: very similar to the docker.yml in mini-chrome
+
+name: docker
+
+on:
+  pull_request_target: {}
+  workflow_dispatch: null
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ocaml:
+          - 4.14.4
+          - 5.5.1
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t "mini-soldat" --build-arg OCAML_VERSION=${{matrix.ocaml}} .

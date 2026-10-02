@@ -1,0 +1,10 @@
+; the picture of a frame, as the Playground's shapes (Soldat_view.ml).
+; Soldat's client/GameRendering.pas and the *Graphics.pas around it.
+(library
+ (name soldat_render)
+ (wrapped false)
+ (libraries
+   soldat_map soldat_game
+   tiny_libs.core ; Basics
+   tiny_libs.physics_2d ; Particles: a ragdoll's sticks
+   elm_playground))

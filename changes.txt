@@ -1,0 +1,43 @@
+# -*- org -*-
+
+* 0.1 (Q3 2026) (fork of elm-playground's TinySoldat)
+# unless mentioned otherwise, everything below was done by Claude Code
+# (with direction from me)
+
+** Features
+- everything TinySoldat had in elm-playground 0.3.3: one arena of
+  polygons, three soldiers (you and two bots) running, jumping and
+  flying on their jets, bullets swept against the map and the
+  soldiers, bouncing grenades and their blasts, the dead as ragdolls
+  (particles and sticks), respawning, the first to 5 kills; the bots
+  by hand or, with ai=engine, on Sense and Bot; the flag hitboxes
+- renamed MiniSoldat (the title screen, the help)
+
+** build infra
+- one opam package, mini-soldat, standing on elm-playground's packages
+  (0.3.3): the Playground for its window, drawing and Physics layer,
+  tiny_libs for the 2D physics and the bots' senses
+- two programs: mini-soldat (Cairo's platform when it is installed,
+  else the software one) and mini-soldat-software (the Playground's
+  own rasterizer, SDL only)
+- ./configure (after mini-chrome's): checks for SDL2 and Cairo
+  (--software: no Cairo), finds elm-playground's packages (from opam,
+  or a 'make install' in an elm-playground checkout, or else pinned
+  from the 0.3.3 tag)
+- bin/ symlink to _build/install/default/bin: ./bin/mini-soldat
+
+** test infra
+- the tests of what was copied, from elm-playground's
+  tests/games/Unit_games.ml: tests/game (3), the game's libraries
+  linked as they are (no copy of the source with its main taken out)
+- Dockerfile and docker.yml Github Actions CI check (OCaml 4.14.4 and
+  5.5.1), make build-docker
+
+** internals
+- TinySoldat.ml's one file cut along its own sections into libraries,
+  after Soldat's shared/ and client/: src/map (Soldat_map), src/game
+  (Soldat_model, Soldat_ragdoll, Soldat_bots, Soldat_update),
+  src/render (Soldat_view), src/main (MiniSoldat.ml); the frames it
+  draws are TinySoldat's, pixel for pixel
+- docs/opensoldat.md: Soldat's sources (MIT) and content (CC BY 4.0),
+  what is in them, and which of its files each module stands for

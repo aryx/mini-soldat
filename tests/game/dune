@@ -1,0 +1,11 @@
+; unit tests for the game, run by 'make test' (dune runtest): a round
+; played without drawing it -- update called frame after frame, the
+; model checked (who moved, who died, what a bot knows)
+(test
+ (name Test)
+ (libraries
+   alcotest testo
+   soldat_game
+   tiny_libs.ai ; Bot: a bot's last senses
+   elm_playground
+   elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)

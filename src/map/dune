@@ -1,0 +1,8 @@
+; the map: its polygons, its spawn points, what is in sight
+; (Soldat_map.ml). Soldat's shared/PolyMap.pas and shared/MapFile.pas.
+(library
+ (name soldat_map)
+ (wrapped false)
+ (libraries
+   tiny_libs.physics_2d ; Collide: a segment against a polygon
+   elm_playground)) ; shapes, and the Physics layer's bodies
