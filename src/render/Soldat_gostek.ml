@@ -72,11 +72,12 @@ let look (id : Soldat_weapons.id) : look =
   | Barrett -> l "barretm82" 0.15 0.7 true "barret-fire" (-0.15) 0.8 (Some 0.35)
   | Minimi -> l "m249" 0.15 0.6 true "m249-fire" (-0.2) 0.9 (Some 0.35)
   | Minigun -> l "minigun" 0.05 0.5 true "minigun-fire" (-0.2) 0.45 (Some 0.5)
-  | Socom | Grenade -> l "colt1911" 0.2 0.55 true "colt1911-fire" (-0.24) 0.85 None
+  | Socom | Grenade | Hands -> l "colt1911" 0.2 0.55 true "colt1911-fire" (-0.24) 0.85 None
 
 (* what is drawn of the weapon in the hands: [clip], its clip is in;
  * [fire], it fired this tick. Under the right arm, which holds it *)
 let in_hands (id : Soldat_weapons.id) ~(clip : bool) ~(fire : bool) : part list =
+  if id = Hands then [] else
   let k = look id in
   let mirrored name image cx cy = { (part name image 16 15 cx cy true 0. Plain) with left = Some (image ^ "-2") } in
   let gun = mirrored "Primary" k.image k.cx k.cy in
@@ -207,6 +208,20 @@ let view ?(weapon : part list = []) ?(back : part list = []) (colors : colors) ~
         (* the picture's y goes up: its place and its angle the other way *)
         Some (bitmap at.width at.height (picture at.picture color at.turned_over) |> rotate (-.at.angle *. 180. /. Float.pi) |> move at.x (-.at.y)))
     all
+
+(* a weapon lying on the ground (TThing.Render): its picture's left
+ * edge, 2 pixels under its top, at a point, turned along an angle
+ * (radians, clockwise on the screen) *)
+let lying (name : string) ((x, y) : float * float) (angle : float) : shape list =
+  match source name with
+  | None -> []
+  | Some _ ->
+      let (w, h) = size name in
+      (* the middle, from the pivot (0, 2 pixels), at (x, y - 3) *)
+      let (ox, oy) = (w /. 2., (h /. 2.) -. (2. /. scale)) in
+      let c = cos angle and s = sin angle in
+      let (mx, my) = (x +. (ox *. c) -. (oy *. s), y -. 3. +. (ox *. s) +. (oy *. c)) in
+      [ bitmap w h (picture name (255, 255, 255) false) |> rotate (-.angle *. 180. /. Float.pi) |> move mx (-.my) ]
 
 (* a picture of the content's weapons-gfx/ as it is, its middle at a
  * place of the game, turned by [angle] (radians, clockwise on the

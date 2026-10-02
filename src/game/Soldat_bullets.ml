@@ -165,10 +165,12 @@ let hurt (w : world) (i : int) ~(by : int) ~(where : int) (amount : float) : uni
   match s.dead with
   | Some (ticks, ragdoll) -> w.soldiers.(i) <- { s with health; dead = Some (ticks, Soldat_ragdoll.cut cuts ragdoll) }
   | None when health < 1. ->
-      w.soldiers.(i) <- { s with health; dead = Some (0, Soldat_ragdoll.cut cuts (Soldat_ragdoll.of_soldier s.body ~push:w.pushes.(i))) };
+      (* its weapon falls from its hands *)
+      w.soldiers.(i) <-
+        { s with health; body = Soldat_soldier.let_go s.body; dead = Some (0, Soldat_ragdoll.cut cuts (Soldat_ragdoll.of_soldier s.body ~push:w.pushes.(i))) };
       let killer = w.soldiers.(by) in
       w.soldiers.(by) <- { killer with kills = (if by = i then max 0 (killer.kills - 1) else killer.kills + 1) }
-  | None -> w.soldiers.(i) <- { s with health }
+  | None -> w.soldiers.(i) <- { s with health; hit_by = (if by <> i then by else s.hit_by) }
 
 (*****************************************************************************)
 (* An explosion *)

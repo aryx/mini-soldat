@@ -5,8 +5,24 @@
 val wall : ?kind:Pms.kind -> float * float -> float * float -> float * float -> Soldat_map.wall
 
 (* a map of these walls, with these places to appear at (one, just
- * above the middle, if none is given) *)
-val map : ?spawns:(float * float) list -> Soldat_map.wall list -> Soldat_map.t
+ * above the middle, if none is given), these waypoints, and a kit at
+ * each of these places for one *)
+val map :
+  ?spawns:(float * float) list ->
+  ?waypoints:Pms.waypoint list ->
+  ?medikit_spawns:(float * float) list ->
+  ?grenade_spawns:(float * float) list ->
+  Soldat_map.wall list ->
+  Soldat_map.t
+
+(* the floor's two triangles, for a map of one's own: left, top, right,
+ * bottom *)
+val slab : ?kind:Pms.kind -> float -> float -> float -> float -> Soldat_map.wall list
+
+(* a waypoint, by its number (from 1), its place, and the numbers of
+ * those it leads to; the keys to hold on the way to it; what to do
+ * there (1: stop and camp) *)
+val waypoint : ?left:bool -> ?right:bool -> ?up:bool -> ?action:int -> int -> int * int -> int list -> Pms.waypoint
 
 (* no wall at all: a fall without end *)
 val empty : Soldat_map.t

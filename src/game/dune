@@ -14,7 +14,7 @@
    tiny_libs.random ; Lehmer: the bullets' scatter, from a seed
    tiny_libs.graphics_2d_geometry ; Vec2
    tiny_libs.physics_2d ; Particles: the ragdolls; Collide: a bullet's way
-   tiny_libs.ai ; Sense and Bot: the bots of ai=engine
+   tiny_libs.ai ; Sense and Bot: the bot of ai=engine
    elm_playground)) ; the keys and the mouse, Scene2d
 
 ; data/weapons.ini, Soldat's weapons' numbers, as a module holding it
@@ -26,3 +26,13 @@
   (with-stdout-to
    %{targets}
    (run ocaml %{project_root}/scripts/build/file_to_base64_ml.ml %{project_root}/data/weapons.ini))))
+
+; data/bots/*.bot, the characters of Soldat's 16 bots, the same way:
+; Bots_data.all, each file's name and itself
+(rule
+ (targets Bots_data.ml)
+ (deps (glob_files %{project_root}/data/bots/*.bot) %{project_root}/scripts/build/file_to_base64_ml.ml)
+ (action
+  (with-stdout-to
+   %{targets}
+   (run ocaml %{project_root}/scripts/build/file_to_base64_ml.ml %{deps}))))

@@ -21,7 +21,7 @@
  *)
 
 let bench (name : string) (frames : int) (map : Soldat_map.t) : unit =
-  let p = ref (Soldat_model.start map) in
+  let p = ref (Soldat_update.start ~bots:(Soldat_bots.cast 3 1) map) in
   let t0 = Unix.gettimeofday () in
   for _ = 1 to frames do
     p := Soldat_update.tick !p Soldat_model.still ~look:(0., 0.)

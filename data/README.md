@@ -14,6 +14,8 @@ unchanged.
 | `objects/gostek.po` | `shared/objects/gostek.po` | the soldier's skeleton: 24 points, 30 sticks |
 | `gostek-gfx/*.png` (21) | `shared/gostek-gfx/` | the soldier's pictures, one a limb and its mirror: packed into the program at build time as their pixels (`src/render/dune`) |
 | `weapons.ini` | `server/configs/weapons.ini` | the weapons' numbers (damage, fire interval, clip, reload, speed...): packed into the program at build time (`src/game/dune`), read when it starts |
+| `bots/*.bot` (16) | `server/configs/bots/` | the bots' characters: a name, colours, a favourite weapon, how well it aims, how it fights: packed into the program at build time (`src/game/dune`) |
+| `textures/objects/medikit.png`, `grenadekit.png` | `shared/textures/objects/` | the two kits lying on a map: read when the game runs |
 | `weapons-gfx/*.png` (50) | `shared/weapons-gfx/` | the eleven weapons in a soldier's hands, each with its mirror (`-2`), its clip (`-clip`, `-clip2`) and its muzzle's fire (`-fire`); a grenade and the M79's shell. Read when the game runs; the USSOCOM's two (`colt1911`, `colt1911-2`) are packed into the program too |
 | `textures/poziomka.png` | `shared/textures/` | Arena2's texture: read when the game runs |
 | `scenery-gfx/*` (13) | `shared/scenery-gfx/` | Arena2's scenery: barrels, crates, grass, roots, a net; three of them still `.bmp` |

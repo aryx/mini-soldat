@@ -167,8 +167,53 @@ be.
   pictures and the cursor; the explosion's pictures (with the sparks,
   step 6). The bots hold an MP5 and a Steyr and throw nothing.
 
-What is still the toy's, and so what the steps below replace: the
-bots.
+- **Step 5, a deathmatch as Soldat's** (2026-10-02). `Soldat_bots`,
+  adapted from `AI.pas`: Soldat's own bots. Seeing nobody, a bot
+  follows the map's waypoints (the keys its author said to hold from
+  each to the next, a connection taken by chance); seeing somebody (a
+  line from head to head, 651 units at most), the ladder of
+  `SimpleDecision` by how far across the target is: backing away,
+  standing, crouching, jumping, firing always or one tick in two or
+  four; its aim led, raised for the bullet's fall, and off by its
+  accuracy; grenades by its character's frequency; a kit gone to when
+  hurt or short; a grenade run from; the jets when falling. Each has a
+  character, one of Soldat's 16 `.bot` files (carried in the program):
+  its name, its colours, its favourite weapon, its accuracy, whether
+  it camps or shoots the dead. `Soldat_things`, adapted from
+  `Things.pas`: a weapon let go of (the key F, or dying) is two
+  particles and a stick, thrown the way one aims, falling, lying
+  still, picked up by empty hands with the rounds it had, gone after
+  20 seconds; medikits and grenade kits where the map puts them, taken
+  by who needs them, appearing again elsewhere. The round: the first
+  to 10 kills, or the best after 10 minutes; the dead back after 3
+  seconds at a place taken by chance; three bots by default (`bots=N`),
+  a round's cast its number's; the scores ranked, the time left.
+  What it turned out to be:
+  - of TinySoldat's bots one is kept, on purpose: the one on
+    elm-playground's `Sense` and `Bot` (`Soldat_engine_bot`; the flag
+    `ai=engine` puts it in a round in place of the last of Soldat's),
+    as an example of that library beside a bot made Soldat's way: it
+    knows only what it has seen and acts on it a fifth of a second
+    late, where Soldat's reads the round each tick. The one written by
+    hand, which saw through the walls, went;
+  - a bot does not find its way, it follows keys someone drew: on a
+    map without waypoints (the tests' floors) it stands until somebody
+    comes. The flag `waypoints` draws them, with their keys;
+  - a bot's `Random` is everywhere (which connection, whether to fire
+    this tick, how far off to aim): all of it is the round's seed now,
+    and a round still replays;
+  - a tick went from 0.02 to 0.07 ms on Arena2: three bots each
+    looking at everyone along a ray;
+  - the game's lines went from 2,380 to 3,350 (`src/game`), the tests
+    from 81 to 92.
+  Left out: the next map (the same one again: the website has only
+  Arena2's content); the bonus kits and the bots' chat, as planned;
+  the fist (empty hands do nothing but pick up); a bot hiding behind
+  a collider; the bots' difficulty (it is "normal"); a thing hit by a
+  bullet or thrown by a blast; the kills' console.
+
+Nothing is the toy's any more but the bot of `ai=engine`, kept as an
+example.
 
 ## The rules of the road
 
@@ -203,17 +248,6 @@ bots.
 
 ## The steps
 
-### 5. A deathmatch as Soldat's
-
-- The things: a weapon dropped (thrown away, or by the dead), the
-  medikits and the grenade kits where the map puts them, picked up.
-- The rules: the kill limit and the time limit, respawn after 3
-  seconds, the scores, the next map.
-- The bots: Soldat's (`ControlBot`), along the map's waypoints, with
-  the 16 characters of its `.bot` files (their favourite weapon, how
-  often they throw a grenade); the toy's go.
-- Left out: the bonus kits, the bots' chat.
-
 ### 6. Heard, and alive
 
 - The sounds: the 163 samples, heard by where they are; the 8-bit
@@ -240,8 +274,9 @@ lobby's screen.
 
 1, 2 and 3 came first: Soldat's units and its soldier, then its look,
 which settled how content is fetched (4's pictures used it, 6's sounds
-will). 4 was the play. 5 is next: with the weapons in, what is missing
-of a deathmatch is what lies on the ground and who one plays against.
+will). 4 was the play, 5 who one plays against and what lies on the
+ground. 6 is next: the game is all there to the hands and silent to
+the ears; and its explosions are still a disc.
 
 ## To decide
 

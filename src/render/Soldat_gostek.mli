@@ -119,6 +119,14 @@ val place : part -> float * float -> float * float -> int -> placed
  * weapons. The shapes are the picture's: y upwards *)
 val view : ?weapon:part list -> ?back:part list -> colors -> point:(int -> float * float) -> direction:int -> jets:bool -> dead:bool -> shape list
 
+(* a weapon's line of the table: its picture's name among them *)
+type look = { image : string; cx : float; cy : float; clip : bool; fire : string; fire_cx : float; fire_cy : float; back : float option }
+val look : Soldat_weapons.id -> look
+
+(* a weapon's picture lying on the ground: from a point, along an
+ * angle (radians, clockwise on the screen). Nothing if it has not come *)
+val lying : string -> float * float -> float -> shape list
+
 (* a picture of weapons-gfx/ alone, its middle at a place of the game,
  * turned by an angle (radians, clockwise on the screen): a grenade in
  * the air. Nothing if it has not come *)

@@ -46,7 +46,9 @@
    the file overrides) and shared/Game.pas (LoadWeapons).
 *)
 
-type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade
+(* [Hands]: no weapon, after throwing one's own away (the file's
+ * [Punch]; the punch itself is not here) *)
+type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade | Hands
 
 (* what its bullet is: BulletStyle 1, 3, 4 and 2 *)
 type style = Plain | Pellets | Explosive | Thrown

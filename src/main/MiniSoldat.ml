@@ -19,12 +19,13 @@
  * (docs/plan.md): the maps are Soldat's (Arena2, carried in the
  * program, or any .pms file named with the flag map), the soldier
  * moves and looks as Soldat's does, and fires Soldat's weapons, by its
- * rules and its numbers; its bots are still the toy's. You against two
- * bots, the first to 5 kills wins. The keys are Soldat's:
+ * rules and its numbers, against Soldat's own bots, in a deathmatch
+ * as Soldat's: the first to 10 kills. The keys are Soldat's:
  *
  *   a/d    run           w  jump       s  crouch      x  lie down
  *   mouse  aim           left button: shoot     right button: the jets
  *   r      reload        q  the other weapon    e  a grenade
+ *   f      throw the weapon away
  *   1-9, 0 the weapon to appear with
  *
  * This is the main: the game is src/game's (Soldat_model,
@@ -40,6 +41,7 @@ let help =
          s      crouch           x      lie down, get up
          r      reload           q      the other weapon
          e      a grenade: held longer, thrown harder
+         f      throw the weapon away: empty hands pick another up
          1-9, 0 the weapon to appear with (weapon=N)
          g      the graphics: as each step of the game's making drew it
          down and a side, running: a roll; up and a side: a jump sideways
@@ -54,9 +56,13 @@ let help =
          weapon=N  the weapon to appear with, by its key: 1 Desert Eagles,
                    2 HK MP5, 3 Ak-74, 4 Steyr AUG, 5 Spas-12, 6 Ruger 77,
                    7 M79, 8 Barrett, 9 FN Minimi, 0 Minigun
+         bots=N    how many bots to play against (3)
+         ai=engine the last of them not Soldat's but one on
+                   elm-playground's Sense and Bot: it knows only what
+                   it has seen, and reacts as late as a hand does
          hitboxes  draw the points the game tests
          sticks    draw the soldiers' skeletons over them
-         ai=engine the bots on Sense and Bot instead of by hand
+         waypoints draw the map's waypoints, the bots' paths
   e.g.   ./bin/mini-soldat base=~/opensoldat-base/shared map=ctf_Ash
 |}
 
@@ -106,6 +112,7 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
     | Some n when n >= 0 && n <= 9 -> List.nth Soldat_weapons.primaries ((n + 9) mod 10)
     | _ -> first.primary
   in
-  let first = { first with primary } in
+  let bots = match Option.bind (List.assoc_opt "bots" flags) int_of_string_opt with Some n when n >= 0 && n <= 15 -> n | _ -> first.bots in
+  let first = { first with primary; bots } in
   let app = Playground.game Soldat_view.view Soldat_update.update first in
   Playground_platform.run_app ~flags app))

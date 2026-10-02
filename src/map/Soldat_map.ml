@@ -33,6 +33,11 @@ type t = {
   colliders : ((float * float) * float) list;
   spawns : (float * float) list;
   jet : int;
+  waypoints : Pms.waypoint array;
+  medikits : int;
+  grenade_kits : int;
+  medikit_spawns : (float * float) list;
+  grenade_spawns : (float * float) list;
 }
 
 (*****************************************************************************)
@@ -192,6 +197,12 @@ let of_pms (pms : Pms.t) : t =
     spawns;
     (* PolyMap.LoadData's "quickfix" *)
     jet = 119 * pms.jet / 100;
+    waypoints = pms.waypoints;
+    medikits = pms.medikits;
+    grenade_kits = pms.grenade_packs;
+    (* the spawn points of "teams" 8 and 7 (SpawnThings) *)
+    medikit_spawns = spawns_of (fun team -> team = 8);
+    grenade_spawns = spawns_of (fun team -> team = 7);
   }
 
 let arena2 : t Lazy.t =

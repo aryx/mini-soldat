@@ -113,7 +113,10 @@
    until it is full or the trigger is pulled.
 
    *Changing weapon* is the animation Change, the two weapons swapped
-   at its 25th frame. *A grenade*: its key held plays Throw; let go
+   at its 25th frame. *Throwing it away* is Throw_weapon: at its 19th
+   frame the weapon leaves the hands ([dropped]: the game puts it on
+   the ground, Soldat_things), which are then empty ([Hands]) and can
+   pick another up. *A grenade*: its key held plays Throw; let go
    between frames 15 and 36 (or at 36) the grenade leaves the hand
    towards the cursor at frame / 5 units a tick (0.65 of that before
    frame 24): 3 to 7.2, plus all of the soldier's speed.
@@ -150,6 +153,7 @@ type control = {
   reload : bool;
   change : bool; (* to the weapon on its back *)
   grenade : bool; (* held to wind up, let go to throw *)
+  drop : bool; (* throw the weapon in the hands away *)
   aim : float * float;
 }
 
@@ -201,12 +205,19 @@ type t = {
   mutable trigger_released : bool;
   mutable reload_wanted : bool;
   mutable shots : shot list; (* what left it this tick, the first first *)
+  mutable dropped : gun option; (* the weapon it let go of this tick *)
+  human : bool; (* a player's: a weapon firing once a pull does so only for it *)
 }
 
 (* a soldier standing at a place, with that much fuel, [primary] in
  * its hands (the USSOCOM if none is said), the USSOCOM on its back,
- * one grenade *)
-val create : ?primary:Soldat_weapons.id -> float * float -> int -> t
+ * one grenade; a player's unless [human] is false *)
+val create : ?primary:Soldat_weapons.id -> ?human:bool -> float * float -> int -> t
+
+(* with a weapon picked up from the ground in its hands, and with its
+ * weapon let go (it died): [dropped] says which *)
+val take : t -> gun -> t
+val let_go : t -> t
 
 (* a tick later, on this map, asked this. [ticks] is how many the game
  * has had (the jets fill every other tick in the air); [random] gives

@@ -74,11 +74,8 @@ let stick_figure (color : color) (points : (float * float) array) (gun : ((float
   @ [ dot color 2.6 (nx + ((nx - hx) / d * 3.5), ny + ((ny - hy) / d * 3.5)) ]
   @ match gun with Some (from, to_) -> [ segment (rgb 30 30 30) 1.4 from to_ ] | None -> []
 
-(* a soldier's colours: its shirt its own, its trousers the same,
- * darker, its skin a skin's *)
-let colors (s : soldier) : Soldat_gostek.colors =
-  let (r, g, b) = s.shirt in
-  { shirt = s.shirt; trousers = (r *.. 5 /.. 10, g *.. 5 /.. 10, b *.. 5 /.. 10); skin = (230, 180, 120) }
+(* a soldier's colours: a bot's are its character's *)
+let colors (s : soldier) : Soldat_gostek.colors = { shirt = s.shirt; trousers = s.trousers; skin = s.skin }
 
 (* the weapon's clip is in: with ammunition, or early or late in a
  * reload (RenderGostek's ShowClip); the minigun's belt until late *)
@@ -146,6 +143,48 @@ let view_bullet ~(graphics : int) (b : bullet) : shape list =
   | Thrown -> or_dot "frag-grenade" (float_of_int b.ttl * -0.2 * if b.vx >= 0. then 1. else -1.)
   | Explosive -> or_dot "m79-bullet" (Float.atan2 b.vy b.vx)
 
+(* a thing on the ground (TThing.Render): a weapon its picture from
+ * its first point along to its second, blinking in its last 5 seconds;
+ * a kit its box's picture over its four points *)
+let view_thing ~(graphics : int) (thing : Soldat_things.t) : shape list =
+  let (ax, ay) = thing.points.(0).pos and (bx, by) = thing.points.(1).pos in
+  let angle = Float.atan2 (by - ay) (bx - ax) in
+  let plain color = [ segment color 1.5 (ax, ay) (bx, by) ] in
+  match thing.kind with
+  | Weapon g ->
+      if thing.ttl < 300 && thing.ttl mod 6 < 3 then []
+      else if graphics < 2 then plain (rgb 40 40 40)
+      else (
+        let name = (Soldat_gostek.look g.kind.id).image ^ if thing.facing = 1 then "" else "-2" in
+        match Soldat_gostek.lying name (ax, ay) angle with [] -> plain (rgb 40 40 40) | shapes -> shapes)
+  | Medikit | Grenade_kit -> (
+      let name = if thing.kind = Medikit then "medikit" else "grenadekit" in
+      let n = float_of_int (Array.length thing.points) in
+      let middle = Array.fold_left (fun (x, y) (p : Particles.particle) -> (x + (fst p.pos / n), y + (snd p.pos / n))) (0., 0.) thing.points in
+      let box () =
+        let (x, y) = at middle in
+        [ rectangle (if thing.kind = Medikit then rgb 230 230 230 else rgb 90 110 70) 10.75 8.6 |> rotate (-.angle * 180. / Float.pi + 180.) |> move x y ]
+      in
+      if graphics < 2 then box ()
+      else match Soldat_assets.picture ~keyed:false "textures/objects" name with
+        | Here picture ->
+            let (x, y) = at middle in
+            [ bitmap 10.75 8.6 picture |> rotate (-.angle * 180. / Float.pi + 180.) |> move x y ]
+        | Loading | Missing -> box ())
+
+(* the map's waypoints, what the bots walk along (the flag waypoints):
+ * each a dot, a line to each it leads to, and the keys it says to hold *)
+let view_waypoints (map : Soldat_map.t) : shape list =
+  let place (w : Pms.waypoint) = (float_of_int w.x, float_of_int w.y) in
+  Array.to_list map.waypoints
+  |> List.concat_map (fun (w : Pms.waypoint) ->
+         if not w.active then []
+         else
+           let keys = (if w.left then "<" else "") ^ (if w.up then "^" else "") ^ (if w.jetpack then "*" else "") ^ (if w.down then "v" else "") ^ if w.right then ">" else "" in
+           let (x, y) = at (place w) in
+           List.filter_map (fun n -> if n >= 1 && n <= Array.length map.waypoints then Some (segment (rgb 255 255 0) 0.4 (place w) (place map.waypoints.(n -.. 1)) |> fade 0.5) else None) w.connections
+           @ [ dot (if w.path = 1 then rgb 255 255 0 else rgb 255 140 0) 1.5 (place w); text white 0.5 keys |> move x (y + 5.) ])
+
 (* an explosion: a disc from a third of its reach to all of it, fading *)
 let view_explosion (e : explosion) : shape list =
   let t = float_of_int e.age / float_of_int Soldat_update.explosion_ticks in
@@ -184,6 +223,15 @@ let view_menu (chosen : Soldat_weapons.id) ((x, y) : float * float) : shape list
       text (if id = chosen then rgb 255 220 80 else white) 1.8 (Printf.sprintf "%d  %s" ((i +.. 1) mod 10) w.name) |> move x (y - (24. * float_of_int i)))
     Soldat_weapons.primaries
 
+(* the scores, the best first, at the top right; the time left and the
+ * kills to reach, at the top *)
+let view_scores (computer : computer) (p : play) : shape list =
+  let screen = computer.screen in
+  let ranked = List.stable_sort (fun (a : soldier) (b : soldier) -> compare b.kills a.kills) (Array.to_list p.soldiers) in
+  let seconds = p.time_left /.. 60 in
+  (text white 2. (Printf.sprintf "%d:%02d    first to %d" (seconds /.. 60) (seconds mod 60) kill_limit) |> move_y (screen.top - 30.))
+  :: List.mapi (fun i (s : soldier) -> text s.color 1.8 (Printf.sprintf "%-12s %2d" s.name s.kills) |> move (screen.right - 110.) (screen.top - 30. - (24. * float_of_int i))) ranked
+
 (* through the camera, in Soldat's order: what is behind, the bullets,
  * the soldiers, then the map's polygons over them; over it all and
  * not moving with the map, the score *)
@@ -196,11 +244,13 @@ let view_play (computer : computer) ~(graphics : int) ~(primary : Soldat_weapons
     { x; y; zoom = zoom computer.screen; angle = 0. }
     (back
     @ List.concat_map (view_bullet ~graphics) p.bullets
+    @ List.concat_map (view_thing ~graphics) p.things
     @ List.concat_map (view_soldier computer ~graphics) soldiers
     @ front
     @ List.concat_map view_explosion p.explosions
+    @ (if List.mem_assoc "waypoints" computer.flags then view_waypoints p.map else [])
     @ if List.mem_assoc "hitboxes" computer.flags then List.concat_map view_tested soldiers else [])
-  :: List.mapi (fun i s -> text s.color 2.5 (Printf.sprintf "%s %d" s.name s.kills) |> move (-300. + (300. * float_of_int i)) (top - 40.)) soldiers
+  :: view_scores computer p
   @ view_interface computer p.map p.soldiers.(0)
   @ (if p.soldiers.(0).dead <> None then (text white 3. "respawning..." |> move_y (top - 120.)) :: view_menu primary (0., top - 180.) else [])
 
@@ -213,9 +263,9 @@ let view (computer : computer) (model : model) : shape list =
   | Title map ->
       [ view_map computer ~graphics map;
         text white 6. "MINI SOLDAT" |> move_y 300.;
-        text white 2. "a/d run   w jump   s crouch   x lie down   r reload   q other weapon   e grenade" |> move_y 220.;
+        text white 2. "a/d run   w jump   s crouch   x lie down   r reload   q other weapon   e grenade   f throw it away" |> move_y 220.;
         text white 2. "mouse aim   left button shoot   right button (or shift) jets" |> move_y 185.;
-        text white 2. "you against two bots: first to 5 kills   g: the graphics" |> move_y 150.;
+        text white 2. (Printf.sprintf "you against %d of Soldat's bots: first to %d kills   g: the graphics" model.bots kill_limit) |> move_y 150.;
         text white 2. map.name |> move_y 110. ]
       @ view_menu model.primary (0., 50.)
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-230.) ]

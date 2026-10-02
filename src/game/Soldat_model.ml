@@ -7,9 +7,10 @@
  * (LGPL) as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  *)
-(* The game's state: the soldiers, what each wants to do this tick,
- * the bullets in flight, the explosions still seen, the map, where
- * the camera is, and the seed of the game's chance.
+(* The game's state: the soldiers, what each bot has in mind, the
+ * bullets in flight, the explosions still seen, the things lying
+ * about, the map, where the camera is, the time left, and the seed of
+ * the game's chance.
  *
  * Everything is in Soldat's own units and coordinates (y downwards, a
  * soldier about 20 tall, speeds a tick), as the map is; only the
@@ -17,16 +18,21 @@
  *
  * In Soldat: a soldier is shared/mechanics/Sprites.pas's TSprite and
  * what it wants to do its TControl (set from the keys or by a bot,
- * turned into moves by Control.pas), a bullet Bullets.pas's TBullet,
- * and the round shared/Game.pas.
+ * turned into moves by Control.pas), a bot's mind its Brain, a bullet
+ * Bullets.pas's TBullet, a thing Things.pas's TThing, and the round
+ * shared/Game.pas.
  *)
 open Playground
+
 
 type soldier = {
   name : string;
   color : color;
-  (* the same, as red, green and blue: its shirt's *)
+  (* its shirt's (the same), its trousers' and its skin's colours, as
+   * red, green and blue *)
   shirt : int * int * int;
+  trousers : int * int * int;
+  skin : int * int * int;
   human : bool;
   (* its particle and its skeleton, moved by Soldat's rules *)
   body : Soldat_soldier.t;
@@ -37,6 +43,9 @@ type soldier = {
   kills : int;
   (* the weapon it will appear with next *)
   primary : Soldat_weapons.id;
+  (* who hit it last, for a bot to turn on (Brain.PissedOff is set by
+   * the bullet); nobody: -1 *)
+  hit_by : int;
 }
 
 (* what a soldier wants to do this tick: the player's keys and mouse,
@@ -45,15 +54,60 @@ type intent = Soldat_soldier.control
 
 let still : intent = Soldat_soldier.no_control
 
-(* what a bot may know (Sense.mli): where it is and how it is, and
- * its nearest enemy -- seen now, or remembered where it was last seen,
- * or not known at all. Not the world: a bot cannot read through a wall
- * what it hasn't got *)
+(* a bot's character, one of Soldat's .bot files: its looks, the weapon
+ * it likes, and how it fights *)
+type character = {
+  bot : string;
+  bot_shirt : int * int * int;
+  bot_trousers : int * int * int;
+  bot_skin : int * int * int;
+  favourite : Soldat_weapons.id;
+  (* how far off it may aim, in units: 0 never misses *)
+  accuracy : int;
+  (* it goes on shooting who it killed, for 3 seconds *)
+  shoot_dead : bool;
+  (* one tick in that many, seeing an enemy near, it throws a grenade *)
+  grenade_freq : int;
+  (* over 0 it holds its ground and crouches; over 127 at mid range too *)
+  camper : int;
+}
+
+(* what a bot has in mind from a tick to the next: Soldat's Brain. A
+ * waypoint is its number in the map's file, from 1; none: 0. A
+ * soldier is its place among the round's, none: -1 *)
+type brain = {
+  character : character;
+  target : int;
+  (* who shot it: seen, it becomes the target *)
+  pissed_off : int;
+  (* the waypoint it is at, the one it goes to, and the one before *)
+  current : int;
+  next : int;
+  old : int;
+  (* ticks at the same waypoint, and what is left before it gives up
+   * and goes back *)
+  last : int;
+  waypoint_time : int;
+  timeout : int;
+  (* ticks it has not moved, or has waited where a waypoint says to *)
+  one_place : int;
+  (* it is walking to a kit *)
+  go_thing : bool;
+  (* it is falling fast: the jets *)
+  fall_save : bool;
+  (* its keys last tick: a grenade's is held from a tick to the next *)
+  keys : Soldat_soldier.control;
+}
+
+(* what the bot of ai=engine may know (Sense.mli, Soldat_engine_bot):
+ * where it is and how it is, and its nearest enemy -- seen now, or
+ * remembered where it was last seen, or not known at all. Not the
+ * round: it cannot read through a wall what it has not got *)
 type senses = {
   me : float * float;
   my_vx : float;
   my_fuel : int;
-  seed : int; (* which bot: its aim wobbles its own way *)
+  seed : int; (* which soldier: its aim wobbles its own way *)
   frame : int; (* to patrol by, when it has nobody to chase *)
   enemy : (float * float) Sense.target;
 }
@@ -89,12 +143,17 @@ type play = {
   (* the point of the map at the screen's middle *)
   camera : float * float;
   soldiers : soldier array;
-  (* with ai=engine, one per soldier: the senses it has seen but not yet
-   * acted on, its memory of its enemy among them (Bot.mli) *)
-  minds : (senses, intent) Bot.running array;
-  ai_engine : bool;
+  (* one per soldier: a bot's mind, none for the player *)
+  brains : brain option array;
+  (* and, for the one bot of ai=engine, which has no brain: the senses
+   * it has seen but not yet acted on, its memory of its enemy among
+   * them (Bot.mli) *)
+  minds : (senses, intent) Bot.running option array;
   bullets : bullet list;
   explosions : explosion list;
+  things : Soldat_things.t list;
+  (* ticks before the round ends by itself (TimeLimitCounter) *)
+  time_left : int;
   (* the game's chance: the next number comes from it (Lehmer) *)
   seed : Lehmer.t;
   frame : int;
@@ -127,6 +186,8 @@ type model = {
   primary : Soldat_weapons.id;
   (* the rounds started: a round's number is its chance's seed *)
   rounds : int;
+  (* how many bots the player is against (the flag bots) *)
+  bots : int;
 }
 
 (* Soldat's DEFAULT_HEALTH *)
@@ -141,22 +202,13 @@ let farthest (map : Soldat_map.t) (others : (float * float) list) : float * floa
   let room (x, y) = List.fold_left (fun m (ox, oy) -> Float.min m (Float.hypot (ox -. x) (oy -. y))) infinity others in
   List.fold_left (fun best sp -> if room sp > room best then sp else best) (List.hd map.spawns) map.spawns
 
-(* [primary]: the player's weapon; [seed]: the game's chance, the same
- * game from the same one *)
-let start ?(ai_engine = false) ?(primary : Soldat_weapons.id = Ak74) ?(seed = 1) (map : Soldat_map.t) : play =
-  let soldier place name ((r, g, b) as shirt) human primary =
-    { name; color = rgb r g b; shirt; human; body = Soldat_soldier.create ~primary place map.jet; health = full_health; dead = None; kills = 0; primary }
-  in
-  (* the player at the map's first place, each bot as far as can be
-   * from those before it *)
-  let first = spawn map 0 in
-  let second = farthest map [ first ] in
-  let third = farthest map [ first; second ] in
-  let soldiers = [| soldier first "YOU" (220, 60, 50) true primary; soldier second "BLUE" (60, 110, 220) false Mp5; soldier third "GREEN" (60, 170, 80) false Steyr |] in
-  { map; camera = first; soldiers; minds = Array.map (fun _ -> Bot.start still) soldiers; ai_engine; bullets = []; explosions = []; seed = Lehmer.scramble seed; frame = 0 }
+(* sv_killlimit and sv_timelimit: a round is the first to 10 kills,
+ * or who has most after 10 minutes *)
+let kill_limit = 10
+let time_limit = 36000
 
 let model_at ?(graphics = graphics_levels) (first : scene) : model =
-  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; rounds = 0 }
+  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; rounds = 0; bots = 3 }
 
 let initial_model ?graphics (map : Soldat_map.t) : model = model_at ?graphics (Title map)
 

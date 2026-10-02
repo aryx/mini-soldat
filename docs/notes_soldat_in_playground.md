@@ -358,16 +358,17 @@ the parachute, the stationary gun. `CreateThing`'s 25 near-identical
 cases are a table: for each kind its skeleton, its damping, its
 gravity, its radius, how long it stays.
 
-| Soldat | Here, *to come* |
+| Soldat | Here |
 |---|---|
-| `TThing`, its `Skeleton` | a kind, a `particle array`, its sticks: `Particles.step`, `relax`, `keep_out` |
-| picked up (`CheckSpriteCollision`, the server's): a soldier within the thing's radius; a weapon only by one with empty hands | a test of distance, in `update` |
-| where things appear: the map's spawn points whose team is above 4 (5 and 6 the flags, 7 grenade kits, 8 medikits, 9 to 13 the bonus kits, 14 the yellow flag, 15 the bow, 16 the stationary gun) | `Pms.spawnpoint.team` |
-| a flag held: its first point on its holder's back (point 8), the other pulled up | the same |
-| a capture: the holder of the enemy's flag within 28 of its own, at home (within 75 of where it appears) | the same |
-
-For a deathmatch: the dropped weapons, the medikits and the grenade
-kits are enough.
+| `TThing`, its `Skeleton` | `Soldat_things.t`: a kind (`Weapon of gun`, `Medikit`, `Grenade_kit`), a `particle array`, its sticks: `Particles.step`, `relax` |
+| `CreateThing`'s cases | `rifle` (a weapon's scale of `karabin.po`, its damping, its weight), `box` (`kit.po`), `physics` |
+| `TThing.Update`, `CheckMapCollision`: a point in a wall back where it was less its depth; at rest (`StaticType`) when two points touched and it moves under 0.63 | `tick`, `out_of_walls`, `still` (Soldat's own rule, not `Particles.keep_out`, as for the ragdoll) |
+| `TSprite.DropWeapon`, the throw in `CreateThing` | `Soldat_soldier.t.dropped` (thrown at the 19th frame of `Throw_weapon`, or `let_go` dying), made a thing by `Soldat_things.weapon` |
+| picked up (`CheckSpriteCollision`, the server's): the nearest soldier within the thing's radius; a weapon only by one with empty hands | `Soldat_things.reach`, and the rule in `Soldat_update.tick` |
+| where things appear: the map's spawn points whose team is above 4 (5 and 6 the flags, 7 grenade kits, 8 medikits, 9 to 13 the bonus kits, 14 the yellow flag, 15 the bow, 16 the stationary gun) | `Soldat_map.t.medikit_spawns`, `grenade_spawns`; `Soldat_things.kits` (`SpawnThings`), `again` (`Respawn`, `SpawnBoxes`) |
+| a flag held: its first point on its holder's back (point 8), the other pulled up | *to come*, with the teams |
+| a capture: the holder of the enemy's flag within 28 of its own, at home (within 75 of where it appears) | *to come* |
+| the bonus kits, the bow, the parachute, the knife, the stationary gun; a thing hit by a bullet or an explosion | *to come*, or never |
 
 ## The sparks
 
@@ -381,18 +382,22 @@ the model, drawn as small pictures; the Playground has `Juice`
 
 ## The rules, and the bots
 
-| Soldat | Here, *to come* |
+| Soldat | Here |
 |---|---|
-| the modes (`GAMESTYLE_*`): deathmatch, pointmatch, teammatch, capture the flag (the default), rambo, infiltration, hold the flag | a variant; deathmatch first, as today |
-| a round's end: a kill limit (10) or a time limit (10 minutes), then the scores for 320 ticks, then the next map | the toy's "first to 5"; then Soldat's |
-| respawn: 180 ticks after dying (in team modes, in waves) | the toy's 120 frames; then Soldat's |
+| the modes (`GAMESTYLE_*`): deathmatch, pointmatch, teammatch, capture the flag (the default), rambo, infiltration, hold the flag | deathmatch; the others *to come* |
+| a round's end: a kill limit (10) or a time limit (10 minutes), then the scores for 320 ticks, then the next map | `Soldat_model.kill_limit`, `time_limit`, `play.time_left`, `Soldat_update.winner`; then the same map again: the next map *to come* |
+| respawn: 180 ticks after dying (in team modes, in waves), at a spawn point taken by chance (`RandomizeStart`) | `Soldat_update.respawn_ticks`, and the game's chance |
 | the tick's order (`server/ServerLoop.pas`): the soldiers' particles stepped, each soldier updated (its keys, or its bot's), each bullet updated (its collisions), the bullets' particles stepped, each thing updated; the client adds the sparks | `Soldat_update.tick`, in that order |
-| a bot (`shared/AI.pas`, `ControlBot`): it only presses keys and moves the mouse, in the same `TControl` a player fills | as today: a bot returns an `intent` |
-| its way: no path-finding. It goes to the nearest waypoint, picks one of its connections at random, and holds the keys that waypoint says (left, right, up, down, jets): the map's author walked it | `Pms.waypoint`; the Playground's `ai` (`Sense`, `Bot`) for what it may know and how fast it reacts, if wanted beside it |
-| its target: the nearest enemy its head sees (a ray on the map, 651 pixels at most) | `Soldat_map.clear` |
-| its fight (`SimpleDecision`): by how far the target is across, in 8 distances: back away, stop and crouch, jump, fire always or one tick in two or in four | a table |
+| a bot (`shared/AI.pas`, `ControlBot`): it only presses keys and moves the mouse, in the same `TControl` a player fills | `Soldat_bots.control`: a `Soldat_soldier.control` |
+| `Brain`: its target, who shot it, its waypoints, its counters | `Soldat_model.brain`, one a bot in `play.brains` |
+| its way: no path-finding. It goes to the nearest waypoint, picks one of its connections at random, and holds the keys that waypoint says (left, right, up, down, jets): the map's author walked it | `Soldat_map.t.waypoints` (`Pms.waypoint`), `Soldat_bots.closest` (`FindClosest`). elm-playground's `ai` (`Sense`, `Bot`) is not what Soldat's bots are made of (they read the round at once); one bot is kept on it as an example, `Soldat_engine_bot` (the flag `ai=engine`) |
+| its target: the nearest enemy its head sees (a ray on the map, 651 pixels at most); who shot it, before any other (`PissedOff`) | `sees`; `soldier.hit_by`, set by `Soldat_bullets.hurt` |
+| its fight (`SimpleDecision`): by how far the target is across, in 8 distances: back away, stop and crouch, jump, fire always or one tick in two or in four | `bucket` (`CheckDistance`), and the cases in `control` |
 | its aim: where the target is going, raised for the distance, with an error up and down of at most its `Accuracy` in pixels | the same |
-| its character, a `.bot` file: accuracy, favourite weapon, how often it throws a grenade, whether it camps, whether it shoots the dead | the 16 files, in `data/`, read |
+| `Random`, all along | the game's `random`, as a shot's scatter |
+| its character, a `.bot` file: accuracy, favourite weapon, how often it throws a grenade, whether it camps, whether it shoots the dead | `Soldat_bots.character`, `characters`: `data/bots/`, carried in the program |
+| going to a kit (`GoToThing`, a thing's `Interest`), running from a grenade, the jets when falling | in `control` |
+| hiding behind a collider (`ColliderDistance`), the fists, the teams' paths, the difficulty, the chat | *to come*, or never |
 
 ## The frame, drawn
 

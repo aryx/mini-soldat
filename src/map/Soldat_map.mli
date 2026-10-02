@@ -95,6 +95,14 @@ type t = {
   spawns : (float * float) list;
   (* the fuel a soldier's jets start with, in ticks *)
   jet : int;
+  (* the graph the bots walk along: the file's, the first numbered 1 *)
+  waypoints : Pms.waypoint array;
+  (* how many medikits and grenade kits lie around, and where one may
+   * appear (the file's spawn points of "teams" 8 and 7) *)
+  medikits : int;
+  grenade_kits : int;
+  medikit_spawns : (float * float) list;
+  grenade_spawns : (float * float) list;
 }
 
 (* the game's map for one of Soldat's *)

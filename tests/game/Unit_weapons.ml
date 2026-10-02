@@ -47,7 +47,7 @@ let at shots = List.filteri (fun _ l -> l <> []) (List.mapi (fun i l -> if l = [
 (* three soldiers in three rooms, past their 90 ticks; nobody sees
  * anybody: the only bullets are the test's *)
 let rooms () : Soldat_model.play =
-  let p = ref (Soldat_model.start Testutil_map.rooms) in
+  let p = ref (Soldat_update.start ~bots:(Soldat_bots.cast 2 0) Testutil_map.rooms) in
   for _ = 1 to 100 do
     p := Soldat_update.tick !p Soldat_model.still ~look:(0., 0.)
   done;

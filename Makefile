@@ -42,10 +42,11 @@ website:
 	cp src/main/web/index.html docs/play.html
 	chmod u+w docs/MiniSoldat.bc.js
 	rm -rf docs/assets
-	mkdir -p docs/assets/textures docs/assets/scenery-gfx docs/assets/weapons-gfx
+	mkdir -p docs/assets/textures/objects docs/assets/scenery-gfx docs/assets/weapons-gfx
 	cp -r data/maps docs/assets/
 	dune build src/assets/Gen_assets.exe
 	_build/default/src/assets/Gen_assets.exe data/textures docs/assets/textures
+	_build/default/src/assets/Gen_assets.exe data/textures/objects docs/assets/textures/objects
 	_build/default/src/assets/Gen_assets.exe data/scenery-gfx docs/assets/scenery-gfx
 	_build/default/src/assets/Gen_assets.exe data/weapons-gfx docs/assets/weapons-gfx
 serve-website:

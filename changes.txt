@@ -5,6 +5,21 @@
 # (with direction from me)
 
 ** Features
+- a deathmatch as Soldat's (docs/plan.md's step 5). Soldat_bots, from
+  AI.pas: Soldat's own bots, along the map's waypoints when they see
+  nobody, by SimpleDecision's ladder of distances when they do, each
+  with the character of one of Soldat's 16 .bot files (data/bots/,
+  carried in the program). Soldat_things, from Things.pas: a weapon
+  thrown away (the key f) or dropped by the dead, falling, lying
+  still, picked up by empty hands; medikits and grenade kits where
+  the map puts them. The first to 10 kills or the best after 10
+  minutes; the dead back at a place taken by chance; the scores
+  ranked, the time left
+- flags bots=N (3) and waypoints (the bots' paths drawn)
+- of TinySoldat's bots, the one on elm-playground's Sense and Bot is
+  kept as an example of that library (Soldat_engine_bot): the flag
+  ai=engine puts it in a round in place of the last of Soldat's. The
+  one written by hand went
 - Soldat's weapons (docs/plan.md's step 4). Soldat_weapons: its own
   weapons.ini read, the ten primaries, the USSOCOM, the grenade.
   Soldat_soldier, from ControlSprite, TSprite.Fire and ThrowGrenade: a

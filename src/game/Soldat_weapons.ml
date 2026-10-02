@@ -14,7 +14,7 @@
 
 (* See Soldat_weapons.mli *)
 
-type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade
+type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade | Hands
 type style = Plain | Pellets | Explosive | Thrown
 
 type t = {
@@ -55,7 +55,8 @@ let known : (id * string * string * bool * bool) list =
     (Minimi, "FN Minimi", "FN Minimi", true, false);
     (Minigun, "XM214 Minigun", "XM214 Minigun", false, false);
     (Socom, "USSOCOM", "USSOCOM", true, true);
-    (Grenade, "Grenade", "Grenade", false, false) ]
+    (Grenade, "Grenade", "Grenade", false, false);
+    (Hands, "Hands", "Punch", false, false) ]
 
 let primaries : id list = [ Eagles; Mp5; Ak74; Steyr; Spas; Ruger; M79; Barrett; Minimi; Minigun ]
 

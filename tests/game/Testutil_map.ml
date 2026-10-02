@@ -23,11 +23,11 @@ let wall ?(kind : Pms.kind = Normal) (a : float * float) (b : float * float) (c 
 
 (* a map of these walls, every sector seeing them all: 25 sectors of
  * 100 each way *)
-let map ?(spawns = [ (0., -20.) ]) (walls : Soldat_map.wall list) : Soldat_map.t =
+let map ?(spawns = [ (0., -20.) ]) ?(waypoints : Pms.waypoint list = []) ?(medikit_spawns = []) ?(grenade_spawns = []) (walls : Soldat_map.wall list) : Soldat_map.t =
   let walls = Array.of_list walls in
   let num = 25 in
   let side = (2 * num) + 1 in
-  { name = "test"; pms = None; sky = []; back = []; front = []; walls; division = 100.; num; sectors = Array.make (side * side) (Array.init (Array.length walls) Fun.id); colliders = []; spawns; jet = 190 }
+  { name = "test"; pms = None; sky = []; back = []; front = []; walls; division = 100.; num; sectors = Array.make (side * side) (Array.init (Array.length walls) Fun.id); colliders = []; spawns; jet = 190; waypoints = Array.of_list waypoints; medikits = List.length medikit_spawns; grenade_kits = List.length grenade_spawns; medikit_spawns; grenade_spawns }
 
 let empty : Soldat_map.t = map []
 
@@ -45,3 +45,8 @@ let rooms_on ?(kind : Pms.kind option) () : Soldat_map.t =
     (slab ?kind (-2000.) 0. 2000. 200. @ slab (-320.) (-400.) (-280.) 0. @ slab 280. (-400.) 320. 0.)
 
 let rooms : Soldat_map.t = rooms_on ()
+
+(* a waypoint at a place, saying which way to run on the way to it,
+ * and which come next *)
+let waypoint ?(left = false) ?(right = false) ?(up = false) ?(action = 0) (id : int) ((x, y) : int * int) (connections : int list) : Pms.waypoint =
+  { active = true; id; x; y; left; right; up; down = false; jetpack = false; path = 1; action; connections }

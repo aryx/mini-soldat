@@ -113,8 +113,9 @@
     who chooses what is built and reviews it.</p>
 
     <h2>How to play</h2>
-    <p>You are the red soldier, against two bots. The first to 5 kills
-    wins. Press <kbd>space</kbd> to start. The keys are Soldat's:</p>
+    <p>You are the red soldier, against three of Soldat's bots. The
+    first to 10 kills wins, or who has most after 10 minutes. Press
+    <kbd>space</kbd> to start. The keys are Soldat's:</p>
     <table>
       <tr><td><kbd>a</kbd> <kbd>d</kbd></td><td>run left and right</td></tr>
       <tr><td><kbd>w</kbd></td><td>jump</td></tr>
@@ -126,6 +127,7 @@
       <tr><td><kbd>r</kbd></td><td>reload</td></tr>
       <tr><td><kbd>q</kbd></td><td>the other weapon, the pistol on your back</td></tr>
       <tr><td><kbd>e</kbd></td><td>a grenade: held longer, thrown harder</td></tr>
+      <tr><td><kbd>f</kbd></td><td>throw your weapon away: empty hands pick up another, lying on the ground</td></tr>
       <tr><td><kbd>1</kbd> to <kbd>9</kbd>, <kbd>0</kbd></td><td>the weapon to appear with, as in Soldat's menu</td></tr>
     </table>
     <p><kbd>g</kbd> goes round the graphics, the game as each step of
@@ -135,16 +137,22 @@
     <kbd>w</kbd> and a side, a jump sideways; the jets' key during a
     jump sideways with the other side held, a backflip; lying, a side
     crawls.</p>
-    <p>Two variants: <a href="play.html?ai=engine">bots that know only
-    what they have seen</a>, and react as late as a hand does, instead
-    of bots that see through the walls; and
-    <a href="play.html?hitboxes">the points the game tests</a>, drawn
-    over the soldiers.</p>
+    <p>Walk over a medikit when hurt, or a kit of grenades when short
+    of them. Some variants: <a href="play.html?bots=7">seven bots</a>
+    instead of three; <a href="play.html?ai=engine">one bot of another
+    making</a>, the blue "Engine", which knows only what it has seen
+    and reacts as late as a hand does (it runs on elm-playground's
+    library for bots, where Soldat's own read the whole game each
+    tick); <a href="play.html?waypoints">the paths the bots
+    walk</a>, drawn by the map's author, with the keys each point tells
+    them to hold; <a href="play.html?hitboxes">the points the game
+    tests</a>, drawn over the soldiers.</p>
 
     <h2>Where it is</h2>
     <p>At its beginning. It started as
     <a href="https://github.com/aryx/ocaml-elm-playground">elm-playground</a>'s
-    TinySoldat, a toy. Three things are Soldat's own by now. The map:
+    TinySoldat, a toy, of which nothing is left: all is Soldat's own
+    by now. The map:
     Arena2, read from its file and drawn as Soldat draws it, its
     texture on its polygons and its scenery. The soldier: how it moves
     (its run, the wind-up of its jump, its roll, its jets, by Soldat's
@@ -154,8 +162,10 @@
     weapons: Soldat's ten and its pistol, with its own numbers, their
     clips and reloads, the shotgun's pellets, the Barrett's wait,
     grenades and the M79, bullets that ricochet and go through a body,
-    explosions that throw one about. The bots are still the toy's, and
-    nothing is heard yet. The goal is the
+    explosions that throw one about. And the deathmatch: Soldat's own
+    bots with their characters, walking their map's waypoints; weapons
+    dropped and picked up, medikits, grenade kits. Nothing is heard
+    yet, and there are no teams or flags. The goal is the
     real game: Soldat's maps and soldier as they look, its weapons, its
     feel, and play over the network. The source is at
     <a href="https://github.com/aryx/mini-soldat">github.com/aryx/mini-soldat</a>.</p>
