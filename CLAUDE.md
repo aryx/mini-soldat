@@ -9,7 +9,7 @@ OCaml, forked from
 [elm-playground](https://github.com/aryx/ocaml-elm-playground)'s
 TinySoldat (`~/playground/games/arcade/TinySoldat.ml`), as mini-chrome
 (`~/github/mini-chrome`) was from its TinyChrome. It stands on
-elm-playground's opam packages (0.3.3+): `elm_playground` (the
+elm-playground's opam packages (0.3.5+): `elm_playground` (the
 Elm-architecture runtime, window, drawing, and the `Physics` layer) and
 `tiny_libs` (`physics_2d`, `ai`, `networking`). The only C is SDL (and
 Cairo, optionally).

@@ -365,6 +365,20 @@ let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(primary : Sold
   @ (if p.soldiers.(me).dead <> None then (text white 3. "respawning..." |> move_y (top - 150.)) :: view_menu primary (0., top - 200.) else [])
   @ view_board computer p
 
+(* Soldat's cursor, drawn where the mouse is (the system's own is
+ * hidden: MiniSoldat): aiming, its sight, wider as moving spoils the
+ * aim (I:2283: its size times 1 + inaccuracy^0.6 / 20); dead or in a
+ * menu, its arrow, the tip at the mouse *)
+let view_cursor (computer : computer) (model : model) : shape list =
+  let (x, y) = (computer.mouse.mx, computer.mouse.my) in
+  let me = match model.scenes.scene with Playing p -> Some p.soldiers.(0) | Online (p, me) -> Some p.soldiers.(me) | _ -> None in
+  let picture name size at = match Soldat_assets.picture ~keyed:false "interface-gfx" name with Here p -> [ bitmap size size p |> move (fst at) (snd at) ] | _ -> [ circle white 2. |> move x y ] in
+  match me with
+  | Some s when s.dead = None ->
+      let spoiled = Soldat_soldier.move_acc s.body s.body.weapon.kind ~jetting:s.body.jetting * 100. in
+      picture "cursor" (38. * (1. + if spoiled > 0. then (spoiled ** 0.6) / 20. else 0.)) (x, y)
+  | _ -> picture "menucursor" 16. (x + 8., y - 8.)
+
 let view (computer : computer) (model : model) : shape list =
   let graphics = model.graphics in
   (* the way of drawing just chosen, said for a moment *)
@@ -419,3 +433,4 @@ let view (computer : computer) (model : model) : shape list =
       [ view_map computer ~graphics map; text white 5. (if name = "YOU" then "YOU WIN!" else name ^ " WINS") |> move_y 200. ]
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-50.) ])
   @ said
+  @ view_cursor computer model

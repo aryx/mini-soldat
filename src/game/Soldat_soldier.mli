@@ -225,6 +225,10 @@ type t = {
  * lying, after 13 ticks of that *)
 val create : ?primary:Soldat_weapons.id -> ?secondary:Soldat_weapons.id -> ?human:bool -> ?team:int -> float * float -> int -> t
 
+(* how much moving spoils its aim with a weapon (GetMoveacc): what
+ * widens a shot's scatter, and Soldat's cursor *)
+val move_acc : t -> Soldat_weapons.t -> jetting:bool -> float
+
 (* with a weapon picked up from the ground in its hands, and with its
  * weapon let go (it died): [dropped] says which *)
 val take : t -> gun -> t

@@ -163,5 +163,7 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
         Soldat_online.connect caps ~host ~port ~nick ~room;
         { first with scenes = Scene2d.start (Soldat_model.Connecting ("connecting to " ^ host ^ "...")) })
   in
+  (* the system's cursor hidden: Soldat's own is drawn (Soldat_view.view_cursor) *)
+  Playground_platform.set_cursor Hidden;
   let app = Playground.game Soldat_view.view Soldat_online.update first in
   Playground_platform.run_app ~flags app))

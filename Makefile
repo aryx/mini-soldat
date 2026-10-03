@@ -53,6 +53,7 @@ website:
 	_build/default/src/assets/Gen_assets.exe data/scenery-gfx docs/assets/scenery-gfx
 	_build/default/src/assets/Gen_assets.exe data/weapons-gfx docs/assets/weapons-gfx
 	mkdir -p docs/assets/interface-gfx/guns
+	_build/default/src/assets/Gen_assets.exe data/interface-gfx docs/assets/interface-gfx
 	_build/default/src/assets/Gen_assets.exe data/interface-gfx/guns docs/assets/interface-gfx/guns half
 	_build/default/src/assets/Gen_assets.exe data/sparks-gfx docs/assets/sparks-gfx
 	_build/default/src/assets/Gen_assets.exe data/sparks-gfx/explosion docs/assets/sparks-gfx/explosion half

@@ -42,14 +42,14 @@
     ; the server's authority to listen (Cap.network)
     (caps (>= "0.1.0"))
     ; 0.3.3, the one TinySoldat was copied from
-    (tiny_libs (>= "0.3.3"))
-    (elm_playground (>= "0.3.3"))
+    (tiny_libs (>= "0.3.5"))
+    (elm_playground (>= "0.3.5"))
     ; the software platform, SDL only: mini-soldat-software, and
     ; what the tests link
-    (elm_playground_software (>= "0.3.3"))
+    (elm_playground_software (>= "0.3.5"))
     ; the web platform, js_of_ocaml and vdom: the game in a browser
     ; (src/main/web), the website's
-    (elm_playground_web (>= "0.3.3"))
+    (elm_playground_web (>= "0.3.5"))
     (testo :with-test)
     (alcotest :with-test)
   )

@@ -5,6 +5,9 @@
 # (with direction from me)
 
 ** Features
+- Soldat's cursor: the system's hidden (elm-playground 0.3.5's
+  set_cursor), its own drawn at the mouse: the sight when aiming,
+  wider as moving spoils the aim, the arrow otherwise
 - Soldat's three other modes: a Pointmatch and hold the flag (the
   yellow flag), Infiltration (mode=pm, htf, inf)
 - over the network: a room of any mode (its name, Arena2.rm; left and
