@@ -12,20 +12,12 @@
 
 let grey = Playground.rgb 128 128 128
 
-(* Limit 1 (Soldat_bodies.mli): one step a tick. A body that goes
- * farther in a step than it is thick is, when the step ends, deeper
- * in the floor than it is wide, pushed out sideways, and thrown.
- * [n] small steps instead: a step [n] times shorter is the same step
- * on speeds [n] times smaller, under a gravity n squared times
- * smaller; asked [n] times, and the speeds put back *)
-let small_steps (n : int) ~(gravity : float) (w : Physics.world) : Physics.world =
-  let k = float_of_int n in
-  let scaled f (b : Physics.body) : Physics.body = { b with vx = b.vx *. f; vy = b.vy *. f; spin = b.spin *. f } in
-  let w = ref { w with bodies = List.map (scaled (1. /. k)) w.bodies } in
-  for _ = 1 to n do
-    w := Physics.simulate ~gravity:(gravity /. (k *. k)) !w
-  done;
-  { !w with bodies = List.map (scaled k) !w.bodies }
+(* Limit 1 (Soldat_bodies.mli): a body that goes farther in a step
+ * than it is thick is thrown out of what it lands on. Four small
+ * steps a tick (Physics.simulate ~steps, which this twin's first
+ * version, without it, had to imitate) *)
+let steps = 4
+
 let degrees (radians : float) : float = radians *. 180. /. Float.pi
 
 (* a thing's points as a box: its middle, its angle (of its first edge),
@@ -70,7 +62,7 @@ let move (map : Soldat_map.t) (thing : Soldat_things.t) : Soldat_things.t =
       (* the walls around it that hold a thing *)
       let walls = List.filter (fun (w : Soldat_map.wall) -> Soldat_things.holds w.kind) (Soldat_map.sector map x y) in
       let gravity = Soldat_soldier.grav *. 3600. in
-      let moved = List.hd (small_steps 4 ~gravity (Physics.world (body :: List.map wall walls))).bodies in
+      let moved = List.hd (Physics.simulate ~gravity ~steps (Physics.world (body :: List.map wall walls))).bodies in
       (* the corners of a box at a place and an angle (the Playground's:
        * y upwards, degrees), in the map's coordinates *)
       let (w2, h2) = (width /. 2., height /. 2.) in

@@ -50,20 +50,13 @@ let tumble (map : Soldat_map.t) (ragdoll : Soldat_ragdoll.t) : Soldat_ragdoll.t 
   let (cx, cy, _) = pose now limbs.(0) in
   let walls = List.filter (fun (w : Soldat_map.wall) -> Soldat_map.stops_soldier w.kind) (Soldat_map.sector map cx cy) in
   (* the joints: a pin where a limb hangs from another. Limit 6
-   * (Soldat_limbs.mli): the engine has no way to say two bodies do not
-   * collide but a joint between them, and a body's limbs overlap all
-   * the time: between any two others, a rope that is never taut *)
-  let n = Array.length limbs in
-  let world = ref (Physics.world (bodies @ List.map Soldat_bodies.wall walls)) in
-  for i = 0 to n - 1 do
-    for j = i + 1 to n - 1 do
-      let pinned = match (limbs.(j).parent, limbs.(i).parent) with (Some (p, at), _) when p = i -> Some at | (_, Some (p, at)) when p = j -> Some at | _ -> None in
-      match pinned with
-      | Some point -> let (x, y) = now point in world := Physics.pin i j ~at:(x, -.y) !world
-      | None -> world := Physics.rope ~length:10000. i j ~at_a:(0., 0.) ~at_b:(0., 0.) !world
-    done
-  done;
-  let moved = Array.of_list (Soldat_bodies.small_steps 4 ~gravity:(Soldat_soldier.grav *. 3600.) !world).bodies in
+   * (Soldat_limbs.mli): a body's limbs overlap all the time, and must
+   * not push each other apart: they are one group (Physics.grouped) *)
+  let world = ref (Physics.world (List.map (Physics.grouped 1) bodies @ List.map Soldat_bodies.wall walls)) in
+  Array.iteri
+    (fun i (l : limb) -> match l.parent with Some (parent, point) -> let (x, y) = now point in world := Physics.pin parent i ~at:(x, -.y) !world | None -> ())
+    limbs;
+  let moved = Array.of_list (Physics.simulate ~gravity:(Soldat_soldier.grav *. 3600.) ~steps:Soldat_bodies.steps !world).bodies in
   (* the points, each taken where the limb that carries it went, and
    * where the limb's speed and spin say it was a tick ago (limit 2).
    * Limit 7: a pin gives a little, and a limb rebuilt each tick from

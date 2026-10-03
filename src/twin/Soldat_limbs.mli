@@ -14,7 +14,7 @@
                   |   |
                   4   3           Physics.body (rectangle ...)
                   |   |           Physics.pin a b ~at
-                  1   2           Physics.rope ~length a b ...
+                  1   2           Physics.grouped 1
 
    Nine pins: the neck, two shoulders, two elbows, two hips, two
    knees.
@@ -30,15 +30,17 @@
    speed that is no speed, the grip, the rest; these are a jointed
    body's. The code says "Limit" where it works around one).
 
-   6. *No way to say "these two do not collide".* A body seen from
+   6. *The limbs must not collide with each other.* A body seen from
       the side has its arms over its chest and one leg over the
       other: its limbs overlap all the time, and the engine makes any
-      two bodies that overlap push each other apart, unless a joint
-      holds them together (a seesaw sits on its pivot).
-      Done about it: every two limbs that no pin joins are given a
-      rope 10,000 units long, which is never taut, pulls nothing, and
-      only makes them "joined": 36 ropes for ten limbs.
-      Better: a group, or a mask, on a body.
+      two bodies that overlap push each other apart.
+      Done about it: the ten limbs are one group ([Physics.grouped]),
+      whose bodies pass through each other and still land on the
+      map.
+      This was found here, and [grouped] added to elm-playground for
+      it; until then the only way to say it was a joint between the
+      two, and this twin gave every two limbs that no pin joined a
+      rope 10,000 units long, never taut: 36 ropes.
 
    7. *A joint is made from where the bodies are now, and gives a
       little.* A pin is solved with the contacts, a few times a step,

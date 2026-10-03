@@ -136,7 +136,7 @@ echo ""
 
 VERSION=0.3.5
 # the commit of elm-playground's master this was built and tested on
-COMMIT=9f3e6196c2b28a88ec53e1c420d135a105e12157
+COMMIT=c030515e97671437fc13bbd1d38db4523f6c66a3
 ELM_PLAYGROUND=git+https://github.com/aryx/ocaml-elm-playground#$COMMIT
 # what mini-soldat uses
 PACKAGES="tiny_libs elm_playground elm_playground_software elm_playground_web"

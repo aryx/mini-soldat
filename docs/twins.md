@@ -118,17 +118,20 @@ about each", with the numbers that showed the limit, and its code says
 "Limit" where it works around one: `Soldat_bodies` (five, of any rigid
 body), `Soldat_limbs` (two more, of a jointed one), `Soldat_lockstep`
 (five), `Soldat_gui`, `Soldat_juice`, `Soldat_engine_bot`,
-`Soldat_space`. The two that a change to elm-playground would remove:
+`Soldat_space`.
 
+Two of them were gaps of elm-playground's `Physics`, and were filled
+there for it (its `Physics.mli` tells each at length):
 
-- **One step a tick.** `Physics.simulate` is one step of a sixtieth of
-  a second, and a body that goes farther in a step than it is thick
-  (a weapon 2 thick falling 4 a tick, a limb) is then deeper in the
-  floor than it is wide: the collision's test pushes it out sideways,
-  and it is thrown away at thousands of units a second. The twins take
-  four small steps a tick instead, by asking for a step on speeds four
-  times smaller under a gravity sixteen times smaller, four times
-  (`Soldat_bodies.small_steps`). A `?steps` in `Physics.simulate`
-  would say it better.
-- **No way to say "these two do not collide"** but a joint: the limbs
-  of one body are given ropes that are never taut.
+- **Small steps in a tick**: `Physics.simulate ~steps`. With one step a
+  tick, a body that goes farther in a step than it is thick (a weapon
+  2 thick falling 4 a tick, a limb) is deeper in the floor than it is
+  wide when the step ends, pushed out sideways, and thrown away at
+  thousands of units a second. The twins take four.
+- **Bodies that do not collide with each other**: `Physics.grouped`.
+  The limbs of one body are one group. Before it, the only way to say
+  so was a joint, and the ragdoll had 36 ropes that were never taut.
+
+A twin that finds its library short of something is the twins doing
+their job: the next one that does should be fixed there too, and told
+here.

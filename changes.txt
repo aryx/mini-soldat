@@ -5,6 +5,9 @@
 # (with direction from me)
 
 ** Features
+- the physics' twins on elm-playground's new Physics.simulate ~steps
+  and Physics.grouped, both added there for them: no more steps
+  imitated, no more ropes between the limbs
 - a grenade by the middle button of the mouse too (elm-playground's
   new mouse.mmdown; mclick in a -script), beside e
 - fixed: the page showed nothing in a browser (the system's cursor was
