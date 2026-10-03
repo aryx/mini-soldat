@@ -60,6 +60,23 @@
    It knows nothing of kits, of grenades, of flags, of reloading (an
    empty clip reloads by itself): a small mind, to be read.
 
+   **Limits met here.**
+
+   1. *A waypoint is not a place one can always walk to in a straight
+      line.* The path is between waypoints; the bot is somewhere near
+      one. It heads for the waypoint nearest it first, which may be
+      behind it: it then walks back before it goes on. (Soldat's bot
+      has the same first step, within 350 units.)
+
+   2. *The keys on the way are the map maker's*, for Soldat's bot,
+      which holds the keys of the waypoint it goes to: this one holds
+      the same, and jumps or flies where the map says, not where it
+      would have found by itself.
+
+   3. *The path is asked for again each time it looks* (every 4
+      ticks): A* over a map's hundred waypoints is cheap enough not
+      to keep it.
+
    In Soldat: nothing; its bots are shared/AI.pas (Soldat_bots).
 *)
 open Soldat_model

@@ -1,7 +1,7 @@
 (* Soldat_parts: the parts of the game that are made twice.
 
    Most of mini-soldat is made once: the map, the soldier, the
-   weapons, the bullets, a round's rules. Four parts are made twice
+   weapons, the bullets, a round's rules. Five parts are made twice
    (docs/twins.md): Soldat's own, adapted from its Pascal, in
    src/orig; and a *twin*, the same job done with one of
    elm-playground's libraries, in src/twin.
@@ -10,6 +10,7 @@
        the bots      Soldat_bots (AI.pas)     Soldat_engine_bot (Sense, Bot, Pathfind, Behavior)
        the effects   Soldat_sparks            Soldat_juice (Emitter, Trauma, Follow)
        the things    Soldat_fall (Particles)  Soldat_bodies (Physics: rigid bodies)
+       the dead      Soldat_tumble            Soldat_limbs (Physics: bodies and joints)
        the sound's   Soldat_sound.places      Soldat_space (Space)
         place          (in Soldat_sound)
 
@@ -58,6 +59,10 @@ type things = ?heard:Soldat_event.t list ref -> Soldat_map.t -> Soldat_things.t 
  * chosen and the room clicked out *)
 val lobby : (Playground.computer -> rooms:(string * int) list -> modes:string list -> int -> int * string option) option ref
 
+(* the dead: a body let loose, a tick later *)
+type dead = ?heard:Soldat_event.t list ref -> Soldat_map.t -> Soldat_ragdoll.t -> Soldat_ragdoll.t
+
 val bots : bots slot
 val effects : effects slot
 val things : things slot
+val dead : dead slot

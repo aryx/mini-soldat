@@ -187,7 +187,7 @@ compare ([docs/twins.md](docs/twins.md)):
 | `v` | `audio=` | the sound | 0 silence, 1 every sound as loud, 2 the Playground's `Space`, 3 Soldat's |
 | `j` | `effects=` | the effects | 0 none, 1 the Playground's `Juice`, 2 Soldat's sparks |
 | `i` | `ai=` | the bots | 0 they stand, 1 the Playground's `ai` library, 2 Soldat's bots |
-| `p` | `physics=` | the physics | 0 the dead and the things stay, 1 the Playground's `Physics` (things as rigid bodies), 2 Soldat's |
+| `p` | `physics=` | the physics | 0 the dead and the things stay, 1 the Playground's `Physics` (a thing a rigid body, a dead soldier ten held by joints), 2 Soldat's |
 | `u` | `interface=` | the interface | 0 none, 1 gauges and scores, 2 the Playground's `Gui` (the lobby's buttons), 3 Soldat's |
 
 The network has its twin too: `net=host` on one computer and
@@ -300,11 +300,13 @@ src/server/   the server: who is in which room (Soldat_lobby) and a
               (MiniSoldatServer.ml)
 src/orig/     Soldat's own of the parts that are made twice
               (docs/twins.md): its bots (Soldat_bots), its sparks
-              (Soldat_sparks), how a thing falls (Soldat_fall), and a
+              (Soldat_sparks), how a thing and a dead body fall
+              (Soldat_fall, Soldat_tumble), and a
               player's side of a server's round (Soldat_online)
 src/twin/     their twins, on elm-playground's libraries: the bots on
               ai (Soldat_engine_bot), the effects on juice
-              (Soldat_juice), rigid bodies (Soldat_bodies), the sound's
+              (Soldat_juice), rigid bodies and joints (Soldat_bodies,
+              Soldat_limbs), the sound's
               place (Soldat_space), two players in lockstep
               (Soldat_lockstep), the lobby on Gui (Soldat_gui)
 

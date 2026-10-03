@@ -59,6 +59,39 @@
    net=join (host=127.0.0.1, port=7777), as elm-playground's
    Multiplayer has them. Natively the two talk over UDP.
 
+   **Limits met here, and what is done about each.**
+
+   1. *A platform says how to connect only once it has started.*
+      Transport.connect, called before the Playground's loop runs,
+      answers "no network on this platform": how to open a socket is
+      installed by the platform as it starts.
+      Done about it: [connect] only remembers what was asked, and the
+      first frame's [update] makes the connection.
+
+   2. *The round's start is not sent.* Lockstep and Rollback carry
+      keys, nothing else: two programs started with different flags
+      (another map, other bots) play two different rounds, and say so
+      only at the first checksum.
+      Done about it: nothing but saying it; both must be started
+      alike. A first packet carrying the flags would be the fix.
+
+   3. *What is each program's own must stay out of the checksum.* The
+      camera is in the round's value, and each program's follows its
+      own soldier: the whole round's checksum would differ at once.
+      Done about it: the checksum is of the soldiers alone (their
+      bodies as the wire writes them, their health, their kills).
+
+   4. *The last digit.* A lockstep game needs the two programs to
+      compute the same floats. Two native programs of the same build
+      do; a browser's sine may differ from a native one's in its last
+      digit, and after a few hundred ticks so does the round.
+      Done about it: nothing; a browser against a native program is
+      not supported.
+
+   5. *A round never ends.* The win is the title's business
+      (Soldat_update.update), which this does not go through once the
+      round has started.
+
    Not here: more than two players, a player coming late, a browser
    against a native program (their floats may differ in a last digit,
    and a lockstep game does not forgive it).

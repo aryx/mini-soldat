@@ -27,6 +27,22 @@
    map is turned over as it goes in, and the view draws them as they
    are. A tick is a sixtieth of a second.
 
+   **Limits met here, and what is done about each.**
+
+   1. *The emitter's world is the Playground's*: y upwards, pixels,
+      seconds, degrees. The map's is y downwards, units, ticks. A
+      place is turned over as it goes in ([of_event]) and the dots
+      are drawn as they are, inside the camera, which turns the map
+      over the same way; a tick is a step of a sixtieth of a second.
+
+   2. *Its chance is its own.* An emitter draws from the seed it was
+      made with, not from the round's: the dots are the same from a
+      run to the next, but are no part of what a round replays, and
+      two programs in lockstep may show different ones.
+
+   3. *At most 400 dots* (the cap given to Emitter.empty): a long
+      fight drops the oldest.
+
    Not here: what Soldat's sparks do that a recipe does not say (a
    shell on the ground, the blood left on a wall, an explosion's 16
    pictures): the effects' level 2 is for that.

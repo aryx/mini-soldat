@@ -15,6 +15,7 @@ let register () : unit =
   Soldat_parts.bots.twin <- Some Soldat_engine_bot.part;
   Soldat_parts.effects.twin <- Some Soldat_juice.part;
   Soldat_parts.things.twin <- Some (fun ?heard:_ map thing -> Soldat_bodies.move map thing);
+  Soldat_parts.dead.twin <- Some (fun ?heard:_ map ragdoll -> Soldat_limbs.tumble map ragdoll);
   Soldat_parts.lobby := Some Soldat_gui.lobby;
   Soldat_sound.twin := Some (fun ~listener at -> Some (Soldat_space.heard ~listener at));
   (* the dots: each a disc of its kind's colour, fading as its life goes *)

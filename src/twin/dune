@@ -6,7 +6,8 @@
 ;
 ;   Soldat_engine_bot    the bots: Sense, Bot, Pathfind, Behavior (tiny_libs.ai)
 ;   Soldat_juice         the effects: Emitter, Trauma, Follow (tiny_libs.juice)
-;   Soldat_bodies        how a thing falls: rigid bodies (the Playground's Physics)
+;   Soldat_bodies        how a thing falls: a rigid body (the Playground's Physics)
+;   Soldat_limbs         how a dead body falls: ten of them, held by joints
 ;   Soldat_space         the sound's place: Space (tiny_libs.audio)
 ;   Soldat_lockstep      the network: two players, no server (Lockstep, Rollback)
 ;   Soldat_gui           the lobby's screen: the Playground's Gui

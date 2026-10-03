@@ -458,7 +458,11 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
                soldiers.(i) <- { s with dead = None; health = full_health; body = Soldat_soldier.create ~primary ~secondary:s.secondary ~human:s.human ~team:(team s) (x, y) p.map.jet };
                if not s.human then heard := Sound (Spawn, (x, y)) :: !heard
              end
-             else soldiers.(i) <- { s with dead = Some (ticks + 1, if p.physics = 0 then ragdoll else Soldat_ragdoll.tick ~heard p.map ragdoll) });
+             else begin
+               (* how the body falls is a part's, by the physics' level *)
+               let fall = if p.physics = 0 then None else Soldat_parts.pick Soldat_parts.dead ~twin:(p.physics = 1) in
+               soldiers.(i) <- { s with dead = Some (ticks + 1, match fall with Some fall -> fall ~heard p.map ragdoll | None -> ragdoll) }
+             end);
   say (-1) (List.rev !heard);
   (* 6. what it all gave to see and to hear: the sparks, with a chance
    * of their own, and the sounds *)

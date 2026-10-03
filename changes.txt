@@ -5,6 +5,11 @@
 # (with direction from me)
 
 ** Features
+- the dead body's twin (Soldat_limbs; the physics' level 1): ten rigid
+  limbs of the Playground's Physics held by nine pins, where Soldat's
+  is twenty points and their sticks (now src/orig/Soldat_tumble). The
+  physics' twins take four small steps a tick: a weapon is 2 thick
+  again
 - rollback (the flag rollback, with net=host and net=join): the
   other's keys guessed, the round played again when the guess was
   wrong (elm-playground's Rollback)

@@ -24,8 +24,9 @@ type t = { engine : engine; me : int; play : play; look : (float * float) ref }
  * reach the other *)
 let delay = 3
 
-(* what of a round the two must agree on: its soldiers' bodies, healths
- * and kills (not the camera, each program's own) *)
+(* Limit 3: what of a round the two must agree on, and no more: its
+ * soldiers' bodies, healths and kills. Not the whole round: its camera
+ * is each program's own, and would differ at the first tick *)
 let checksum (p : play) : int32 =
   Checksum.fnv1a (String.concat "" (Array.to_list (Array.map (fun (s : soldier) -> Soldat_wire.encode_body s.body ^ Printf.sprintf "%.3f %d" s.health s.kills) p.soldiers)))
 
@@ -94,8 +95,9 @@ type session = { transport : Transport.t; me : int; rollback : bool; mutable gam
 
 let session : session option ref = ref None
 
-(* asked for, and made at the first frame: a platform says how to
- * connect only once it has started *)
+(* Limit 1 (Soldat_lockstep.mli): asked for here, and made at the first
+ * frame: a platform says how to connect only once it has started, and
+ * Transport.connect before that answers that there is no network *)
 let wanted : (unit -> (session, string) result) option ref = ref None
 
 let connect ?(rollback = false) (caps : < Cap.network ; .. >) (role : Transport.role) : unit =

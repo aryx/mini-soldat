@@ -20,8 +20,8 @@ The port stays the default: the feel is Soldat's.
 | folder | what is in it |
 |---|---|
 | `src/game`, `src/map`, `src/render`... | the shared code: what is made once (the map, the soldier, the weapons, the bullets, a round's rules, the picture) |
-| `src/orig` | Soldat's own of the parts made twice: `Soldat_bots`, `Soldat_sparks` and their pictures, `Soldat_fall`, `Soldat_online` (a round on a server) |
-| `src/twin` | their twins: `Soldat_engine_bot`, `Soldat_juice`, `Soldat_bodies`, `Soldat_space`, `Soldat_lockstep`, `Soldat_gui` |
+| `src/orig` | Soldat's own of the parts made twice: `Soldat_bots`, `Soldat_sparks` and their pictures, `Soldat_fall`, `Soldat_tumble`, `Soldat_online` (a round on a server) |
+| `src/twin` | their twins: `Soldat_engine_bot`, `Soldat_juice`, `Soldat_bodies`, `Soldat_limbs`, `Soldat_space`, `Soldat_lockstep`, `Soldat_gui` |
 
 The shared code names neither folder. A part is a record of functions,
 and `Soldat_parts` has a *slot* for each, Soldat's and the twin's; a
@@ -57,7 +57,7 @@ compared.
 | the sound | `v` | `audio=` | silence | every sound as loud, wherever it is | **the Playground's `Space`**: its attenuation and its pan | Soldat's: quieter by the distance, to a side |
 | the effects | `j` | `effects=` | none | **the Playground's `Juice`**: `Emitter`'s particles, `Trauma`'s shake, `Follow`'s camera | Soldat's sparks | |
 | the bots | `i` | `ai=` | they stand | **the Playground's `ai`**: `Sense`, `Bot`, `Pathfind`, `Behavior` | Soldat's bots | |
-| the physics | `p` | `physics=` | the dead stay as they fell, things do not fall | **the Playground's `Physics`**: a thing is one rigid body | Soldat's: ragdolls and things on `Particles` | |
+| the physics | `p` | `physics=` | the dead stay as they fell, things do not fall | **the Playground's `Physics`**: a thing is one rigid body, a dead soldier ten held by joints | Soldat's: ragdolls and things on `Particles` | |
 | the interface | `u` | `interface=` | none | the gauges and the scores | **the Playground's `Gui`**: the lobby's buttons and its menu | Soldat's: the kill console, the pictures, the cursor, the table |
 
 The network is not a layer with a key (a round cannot change its
@@ -86,7 +86,7 @@ between: the particles are seen only, but live in the round.
 | the effects | `Soldat_sparks` (from `Sparks.pas`), the camera of `Soldat_update.follow` | `Soldat_juice`: `Emitter.burst` and `step`, `Trauma.add`, `decay` and `offset`, `Follow.smooth` | done |
 | the sound's place | `Soldat_sound.heard` (from `Sound.pas`) | `Soldat_space`: `Space.attenuation`, `Space.direction` | done |
 | things on the ground | `Soldat_things` on `Particles` | `Soldat_bodies`: a kit or a weapon as one body of the `Physics` layer (`body`, `immovable` for the map's walls, `simulate`) | done |
-| a dead body | `Soldat_ragdoll` on `Particles` | `Joint2d` between bodies (`Physics.pin`) | waits for elm-playground: `Physics.simulate` has one step a tick, so a body that falls farther in a tick than it is thick is already deeper in the floor than it is wide, and the collision's test (the axis of least overlap) pushes it out sideways, harder each tick. A limb is 3 thick and falls 4 a tick. Smaller steps there (or a test along the way) first |
+| a dead body | `Soldat_tumble`: its skeleton's points and sticks, on `Particles` | `Soldat_limbs`: ten rigid limbs of the `Physics` layer held by nine `Physics.pin`, and a slack `Physics.rope` between any two others for them not to collide | done; a limb cut off is not there |
 | the network | `Soldat_room`: the server plays, `Prediction`, `Interpolation` | `Soldat_lockstep`: two players, no server, only the keys sent (`Lockstep.step`, `packet`, `receive`, `checksum`, `desync`); `Sim_net` as the network in its tests; and with the flag `rollback`, the other's keys guessed and the round played again when the guess was wrong (`Rollback.create`, `step`, `model`) | done |
 | the menus | text shapes by hand | `Soldat_gui`: the lobby on `Gui` (immediate mode: `Gui.button`, `Gui.menu`, `Gui.draw`) | done for the lobby; the title and the weapons' menu to come |
 
@@ -110,3 +110,25 @@ Markdown quoting the code.
 10. The network (`Wire`, `Server`, `Prediction`, `Interpolation`; twin: `Lockstep`)
 11. The interface (twin: `gui`)
 12. The layers: the same game, a layer at a time
+
+## Found on the way, of elm-playground
+
+Each twin's `.mli` has a section "Limits met here, and what is done
+about each", with the numbers that showed the limit, and its code says
+"Limit" where it works around one: `Soldat_bodies` (five, of any rigid
+body), `Soldat_limbs` (two more, of a jointed one), `Soldat_lockstep`
+(five), `Soldat_gui`, `Soldat_juice`, `Soldat_engine_bot`,
+`Soldat_space`. The two that a change to elm-playground would remove:
+
+
+- **One step a tick.** `Physics.simulate` is one step of a sixtieth of
+  a second, and a body that goes farther in a step than it is thick
+  (a weapon 2 thick falling 4 a tick, a limb) is then deeper in the
+  floor than it is wide: the collision's test pushes it out sideways,
+  and it is thrown away at thousands of units a second. The twins take
+  four small steps a tick instead, by asking for a step on speeds four
+  times smaller under a gravity sixteen times smaller, four times
+  (`Soldat_bodies.small_steps`). A `?steps` in `Physics.simulate`
+  would say it better.
+- **No way to say "these two do not collide"** but a joint: the limbs
+  of one body are given ropes that are never taut.

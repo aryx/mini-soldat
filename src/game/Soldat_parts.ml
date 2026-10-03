@@ -31,6 +31,9 @@ type effects = {
 type things = ?heard:Soldat_event.t list ref -> Soldat_map.t -> Soldat_things.t -> Soldat_things.t
 
 let lobby : (Playground.computer -> rooms:(string * int) list -> modes:string list -> int -> int * string option) option ref = ref None
+type dead = ?heard:Soldat_event.t list ref -> Soldat_map.t -> Soldat_ragdoll.t -> Soldat_ragdoll.t
+
 let bots : bots slot = { orig = None; twin = None }
 let effects : effects slot = { orig = None; twin = None }
 let things : things slot = { orig = None; twin = None }
+let dead : dead slot = { orig = None; twin = None }

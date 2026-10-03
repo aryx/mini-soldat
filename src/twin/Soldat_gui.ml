@@ -17,7 +17,7 @@ let lobby (computer : computer) ~(rooms : (string * int) list) ~(modes : string 
   List.iteri
     (fun i (room, players) ->
       let label = Printf.sprintf "%s    %s" room (match players with 0 -> "nobody yet" | 1 -> "1 player" | n -> Printf.sprintf "%d players" n) in
-      (* not through the menu's items, while they show *)
+      (* Limit 2 (Soldat_gui.mli): not through the menu's items, while they show *)
       if Gui.button computer ~at:(0., 180. -. (50. *. float_of_int i)) label && not (Gui.modal ()) then clicked := Some room)
     rooms;
   (mode, !clicked)

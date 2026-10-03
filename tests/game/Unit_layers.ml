@@ -13,6 +13,7 @@
 let near = Alcotest.float
 let tick (p : Soldat_model.play) : Soldat_model.play = Soldat_update.tick p Soldat_model.still ~look:(0., 0.)
 let rec after n p = if n = 0 then p else after (n - 1) (tick p)
+let after_ticks = after
 
 (* a floor with four waypoints in a row, each leading to its
  * neighbours, and a fifth nobody leads to *)
@@ -107,14 +108,48 @@ let tests =
               Alcotest.(check bool) (name ^ ": it comes to rest") true (left > 0 && rested.still);
               Alcotest.(check bool) (Printf.sprintf "%s: on the floor, not through it (%.2f)" name (lowest rested)) true (lowest rested > -3. && lowest rested < 1.5);
               Alcotest.(check (near 0.01)) (name ^ ": its shape is kept") (side thing) (side rested);
-              (* a tick of free fall: gravity's 0.06 a tick, a tick *)
+              (* a tick of free fall, in its four steps: each adds its
+               * part of gravity's 0.06 to the speed, then moves:
+               * 0.06 / 16 x (1 + 2 + 3 + 4) = 0.0375 *)
               let (_, one) = fall 1 thing in
-              Alcotest.(check (near 0.01)) (name ^ ": a tick's fall") 0.06 (lowest one -. lowest thing))
+              Alcotest.(check (near 0.001)) (name ^ ": a tick's fall") 0.0375 (lowest one -. lowest thing))
             [ ("a kit", kit); ("a weapon", gun) ];
           (* in a round, at the physics' level 1 *)
           let p = after 100 (Soldat_update.start ~bots:[] floor) in
           let p = after 300 { p with physics = 1; things = [ Soldat_things.lying Ak74 (300., -100.) ] } in
           Alcotest.(check bool) "in a round: the weapon lies on the floor" true (match p.things with [ t ] -> t.still && lowest t > -3. && lowest t < 1.5 | _ -> false));
+      Testo.create "the dead body's twin: limbs and joints" (fun () ->
+          let floor = Testutil_map.floor () in
+          (* a soldier let loose 80 above the floor, going right at 2 a tick *)
+          let body = Soldat_soldier.create (0., -100.) 190 in
+          let dead = Soldat_ragdoll.of_soldier body ~push:(2., 0.) in
+          let at (r : Soldat_ragdoll.t) n = r.points.(n - 1).pos in
+          let far (r : Soldat_ragdoll.t) a b = let (ax, ay) = at r a and (bx, by) = at r b in Float.hypot (bx -. ax) (by -. ay) in
+          let rec after n r = if n = 0 then r else after (n - 1) (Soldat_limbs.tumble floor r) in
+          let one = after 1 dead in
+          Alcotest.(check bool) "a tick: it falls, and goes right" true (snd (at one 12) > snd (at dead 12) && fst (at one 12) > fst (at dead 12) +. 1.);
+          let lying = after 400 dead in
+          let lowest = Array.fold_left (fun y (p : Particles.particle) -> Float.max y (snd p.pos)) (-1e9) lying.points in
+          let highest = Array.fold_left (fun y (p : Particles.particle) -> Float.min y (snd p.pos)) 1e9 lying.points in
+          Alcotest.(check bool) (Printf.sprintf "on the floor, not through it (%.1f)" lowest) true (lowest > -4. && lowest < 4.);
+          Alcotest.(check bool) (Printf.sprintf "lying down: no point more than a body's width up (%.1f)" highest) true (highest > -16.);
+          (* rigid limbs: as long as they were *)
+          Alcotest.(check (near 0.05)) "its arm is as long as it was" (far dead 10 13) (far lying 10 13);
+          Alcotest.(check (near 0.05)) "its thigh too" (far dead 5 4) (far lying 5 4);
+          (* at rest *)
+          let next = after 1 lying in
+          Alcotest.(check bool) "and it lies still" true (Float.hypot (fst (at next 12) -. fst (at lying 12)) (snd (at next 12) -. snd (at lying 12)) < 0.2);
+          Alcotest.(check bool) (Printf.sprintf "not slid out of sight (%.0f)" (fst (at lying 12))) true (Float.abs (fst (at lying 12)) < 300.);
+          (* in a round, at the physics' level 1: a soldier shot dead ends lying on its room's floor *)
+          let p = after_ticks 100 (Soldat_update.start ~bots:(Soldat_bots.cast 1 0) Testutil_map.rooms) in
+          let (bx, by) = Soldat_bullets.place p.soldiers.(1) in
+          let shot = Soldat_bullets.of_shot ~owner:0 { from = (bx -. 30., by); velocity = (55., 0.); weapon = Barrett } in
+          let p = after_ticks 150 { p with physics = 1; bullets = [ shot ] } in
+          (match p.soldiers.(1).dead with
+          | Some (_, r) ->
+              let low = Array.fold_left (fun y (q : Particles.particle) -> Float.max y (snd q.pos)) (-1e9) r.points in
+              Alcotest.(check bool) (Printf.sprintf "in a round: the dead lies on the floor (%.1f)" low) true (low > -6. && low < 4.)
+          | None -> Alcotest.fail "not dead"));
       Testo.create "the sound: how loud, from where, at each level" (fun () ->
           let heard level = Soldat_sound.level := level; let h = Soldat_sound.heard ~listener:(0., 0.) (300., 0.) in Soldat_sound.level := 3; h in
           let at = Alcotest.(option (pair (near 0.001) (near 0.001))) in

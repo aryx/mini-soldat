@@ -203,7 +203,7 @@ let layers : (layer * string * string * int * string list) list =
     (Audio, "v", "audio", 0, [ "silence"; "every sound as loud, wherever it is"; "the Playground's Space"; "Soldat's: by the distance, to a side" ]);
     (Effects, "j", "effects", 0, [ "none"; "the Playground's Juice: an emitter, a trauma"; "Soldat's sparks" ]);
     (Ai, "i", "ai", 0, [ "the bots stand"; "the Playground's: Sense, Bot, Pathfind, Behavior"; "Soldat's bots" ]);
-    (Physics, "p", "physics", 0, [ "the dead and the things stay as they are"; "the Playground's Physics: things as rigid bodies"; "Soldat's: ragdolls and things on Particles" ]);
+    (Physics, "p", "physics", 0, [ "the dead and the things stay as they are"; "the Playground's Physics: rigid bodies and joints"; "Soldat's: ragdolls and things on Particles" ]);
     (Interface, "u", "interface", 0, [ "none"; "the gauges and the scores"; "the Playground's Gui: the lobby's buttons and its menu"; "Soldat's: who killed whom, the pictures, the cursor" ]) ]
 
 (* the layers that have a twin, each with the level that is it: the

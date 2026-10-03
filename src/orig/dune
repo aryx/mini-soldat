@@ -6,6 +6,7 @@
 ;   Soldat_sparks        the sparks (shared/mechanics/Sparks.pas), and
 ;   Soldat_sparks_view     their pictures
 ;   Soldat_fall          how a thing falls: points and sticks (Things.pas)
+;   Soldat_tumble        how a dead body falls: its skeleton let loose (Sprites.pas)
 ;   Soldat_online        a round played on a server: the network, Soldat's
 ;                        way (shared/network/NetworkClient*.pas)
 ;   Soldat_orig          puts them in the game's slots (register)

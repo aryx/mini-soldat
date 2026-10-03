@@ -18,6 +18,19 @@
    heard at 100 / 300 = 0.333 of its loudness, from sin 45 = 0.707 of
    the way to the right. Soldat's own: 1 - 300 / 750 = 0.6, and 0.287.
 
+   **Limits met here.**
+
+   1. *An inverse never reaches nothing*: at 2,000 units a shot is
+      still heard at a twentieth. Soldat's falls to nothing at 750. So
+      at this level a fight across the map is a murmur, and more
+      sounds reach the mixer; Soldat_sound keeps the loudest few a
+      tick, whatever the level.
+
+   2. *Space is in three dimensions, the game in two*: the listener
+      is put 300 units behind the screen, looking into it, so that a
+      sound straight above is in the middle and one 300 to the right
+      is at 45 degrees.
+
    It is the sound's level 2 (the key v, audio=2).
 *)
 
