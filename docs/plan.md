@@ -345,8 +345,9 @@ be.
 - After the steps: **twins and layers** (`docs/twins.md`): the game as
   a showcase of the Playground's libraries and a thing to learn from.
   Six layers with their keys and levels; three twins (the bots, the
-  effects, the sound's place). To come there: rigid bodies, a
-  lockstep game, the `gui` library, and the book.
+  effects, the sound's place), then three more (things as rigid
+  bodies, two players in lockstep, the lobby on `Gui`). To come
+  there: a dead body on joints, rollback, and the book.
 
 Nothing is the toy's any more but the twins (`docs/twins.md`).
 

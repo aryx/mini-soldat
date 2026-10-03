@@ -25,4 +25,4 @@ let sockets_allowed () : bool =
 let () =
   Cap.main (fun caps ->
       Testo.interpret_argv ~project_name:"server" (fun _env ->
-          Unit_protocol.tests @ Unit_wire.tests @ Unit_lobby.tests @ Unit_room.tests @ if sockets_allowed () then Unit_server.tests caps @ Unit_online.tests caps else []))
+          Unit_protocol.tests @ Unit_wire.tests @ Unit_lobby.tests @ Unit_room.tests @ Unit_lockstep.tests @ if sockets_allowed () then Unit_server.tests caps @ Unit_online.tests caps else []))

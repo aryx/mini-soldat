@@ -88,6 +88,18 @@ second weapon is said as the first is (`Secondary`); the server's flag
 whom travels with the round, as do the deaths, the bonuses and the
 vests.
 
+## The twin: two players in lockstep
+
+`net=host` and `net=join host=ADDRESS` (`port=7777`), both programs
+started with the same flags, play a round with no server
+(`Soldat_lockstep`, `docs/twins.md`): each plays the whole round, bots
+and all, and only the keys are sent, 10 bytes a tick, 3 ticks ahead
+(elm-playground's `Lockstep`). A checksum of the soldiers each second
+says if the two rounds ever differ. Against the server's way: nothing
+to run and almost nothing to send, but one's keys are always 50 ms
+late and the slower connection sets both players' pace. Natively, over
+UDP; not between a browser and a native program.
+
 ## The lobby's screen
 
 Without `room=` a player is in the lobby and sees the rooms: one for

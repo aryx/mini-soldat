@@ -312,8 +312,15 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
            match thing.kind with
            | Flag team -> Some (flag team thing)
            | _ ->
-           (* the physics' level 0: a thing stays where it is *)
-           match Soldat_things.tick ~heard p.map (if p.physics = 0 then { thing with still = true } else thing) with
+           (* the physics' level: 0, a thing stays where it is; 1, the
+            * twin moves it, as one rigid body, and Soldat's tick only
+            * counts its time *)
+           let moved = if p.physics = 1 && not thing.still then Soldat_bodies.move p.map thing else thing in
+           let ticked =
+             if p.physics = 2 then Soldat_things.tick ~heard p.map thing
+             else Option.map (fun (t : Soldat_things.t) -> { t with still = moved.still }) (Soldat_things.tick ~heard p.map { moved with still = true })
+           in
+           match ticked with
            | None -> None
            | Some thing when Soldat_things.lost p.map thing -> Some (Soldat_things.again p.map ~random thing)
            | Some thing -> (

@@ -14,4 +14,5 @@
    tiny_libs.physics_2d ; Particles: a body's points
    elm_playground_software ; an implem of virtual elm_playground, to link
    tiny_libs.networking_protocols ; Transport: a client's two ends
+   tiny_libs.networking_netcode ; Sim_net: the lockstep's network, in one program
    tiny_libs.networking_unix)) ; Relay_client: a native WebSocket client

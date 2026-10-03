@@ -5,6 +5,12 @@
 # (with direction from me)
 
 ** Features
+- three more twins (docs/twins.md): things on the ground as rigid
+  bodies of the Playground's Physics (Soldat_bodies; the physics'
+  level 1); two players in lockstep, no server, only the keys sent
+  (Soldat_lockstep, net=host and net=join, on Lockstep; Sim_net in its
+  tests); the lobby's screen on the Playground's Gui (the
+  interface's level 2)
 - layers (docs/twins.md): each part of the game with levels from
   nothing to Soldat's own, a key each (g graphics, v audio, j effects,
   i the bots, p physics, u interface; the same as flags; basic: all at

@@ -97,7 +97,8 @@ is a port and the Playground has a library for it, the part gets a
 *twin*, the same job on that library, chosen while the game runs
 (`Soldat_engine_bot` on `Sense`, `Bot`, `Pathfind`, `Behavior`;
 `Soldat_juice` on `Emitter`, `Trauma`, `Follow`; the sound's place on
-`Space`). Soldat's port stays the default. And each part is a *layer*
+`Space`; `Soldat_bodies` on the `Physics` layer; the lobby on `Gui`;
+`Soldat_lockstep` on `Lockstep`, the flags `net=host` and `net=join`). Soldat's port stays the default. And each part is a *layer*
 with levels from nothing to Soldat's own, a key each
 (`Soldat_model.layers`: `g` graphics, `v` audio, `j` effects, `i` the
 bots, `p` physics, `u` interface; the same names as flags, `ai=1`;

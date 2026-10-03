@@ -178,6 +178,25 @@ let tests (caps : < Cap.network ; .. >) =
           press w (holding [ "c" ]);
           frames 20 w;
           Alcotest.(check bool) "c: the knife as the second weapon, there too" true ((truth_in w asked "pad").secondary = Knife));
+      Testo.create "the lobby's twin: the Playground's Gui" (fun () ->
+          let w = connect caps ~seats:2 ~lag:0 ~room:Soldat_protocol.lobby in
+          w.model <- Soldat_model.initial_model ~levels:[ (Interface, 2) ] floor;
+          (* a frame of the view's too: Gui.draw ends a frame of widgets *)
+          let frames n = for _ = 1 to n do frame w; ignore (Gui.draw ()) done in
+          frames 80;
+          Alcotest.(check bool) "in the lobby" true (lobby w <> None);
+          (* the mouse on the second room's button: pressed, let go *)
+          let mouse mdown mclick = { (holding []) with mouse = { (holding []).mouse with mx = 0.; my = 130.; mdown; mclick } } in
+          w.computer <- mouse false false;
+          frames 3;
+          w.computer <- mouse true false;
+          frames 3;
+          w.computer <- mouse false true;
+          frames 1;
+          w.computer <- mouse false false;
+          frames 60;
+          Alcotest.(check bool) "a click on a room's button: in its round" true
+            (shown w <> None && match Soldat_server.game w.server (List.nth Soldat_model.maps 1) with Some game -> Soldat_room.players game = 1 | None -> false));
       Testo.create "a weapon chosen" (fun () ->
           let w = start caps ~seats:1 ~lag:6 in
           (* the key 8 of Soldat's menu: the Barrett *)

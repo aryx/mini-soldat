@@ -160,6 +160,9 @@ val yellow : Soldat_map.t -> random:(unit -> float) -> t
 val touchdown_radius : float
 val lost : Soldat_map.t -> t -> bool
 
+(* the kinds of wall a thing lies on (TThing.CheckMapCollision) *)
+val holds : Pms.kind -> bool
+
 (* how far a point (a soldier's particle) is from the thing, if within
  * its radius *)
 val reach : t -> float * float -> float option

@@ -246,12 +246,12 @@ let layers : (layer * string * string * int * string list) list =
     (Audio, "v", "audio", 0, [ "silence"; "every sound as loud, wherever it is"; "the Playground's Space"; "Soldat's: by the distance, to a side" ]);
     (Effects, "j", "effects", 0, [ "none"; "the Playground's Juice: an emitter, a trauma"; "Soldat's sparks" ]);
     (Ai, "i", "ai", 0, [ "the bots stand"; "the Playground's: Sense, Bot, Pathfind, Behavior"; "Soldat's bots" ]);
-    (Physics, "p", "physics", 0, [ "the dead and the things stay as they are"; "Soldat's: ragdolls and things on Particles" ]);
-    (Interface, "u", "interface", 0, [ "none"; "the gauges and the scores"; "Soldat's: who killed whom, the pictures, the cursor" ]) ]
+    (Physics, "p", "physics", 0, [ "the dead and the things stay as they are"; "the Playground's Physics: things as rigid bodies"; "Soldat's: ragdolls and things on Particles" ]);
+    (Interface, "u", "interface", 0, [ "none"; "the gauges and the scores"; "the Playground's Gui: the lobby's buttons and its menu"; "Soldat's: who killed whom, the pictures, the cursor" ]) ]
 
 (* the layers that have a twin, each with the level that is it: the
  * key z puts them all there, and back at Soldat's own *)
-let twins : (layer * int) list = [ (Audio, 2); (Effects, 1); (Ai, 1) ]
+let twins : (layer * int) list = [ (Audio, 2); (Effects, 1); (Ai, 1); (Physics, 1); (Interface, 2) ]
 
 (* a layer's highest level: Soldat's own *)
 let top (layer : layer) : int =

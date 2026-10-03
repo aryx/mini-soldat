@@ -307,8 +307,22 @@ let update (computer : computer) (model : model) : model =
             let n = List.length rooms in
             let up = (not typing) && Scene2d.pressed (fun k -> k.kup || k.kw) scenes and down = (not typing) && Scene2d.pressed (fun k -> k.kdown || k.ks) scenes in
             s.chosen <- (s.chosen + (if down then 1 else 0) + (if up then n - 1 else 0)) mod n;
-            (* left and right: the mode to ask a new room with *)
             let words = "" :: List.map fst mode_words in
+            (* the interface's twin: the same screen as widgets of the
+             * Playground's Gui, asked for here and drawn by the view
+             * (Gui.draw): a button a room, clicked to enter it, and a
+             * menu for the mode. Immediate mode: no button object, only
+             * "was I clicked this frame" *)
+            if level model Interface = 2 then begin
+              s.mode <- Gui.menu computer ~at:(0., -60.) (List.map (fun w -> if w = "" then "the map's own mode" else w) words) s.mode;
+              List.iteri
+                (fun i (room, players) ->
+                  let label = Printf.sprintf "%s    %s" room (match players with 0 -> "nobody yet" | 1 -> "1 player" | n -> Printf.sprintf "%d players" n) in
+                  if Gui.button computer ~at:(0., 180. -. (50. *. float_of_int i)) label && not (Gui.modal ()) then
+                    enter s (if List.nth words s.mode = "" || not (List.mem room maps) then room else room ^ "." ^ List.nth words s.mode))
+                rooms
+            end;
+            (* left and right: the mode to ask a new room with *)
             let left = (not typing) && Scene2d.pressed (fun k -> k.kleft || k.ka) scenes and right = (not typing) && Scene2d.pressed (fun k -> k.kright || k.kd) scenes in
             s.mode <- (s.mode + (if right then 1 else 0) + (if left then List.length words - 1 else 0)) mod List.length words;
             let word = List.nth words s.mode in

@@ -32,8 +32,13 @@ compared.
 | the sound | `v` | `audio=` | silence | every sound as loud, wherever it is | **the Playground's `Space`**: its attenuation and its pan | Soldat's: quieter by the distance, to a side |
 | the effects | `j` | `effects=` | none | **the Playground's `Juice`**: `Emitter`'s particles, `Trauma`'s shake, `Follow`'s camera | Soldat's sparks | |
 | the bots | `i` | `ai=` | they stand | **the Playground's `ai`**: `Sense`, `Bot`, `Pathfind`, `Behavior` | Soldat's bots | |
-| the physics | `p` | `physics=` | the dead stay as they fell, things do not fall | Soldat's: ragdolls and things on `Particles` | | |
-| the interface | `u` | `interface=` | none | the gauges and the scores | Soldat's: the kill console, the pictures, the cursor, the table | |
+| the physics | `p` | `physics=` | the dead stay as they fell, things do not fall | **the Playground's `Physics`**: a thing is one rigid body | Soldat's: ragdolls and things on `Particles` | |
+| the interface | `u` | `interface=` | none | the gauges and the scores | **the Playground's `Gui`**: the lobby's buttons and its menu | Soldat's: the kill console, the pictures, the cursor, the table |
+
+The network is not a layer with a key (a round cannot change its
+network while it is played) but a way to start: `server=HOST` for
+Soldat's way, a server that plays; `net=host` and `net=join` for the
+twin, two players in lockstep.
 
 `basic` puts them all at their lowest. `z` (or the flag `twins`) puts
 every layer that has a twin at it, all the Playground's libraries at
@@ -55,10 +60,10 @@ between: the particles are seen only, but live in the round.
 | the bots | `Soldat_bots` (from `AI.pas`) | `Soldat_engine_bot`: `Sense` (what it has seen, remembered, forgotten), `Bot` (late, and not every tick), `Pathfind.astar` over the map's waypoints, a `Behavior` tree for what to do | done |
 | the effects | `Soldat_sparks` (from `Sparks.pas`), the camera of `Soldat_update.follow` | `Soldat_juice`: `Emitter.burst` and `step`, `Trauma.add`, `decay` and `offset`, `Follow.smooth` | done |
 | the sound's place | `Soldat_sound.heard` (from `Sound.pas`) | `Space.attenuation`, `Space.pan` | done |
-| things on the ground | `Soldat_things` on `Particles` | rigid bodies: the `Physics` layer, or `Body`, `Collide`, `Solver` | to come |
-| a dead body | `Soldat_ragdoll` on `Particles` | `Joint2d` between bodies | to come |
-| the network | `Soldat_room`: the server plays, `Prediction`, `Interpolation` | two players in lockstep (`Lockstep`, `Rollback`): a round replays from its inputs already; `Sim_net` in the tests | to come |
-| the menus | text shapes by hand | the `gui` library (`Immediate`, `Layout`) for the lobby | to come |
+| things on the ground | `Soldat_things` on `Particles` | `Soldat_bodies`: a kit or a weapon as one body of the `Physics` layer (`body`, `immovable` for the map's walls, `simulate`) | done |
+| a dead body | `Soldat_ragdoll` on `Particles` | `Joint2d` between bodies (`Physics.pin`) | to come: the engine throws a box thinner than 4 units that lands on its end (`Soldat_bodies.mli`), and a limb is 3 thick; to fix there first |
+| the network | `Soldat_room`: the server plays, `Prediction`, `Interpolation` | `Soldat_lockstep`: two players, no server, only the keys sent (`Lockstep.step`, `packet`, `receive`, `checksum`, `desync`); `Sim_net` as the network in its tests | done; `Rollback` to come |
+| the menus | text shapes by hand | the lobby on `Gui` (immediate mode: `Gui.button`, `Gui.menu`, `Gui.draw`) | done for the lobby; the title and the weapons' menu to come |
 
 ## The book
 

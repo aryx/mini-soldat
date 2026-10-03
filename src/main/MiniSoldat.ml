@@ -79,9 +79,13 @@ let help =
                    room's name is its map's). There: t, a line,
                    enter, to talk; escape, back to the lobby
          audio=N effects=N ai=N physics=N interface=N   a layer's
-                   level, 0 none to Soldat's own (docs/twins.md);
+                   level, 0 none to Soldat's own, the Playground's
+                   twin in between (docs/twins.md);
                    basic: every layer at its lowest; twins: each
                    that has a twin at it (the key z: there and back)
+         net=host, net=join   two players, no server: each plays the
+                   round, only the keys are sent (lockstep; port=7777,
+                   bind=, host=; both started with the same flags)
          ai=engine the last of them not Soldat's but one on
                    elm-playground's Sense and Bot: it knows only what
                    it has seen, and reacts as late as a hand does
@@ -185,5 +189,15 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
         Soldat_online.connect caps ~host ~port ~nick ~room;
         { first with scenes = Scene2d.start (Soldat_model.Connecting ("connecting to " ^ host ^ "...")) })
   in
-  let app = Playground.game Soldat_view.view Soldat_online.update first in
+  (* net=host or net=join: two players in lockstep, no server
+   * (Soldat_lockstep, the network's twin); both started alike *)
+  let flag name default = Option.value (List.assoc_opt name flags) ~default in
+  let port = Option.value (int_of_string_opt (flag "port" "7777")) ~default:7777 in
+  let peer =
+    match List.assoc_opt "net" flags with
+    | Some "host" -> Soldat_lockstep.connect caps (Host { bind = flag "bind" "127.0.0.1"; port }); true
+    | Some "join" -> Soldat_lockstep.connect caps (Join { host = flag "host" "127.0.0.1"; port }); true
+    | _ -> false
+  in
+  let app = Playground.game Soldat_view.view (if peer then Soldat_lockstep.update else Soldat_online.update) first in
   Playground_platform.run_app ~flags app))

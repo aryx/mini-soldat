@@ -366,7 +366,7 @@ let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(interface : in
     @ if List.mem_assoc "hitboxes" computer.flags then List.concat_map view_tested soldiers else [])
   (* the interface's level: 1, the gauges and the scores; 2, Soldat's *)
   :: (if interface >= 1 then view_scores computer p @ view_interface computer p.map p.soldiers.(me) else [])
-  @ (if interface >= 2 then view_log computer p @ icon (Some p.soldiers.(me).body.weapon.kind.id) (computer.screen.left + 330., computer.screen.bottom + 70.) @ view_board computer p else [])
+  @ (if interface >= 3 then view_log computer p @ icon (Some p.soldiers.(me).body.weapon.kind.id) (computer.screen.left + 330., computer.screen.bottom + 70.) @ view_board computer p else [])
   @ (if p.soldiers.(me).dead <> None && interface >= 1 then (text white 3. "respawning..." |> move_y (top - 150.)) :: view_menu primary (0., top - 200.) else [])
 
 (* Soldat's cursor, drawn where the mouse is (the system's own is
@@ -375,7 +375,8 @@ let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(interface : in
  * menu, its arrow, the tip at the mouse *)
 let view_cursor (computer : computer) (model : model) : shape list =
   let (x, y) = (computer.mouse.mx, computer.mouse.my) in
-  let me = match model.scenes.scene with Playing p -> Some p.soldiers.(0) | Online (p, me) -> Some p.soldiers.(me) | _ -> None in
+  (* the sight is Soldat's interface's; the twin's has the arrow, to click with *)
+  let me = if level model Interface < 3 then None else match model.scenes.scene with Playing p -> Some p.soldiers.(0) | Online (p, me) -> Some p.soldiers.(me) | _ -> None in
   let picture name size at = match Soldat_assets.picture ~keyed:false "interface-gfx" name with Here p -> [ bitmap size size p |> move (fst at) (snd at) ] | _ -> [ circle white 2. |> move x y ] in
   match me with
   | Some s when s.dead = None ->
@@ -416,14 +417,19 @@ let view (computer : computer) (model : model) : shape list =
       [ rectangle (rgb 40 60 80) screen.width screen.height;
         text white 5. "MINI SOLDAT" |> move_y 320.;
         text white 2. "the server's rooms: a round each, bots in the seats nobody has" |> move_y 250. ]
-      @ List.mapi
-          (fun i (room, players) ->
-            let line = Printf.sprintf "%s %-16s %s" (if i = chosen then ">" else " ") room (match players with 0 -> "nobody yet" | 1 -> "1 player" | n -> Printf.sprintf "%d players" n) in
-            text (if i = chosen then rgb 255 220 80 else white) 2.5 line |> move_y (180. - (40. * float_of_int i)))
-          rooms
-      @ [ text white 1.8 ("here: " ^ String.concat " " here) |> move_y (-120.);
-          text (rgb 255 220 80) 2. ("a new room's mode:  < " ^ (if mode = "" then "the map's own" else mode) ^ " >") |> move_y (-80.);
-          text white 1.8 "up, down: a room   left, right: the mode   enter: play there   t: say a line   escape, in a game: back here" |> move_y (-160.) ]
+      (* the interface's twin (docs/twins.md): the widgets Soldat_online
+       * asked the Playground's Gui for this frame, a button a room and
+       * a menu for the mode; else Soldat_online's own lines *)
+      @ (if interface = 2 then Gui.draw () @ [ text white 1.8 "click a room to play there; the menu: a new room's mode" |> move_y (-230.) ]
+         else
+           List.mapi
+             (fun i (room, players) ->
+               let line = Printf.sprintf "%s %-16s %s" (if i = chosen then ">" else " ") room (match players with 0 -> "nobody yet" | 1 -> "1 player" | n -> Printf.sprintf "%d players" n) in
+               text (if i = chosen then rgb 255 220 80 else white) 2.5 line |> move_y (180. - (40. * float_of_int i)))
+             rooms
+           @ [ text (rgb 255 220 80) 2. ("a new room's mode:  < " ^ (if mode = "" then "the map's own" else mode) ^ " >") |> move_y (-80.);
+               text white 1.8 "up, down: a room   left, right: the mode   enter: play there   t: say a line   escape, in a game: back here" |> move_y (-160.) ])
+      @ [ text white 1.8 ("here: " ^ String.concat " " here) |> move_y (-120.) ]
       @ List.mapi (fun i line -> text white 1.6 line |> move 0. (screen.bottom + 150. - (22. * float_of_int i))) model.lines
       @ (match model.typing with Some line -> [ text (rgb 255 220 80) 1.8 ("say: " ^ line ^ "_") |> move 0. (screen.bottom + 20.) ] | None -> [])
   | Connecting why -> [ rectangle (rgb 40 60 80) computer.screen.width computer.screen.height; text white 3. why ]

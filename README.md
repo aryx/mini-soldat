@@ -187,8 +187,14 @@ compare ([docs/twins.md](docs/twins.md)):
 | `v` | `audio=` | the sound | 0 silence, 1 every sound as loud, 2 the Playground's `Space`, 3 Soldat's |
 | `j` | `effects=` | the effects | 0 none, 1 the Playground's `Juice`, 2 Soldat's sparks |
 | `i` | `ai=` | the bots | 0 they stand, 1 the Playground's `ai` library, 2 Soldat's bots |
-| `p` | `physics=` | the physics | 0 the dead and the things stay, 1 Soldat's |
-| `u` | `interface=` | the interface | 0 none, 1 gauges and scores, 2 Soldat's |
+| `p` | `physics=` | the physics | 0 the dead and the things stay, 1 the Playground's `Physics` (things as rigid bodies), 2 Soldat's |
+| `u` | `interface=` | the interface | 0 none, 1 gauges and scores, 2 the Playground's `Gui` (the lobby's buttons), 3 Soldat's |
+
+The network has its twin too: `net=host` on one computer and
+`net=join host=ADDRESS` on another (started with the same flags) play
+a round with no server, in lockstep: each program plays the whole
+round and only the keys are sent (`Soldat_lockstep`, on the
+Playground's `Lockstep`).
 
 The key `z` (or the flag `twins`) puts every twin on at once, and
 again back to Soldat's own. `basic` starts with every layer at its lowest: sticks that move and
