@@ -30,7 +30,12 @@
        replayed:                 42   43   44   45    on what it says
 
    Only the body is guessed: what its shots hit, its health, its
-   death are the server's alone.
+   death are the server's alone. And the guess is right only once the
+   first keys have been answered: until then the server plays its
+   ticks without them, the keys on their way are played here on top,
+   and a soldier still falling from where it appeared is shown a
+   little ahead, then put back (tests/server/Unit_online.ml counts
+   it: five times, 100 ms away).
 
    **The others, a little in the past** (elm-playground's
    Interpolation). Rounds come 30 times a second and frames are drawn

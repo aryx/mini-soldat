@@ -18,6 +18,8 @@
 //   make serve-website &
 //   node scripts/perf/web_probe.js "http://127.0.0.1:8000/play.html?graphics=3" 16
 //
+// A third argument is a file: the page's picture at the end, as PNG.
+//
 // How the limit of 32 pictures was found (docs/plan.md, "To decide"):
 // 64 images in the page, 40 PNG encoded a frame, 9 frames a second.
 // No dependency: the few lines of WebSocket a client needs are below.
@@ -53,6 +55,7 @@ function get(u){return new Promise((res,rej)=>http.get(u,r=>{let d="";r.on("data
       if(s===6){ await send("Input.dispatchKeyEvent",{type:"keyDown",key:"d",code:"KeyD",text:"d",windowsVirtualKeyCode:68}); }
       const r=await Promise.race([send("Runtime.evaluate",{expression:"JSON.stringify({frames:window.__frames,pngs:window.__urls,png_ms:Math.round(window.__urlms),long:window.__long.splice(0).slice(0,12),images:document.getElementsByTagName('image').length})",returnByValue:true}), new Promise(r=>setTimeout(()=>r({timeout:true}),8000))]);
       console.log("t="+s+"s", r.timeout?"(page busy)":r.result&&r.result.value); }
+    if(process.argv[4]){ const shot=await send("Page.captureScreenshot",{format:"png"}); require("fs").writeFileSync(process.argv[4], Buffer.from(shot.data,"base64")); }
     chrome.kill(); process.exit(0);
   }
 })();

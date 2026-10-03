@@ -1,7 +1,8 @@
 ; unit tests for the server, run by 'make test' (dune runtest): the
 ; protocol's bytes (Unit_protocol), the lobby's rule called as a
-; function (Unit_lobby), and the whole server talked to over localhost
-; by real WebSocket clients (Unit_server)
+; function (Unit_lobby), the whole server talked to over localhost
+; by real WebSocket clients (Unit_server), and by the game's own side
+; of a round, a frame for a tick (Unit_online)
 (test
  (name Test)
  (libraries

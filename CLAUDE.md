@@ -16,9 +16,9 @@ Cairo, optionally).
 
 Four programs: `mini-soldat` and `mini-soldat-software` on the desktop,
 the same game in a browser (js_of_ocaml, the website's), and
-`mini-soldat-server`, where players are to meet to play over the
-network (a lobby with rooms for now: `docs/network.md` says what is
-there and what is to come; keep it true).
+`mini-soldat-server`, where players meet to play over the network
+(a lobby, and rooms whose rounds the server plays: `docs/network.md`
+says what is there and what is to come; keep it true).
 
 The goal is the real game: its maps, textures, soldier, weapons,
 gameplay and feel. Soldat's sources and content are public and are the

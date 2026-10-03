@@ -5,6 +5,15 @@
 # (with direction from me)
 
 ** Features
+- the player's side of a round on a server is tested
+  (tests/server/Unit_online.ml: Soldat_online against Soldat_server
+  over localhost, 100 ms each way): a seat, its own soldier moved at
+  once and never corrected when left alone, corrected when shot, the
+  others moving in every frame
+- fixed: the jump's sound was never heard (jump.wav was ADPCM: now
+  plain samples; a test reads each sound's format); a player's name
+  in the scores is its shirt's colour made lighter (a dark blue was
+  not read on the sky)
 - over the network (docs/plan.md's step 8): mini-soldat-server plays a
   room's round, 60 ticks a second, its soldiers bots' until a player
   takes one (Soldat_room); the game as bytes (Soldat_wire) in two new

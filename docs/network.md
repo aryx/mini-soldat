@@ -94,9 +94,20 @@ players meet on the same server.
 - **A connection lost** is not found again; a round's end starts
   another on the same map.
 - **A password, kicks, bans, a map list.**
-- **Tests of the player's side**: the bytes, the room and the lobby
-  are tested; `Soldat_online` was tried by hand against a running
-  server (a soldier taken, moved, fired, shown), not by a test.
+- **A measure on a real, far connection**: the player's side is tested
+  (`tests/server/Unit_online.ml`: `Soldat_online` against
+  `Soldat_server` over localhost, its messages held 100 ms each way)
+  and was tried by hand, two native programs and a browser's in the
+  same room; never further than this computer.
+
+What the test says of the guess: a key moves the player's soldier the
+frame it is pressed, 12 frames before the server's answer; running,
+jumping, on the jets, it ends where the server has it without having
+been corrected once; shot by another, it is. One thing shows at the
+start: until the first keys are answered (a round trip), the server
+plays ticks without them and the guess adds them on top, so a soldier
+falling from where it appears is shown a little ahead and put back,
+five times at 100 ms each way.
 
 ## Running one for the website
 

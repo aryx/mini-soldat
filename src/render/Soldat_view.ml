@@ -246,7 +246,13 @@ let view_scores (computer : computer) (p : play) : shape list =
   in
   teams
   @ (text white 2. (Printf.sprintf "%d:%02d    first to %d" (seconds /.. 60) (seconds mod 60) (limit p)) |> move_y (screen.top - 30.))
-  :: List.mapi (fun i (s : soldier) -> text s.color 1.8 (Printf.sprintf "%-12s %2d" s.name s.kills) |> move (screen.right - 110.) (screen.top - 30. - (24. * float_of_int i))) ranked
+  :: List.mapi
+       (fun i (s : soldier) ->
+         (* its shirt's colour, half way to white: a dark blue is not read on the sky *)
+         let (r, g, b) = s.shirt in
+         let light c = (c +.. 255) /.. 2 in
+         text (rgb (light r) (light g) (light b)) 1.8 (Printf.sprintf "%-12s %2d" s.name s.kills) |> move (screen.right - 110.) (screen.top - 30. - (24. * float_of_int i)))
+       ranked
 
 (* through the camera, in Soldat's order: what is behind, the bullets,
  * the soldiers, then the map's polygons over them; over it all and

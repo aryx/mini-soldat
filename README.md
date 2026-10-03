@@ -128,17 +128,20 @@ https://aryx.github.io/mini-soldat/.
 
 ## The server
 
-`./bin/mini-soldat-server` is where players will meet to play over the
-network. For now it is a lobby: players connect (WebSocket, so a
-browser can), name themselves, enter rooms and talk; the games played
-in the rooms are to come ([docs/network.md](docs/network.md)).
+`./bin/mini-soldat-server` is where players meet to play over the
+network. Players connect (WebSocket, so a browser can), name
+themselves, enter rooms and talk; a room is a round the server plays,
+60 ticks a second, its soldiers bots' until a player takes one
+([docs/network.md](docs/network.md)).
 
 ```bash
 ./bin/mini-soldat-server                       # 127.0.0.1:23073, this computer only
 ./bin/mini-soldat-server bind=0.0.0.0 port=23073 capacity=32
+./bin/mini-soldat server=127.0.0.1 nick=pad room=ctf_Ash    # a player; a room's name is its map's
 ```
 
-Nothing in the game talks to it yet: its tests do (`tests/server`).
+In a browser the same flags are the page's:
+`play.html?server=127.0.0.1&nick=pad&room=Arena2`.
 
 ## Playing
 

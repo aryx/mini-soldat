@@ -55,7 +55,15 @@ let tests =
           Alcotest.(check (list string)) "by a number" [ "step"; "step2"; "step3"; "step4"; "step3" ] (List.map (Soldat_sfx.file Step) [ 0; 1; 2; 3; 6 ]);
           Alcotest.(check int) "86 files in all" 86 (List.length (List.sort_uniq compare Soldat_sfx.files));
           (* each is in data/sfx (the test's dune rule brings them beside it) *)
-          List.iter (fun name -> Alcotest.(check bool) (name ^ ".wav is in data/sfx") true (Sys.file_exists ("../../data/sfx/" ^ name ^ ".wav"))) Soldat_sfx.files);
+          List.iter (fun name -> Alcotest.(check bool) (name ^ ".wav is in data/sfx") true (Sys.file_exists ("../../data/sfx/" ^ name ^ ".wav"))) Soldat_sfx.files;
+          (* and is what the Playground's Audio reads, once its 8 bits
+           * are made 16: plain samples (format 1), not ADPCM's *)
+          List.iter
+            (fun name ->
+              let wav = Soldat_sound.to_16_bit (In_channel.with_open_bin ("../../data/sfx/" ^ name ^ ".wav") In_channel.input_all) in
+              let u16 i = Char.code wav.[i] lor (Char.code wav.[i + 1] lsl 8) in
+              Alcotest.(check (pair string (pair int int))) (name ^ ".wav: plain samples of 16 bits") ("fmt ", (1, 16)) (String.sub wav 12 4, (u16 20, u16 34)))
+            Soldat_sfx.files);
       Testo.create "how loud, and from where" (fun () ->
           let heard at = Soldat_sound.heard ~listener:(100., 50.) at in
           (* 300 to the right: 1 - 300 / 750, and 300 / sqrt (300^2 + 1000^2) *)
