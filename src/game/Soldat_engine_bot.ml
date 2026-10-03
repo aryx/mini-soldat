@@ -35,10 +35,44 @@ let look (p : play) (i : int) (was : (float * float) Sense.target) : (float * fl
       let t = chest p.soldiers.(j) in
       Sense.update ~distance:(distance j) ~clear:(Soldat_map.clear p.map (mx, my) t) ~position:t was |> Sense.forget ~after:90
 
+(* its way (Pathfind.astar): the map's waypoints are a graph, each
+ * saying which others one can go to from it; the cheapest path from
+ * the one nearest it to the one nearest where it wants to be, a step's
+ * cost its length. The next waypoint of that path, if there is one *)
+let way (map : Soldat_map.t) (from : float * float) (goal : float * float) : Pms.waypoint option =
+  let n = Array.length map.waypoints in
+  let at k = let (w : Pms.waypoint) = map.waypoints.(k) in (float_of_int w.x, float_of_int w.y) in
+  let far (ax, ay) (bx, by) = Float.hypot (bx -. ax) (by -. ay) in
+  let nearest (place : float * float) : int =
+    List.fold_left (fun best k -> if map.waypoints.(k).active && (best < 0 || far place (at k) < far place (at best)) then k else best) (-1) (List.init n Fun.id)
+  in
+  let (start, target) = (nearest from, nearest goal) in
+  if start < 0 || target < 0 then None
+  else
+    let problem : int Pathfind.problem =
+      { neighbors = (fun k -> List.filter_map (fun c -> if c >= 1 && c <= n && map.waypoints.(c - 1).active then Some (c - 1, far (at k) (at (c - 1))) else None) map.waypoints.(k).connections);
+        goal = (fun k -> k = target);
+        estimate = (fun k -> far (at k) (at target)) }
+    in
+    (* at its first waypoint already (within 40 units): the one after *)
+    match (Pathfind.astar problem start).path with
+    | first :: next :: _ when far from (at first) < 40. -> Some map.waypoints.(next)
+    | first :: _ -> Some map.waypoints.(first)
+    | [] -> None
+
 let sense (was : senses option) ((p, i) : play * int) : senses =
   let me = p.soldiers.(i) in
   let enemy = look p i (match was with Some s -> s.enemy | None -> Sense.unknown) in
-  { me = chest me; my_vx = me.body.vx; my_fuel = me.body.jets; seed = i; frame = p.frame; enemy }
+  (* where it wants to be: where it last saw its enemy; knowing nobody,
+   * a waypoint of the map, another every ten seconds *)
+  let goal =
+    match enemy.position with
+    | Some at -> Some at
+    | None ->
+        let n = Array.length p.map.waypoints in
+        if n = 0 then None else let (w : Pms.waypoint) = p.map.waypoints.(((p.frame / 600) + (i * 7)) mod n) in Some (float_of_int w.x, float_of_int w.y)
+  in
+  { me = chest me; my_vx = me.body.vx; my_fuel = me.body.jets; seed = i; frame = p.frame; enemy; way = Option.bind goal (way p.map (chest me)) }
 
 (*****************************************************************************)
 (* Its mind *)
@@ -51,13 +85,31 @@ let keys ~(run : float) ~(jump : bool) ~(jet : bool) ~(aim : float * float) ~(fi
 (* a bot that knows only what it has seen needs somewhere to go when
  * it knows nobody: it patrols, turning every two seconds and hopping
  * when it is stuck against something *)
+type doing = Fight | Travel | Patrol
+
+(* what to do (Behavior): the first of these that holds. A tree, read
+ * from the top: a selector tries each in turn, a sequence needs all of
+ * its own *)
+let tree : (senses, doing) Behavior.t =
+  Selector
+    [ Sequence [ Condition ("sees its enemy", fun (s : senses) -> s.enemy.visible); Action ("fight", Fight) ];
+      Sequence [ Condition ("has a way to go", fun (s : senses) -> s.way <> None); Action ("travel", Travel) ];
+      Sequence [ Condition ("remembers its enemy", fun (s : senses) -> s.enemy.position <> None); Action ("go where it was", Fight) ];
+      Action ("patrol", Patrol) ]
+
 let decide (s : senses) : intent =
   let (mx, my) = s.me in
-  match s.enemy.position with
-  | None ->
+  match (Behavior.decide tree s, s.way, s.enemy.position) with
+  | (Some Travel, Some w, _) ->
+      (* along its way: towards the waypoint, holding the keys it says
+       * (the map's maker's: jump here, fly there), hopping when stuck *)
+      let (wx, wy) = (float_of_int w.x, float_of_int w.y) in
+      let run = if Float.abs (wx -. mx) < 8. then 0. else Float.copy_sign 1. (wx -. mx) in
+      keys ~run ~jump:(w.up || Float.abs s.my_vx < 0.2) ~jet:((w.jetpack || my -. wy > 60.) && s.my_fuel > 20) ~aim:(wx, wy) ~fire:false
+  | (_, _, None) ->
       let way = if ((s.frame / 120) + s.seed) mod 2 = 0 then 1. else -1. in
       keys ~run:way ~jump:(Float.abs s.my_vx < 0.2) ~jet:false ~aim:(mx +. (way *. 100.), my) ~fire:false
-  | Some (tx, ty) ->
+  | (_, _, Some (tx, ty)) ->
       (* y goes down: above is less *)
       let dx = tx -. mx and up = my -. ty in
       let seen = s.enemy.visible in

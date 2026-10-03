@@ -420,6 +420,6 @@ let decode_world (map : Soldat_map.t) (bytes : string) : (play, string) result =
         Wire.fail r "a soldier that is not there";
       {
         map; mode; captures = (alpha, bravo); news; camera = (0., 0.); soldiers; brains = Array.make n None; minds = Array.make n None; bullets; things;
-        sparks = []; spark_seed = Lehmer.of_int 1; sounds = []; events; time_left; seed = Lehmer.of_int 1; frame; log; bonuses = 0;
+        sparks = []; spark_seed = Lehmer.of_int 1; sounds = []; events; time_left; seed = Lehmer.of_int 1; frame; log; bonuses = 0; ai = top Ai; physics = top Physics; effects = top Effects; juice = Soldat_juice.none;
       })
     bytes

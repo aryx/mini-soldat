@@ -130,6 +130,9 @@ type senses = {
   seed : int; (* which soldier: its aim wobbles its own way *)
   frame : int; (* to patrol by, when it has nobody to chase *)
   enemy : (float * float) Sense.target;
+  (* the next waypoint of its way, on a map that has some: to where it
+   * last saw its enemy, or to a far place of the map when it knows nobody *)
+  way : Pms.waypoint option;
 }
 
 (* a bullet, a pellet, a grenade: Soldat's TBullet *)
@@ -207,6 +210,12 @@ type play = {
   log : (string * Soldat_weapons.id option * string * int) list;
   (* how often bonus kits appear, 1 to 5; never: 0 *)
   bonuses : int;
+  (* the levels of the layers that are a round's (docs/twins.md): the
+   * bots, the physics, the effects; and the effects' twin's dots *)
+  ai : int;
+  physics : int;
+  effects : int;
+  juice : Soldat_juice.t;
 }
 
 (* the map goes from a round to the next: the title's, the round's,
@@ -225,21 +234,35 @@ type scene =
   | Lobby of { rooms : (string * int) list; chosen : int; here : string list; mode : string }
   | Connecting of string
 
-(* how much of Soldat's look is drawn, the steps this game was made
- * in (docs/plan.md), each one a key away (g) to see what it added:
- *   1  the soldiers as their skeletons' sticks, the map in flat colours
- *   2  the soldiers' pictures
- *   3  the map's texture and scenery *)
-let graphics_levels = 3
+(* The layers (docs/twins.md): what a game is made of, each with its
+ * levels from nothing to Soldat's own, a key away to see and hear what
+ * each adds; one of them, often, the same job done with the
+ * Playground's library (a twin). A layer's key, its name (its flag's
+ * too), its first level's number, and what each level is *)
+type layer = Graphics | Audio | Effects | Ai | Physics | Interface
 
-let graphics_name (level : int) : string =
-  match level with 1 -> "1: skeletons, flat colours" | 2 -> "2: the soldiers' pictures" | _ -> "3: the map's texture and scenery"
+let layers : (layer * string * string * int * string list) list =
+  [ (Graphics, "g", "graphics", 1, [ "skeletons, flat colours"; "the soldiers' pictures"; "the map's texture and scenery" ]);
+    (Audio, "v", "audio", 0, [ "silence"; "every sound as loud, wherever it is"; "the Playground's Space"; "Soldat's: by the distance, to a side" ]);
+    (Effects, "j", "effects", 0, [ "none"; "the Playground's Juice: an emitter, a trauma"; "Soldat's sparks" ]);
+    (Ai, "i", "ai", 0, [ "the bots stand"; "the Playground's: Sense, Bot, Pathfind, Behavior"; "Soldat's bots" ]);
+    (Physics, "p", "physics", 0, [ "the dead and the things stay as they are"; "Soldat's: ragdolls and things on Particles" ]);
+    (Interface, "u", "interface", 0, [ "none"; "the gauges and the scores"; "Soldat's: who killed whom, the pictures, the cursor" ]) ]
+
+(* the layers that have a twin, each with the level that is it: the
+ * key z puts them all there, and back at Soldat's own *)
+let twins : (layer * int) list = [ (Audio, 2); (Effects, 1); (Ai, 1) ]
+
+(* a layer's highest level: Soldat's own *)
+let top (layer : layer) : int =
+  List.fold_left (fun n (l, _, _, first, names) -> if l = layer then first + List.length names - 1 else n) 0 layers
 
 type model = {
   scenes : scene Scene2d.t;
-  graphics : int;
-  (* frames its name still shows for, after a change *)
-  graphics_shown : int;
+  (* each layer's level *)
+  levels : (layer * int) list;
+  (* the level just chosen, said for a moment: its words, the frames left *)
+  said : (string * int) option;
   (* the weapon the player appears with: the keys 1 to 9 and 0 *)
   primary : Soldat_weapons.id;
   (* and as its second (the key c goes round them) *)
@@ -316,13 +339,16 @@ let rambo (s : soldier) : bool = s.dead = None && Soldat_weapons.is_bow s.body.w
 (* a team's shirt: Soldat's red and blue *)
 let team_shirt (t : int) : int * int * int = if t = 1 then (210, 15, 5) else (21, 31, 217)
 
-let model_at ?(graphics = graphics_levels) (first : scene) : model =
-  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; secondary = Socom; bonuses = 0; rounds = 0; bots = 3; mode = None; next_map = 1; lines = []; typing = None }
+let level (model : model) (layer : layer) : int = List.assoc layer model.levels
 
-let initial_model ?graphics (map : Soldat_map.t) : model = model_at ?graphics (Title map)
+let model_at ?(levels : (layer * int) list = []) (first : scene) : model =
+  { scenes = Scene2d.start first; said = None;
+    levels = List.map (fun (l, _, _, first, _) -> (l, match List.assoc_opt l levels with Some n -> max first (min (top l) n) | None -> top l)) layers; primary = Ak74; secondary = Socom; bonuses = 0; rounds = 0; bots = 3; mode = None; next_map = 1; lines = []; typing = None }
+
+let initial_model ?levels (map : Soldat_map.t) : model = model_at ?levels (Title map)
 
 (* starting on a map asked by its name (maps/NAME.pms of the content) *)
-let loading_model ?graphics (name : string) : model = model_at ?graphics (Loading name)
+let loading_model ?levels (name : string) : model = model_at ?levels (Loading name)
 
 (* Soldat shows 640 units across (DEFAULT_WIDTH): how many of the
  * screen's a unit is *)

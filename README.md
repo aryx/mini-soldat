@@ -176,6 +176,25 @@ The key `g` goes round the graphics, the game as each step of its
 making drew it: 1 the soldiers as skeletons on flat colours, 2 their
 pictures, 3 the map's texture and scenery.
 
+The game is made of **layers**, each with a key that goes round its
+levels, from nothing to Soldat's own; one of the levels is often the
+same job done with one of elm-playground's libraries, a *twin*, to
+compare ([docs/twins.md](docs/twins.md)):
+
+| key | flag | the layer | its levels |
+|---|---|---|---|
+| `g` | `graphics=` | the picture | 1 skeletons, 2 the soldiers' pictures, 3 the map's texture |
+| `v` | `audio=` | the sound | 0 silence, 1 every sound as loud, 2 the Playground's `Space`, 3 Soldat's |
+| `j` | `effects=` | the effects | 0 none, 1 the Playground's `Juice`, 2 Soldat's sparks |
+| `i` | `ai=` | the bots | 0 they stand, 1 the Playground's `ai` library, 2 Soldat's bots |
+| `p` | `physics=` | the physics | 0 the dead and the things stay, 1 Soldat's |
+| `u` | `interface=` | the interface | 0 none, 1 gauges and scores, 2 Soldat's |
+
+The key `z` (or the flag `twins`) puts every twin on at once, and
+again back to Soldat's own. `basic` starts with every layer at its lowest: sticks that move and
+shoot. Add a layer at a time and each thing a game is made of comes
+in by itself.
+
 Flags: without any, the game is on Arena2, which the program carries,
 its texture and scenery in `data/` (run it from the repository; without
 them the map is in flat colours). With a checkout of
@@ -210,8 +229,10 @@ escape comes back to the lobby).
 in a browser; 0: none).
 `bots=N` is how many bots one plays against (3; up to 15).
 `ai=engine` makes the last of them not Soldat's but one on
-elm-playground's `Sense` and `Bot` (`Soldat_engine_bot`, an example of
-that library): it knows only what it has seen, remembers for a second
+elm-playground's `ai` library (`Soldat_engine_bot`, the bots' twin;
+`ai=1` or the key `i` gives it to all of them): it finds its way over
+the map's waypoints (`Pathfind`), decides by a small tree
+(`Behavior`), knows only what it has seen, remembers for a second
 and a half where it last saw you, and reacts as late as a hand does.
 `hitboxes` draws the points the game tests (the particle, the head and
 the feet, the circles a bullet hits), `sticks` the soldiers' skeletons

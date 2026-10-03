@@ -49,7 +49,7 @@ let fight () =
   Alcotest.(check bool) "somebody was killed" true (kills > 0);
   Alcotest.(check int) "a minute less on the clock" (Soldat_model.time_limit - 3600) !p.time_left
 
-(* ai=engine: the last bot is the one on Sense and Bot. In the three
+(* ai=engine: the last bot is the twin, on the Playground's ai library. In the three
  * rooms, where nobody sees anybody, its senses hold no enemy: it
  * knows only what it has seen, and patrols *)
 let engine () =

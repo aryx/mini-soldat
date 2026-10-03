@@ -342,8 +342,13 @@ be.
   **an interface**: who killed whom (the kill console), the scores as
   a table (Tab), the weapons' pictures in the menu.
 
-Nothing is the toy's any more but the bot of `ai=engine`, kept as an
-example.
+- After the steps: **twins and layers** (`docs/twins.md`): the game as
+  a showcase of the Playground's libraries and a thing to learn from.
+  Six layers with their keys and levels; three twins (the bots, the
+  effects, the sound's place). To come there: rigid bodies, a
+  lockstep game, the `gui` library, and the book.
+
+Nothing is the toy's any more but the twins (`docs/twins.md`).
 
 ## The rules of the road
 

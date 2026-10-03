@@ -1,9 +1,10 @@
-(* Soldat_engine_bot: one bot that is not Soldat's, on elm-playground's
-   ai library. The flag ai=engine puts it in a round, in place of the
-   last of Soldat's bots.
+(* Soldat_engine_bot: the bots' twin (docs/twins.md): a bot that is not
+   Soldat's, on elm-playground's ai library. The bots' level 1 (the key
+   i, ai=1) gives every bot this mind; the flag ai=engine puts one in a
+   round, in place of the last of Soldat's bots.
 
-   It is here as an example of that library (tiny_libs.ai: Sense and
-   Bot), next to a bot written the old way (Soldat_bots, a port of
+   It is here as an example of that library (tiny_libs.ai: Sense, Bot,
+   Pathfind and Behavior), next to a bot written the old way (Soldat_bots, a port of
    Soldat's ControlBot): the two fight in the same round, by the same
    keys, and one can read how each is made.
 
@@ -38,9 +39,26 @@
    steps behind a wall: for 90 ticks the bot still goes to where it
    saw it last, without firing; then it patrols again.
 
-   It knows nothing of the map's waypoints, of kits, of grenades, of
-   reloading (an empty clip reloads by itself): a small mind, to be
-   read.
+   **Its way** (Pathfind). A map's waypoints are a graph: each says
+   which others one can go to from it, and the keys to hold on the way
+   (jump here, fly there). Soldat's bot walks that graph at random, a
+   connection by chance at each waypoint. This one asks for the
+   cheapest path (Pathfind.astar, a step's cost its length, the
+   straight line left as the estimate) from the waypoint nearest it to
+   the one nearest where it wants to be: where it last saw its enemy,
+   or, knowing nobody, a waypoint of the map, another every ten
+   seconds. Its senses carry the next waypoint of that path.
+
+   **What to do** (Behavior) is a tree, read from the top:
+
+       selector
+         sequence   sees its enemy?        -> fight
+         sequence   has a way to go?       -> travel
+         sequence   remembers its enemy?   -> go where it was
+         patrol
+
+   It knows nothing of kits, of grenades, of flags, of reloading (an
+   empty clip reloads by itself): a small mind, to be read.
 
    In Soldat: nothing; its bots are shared/AI.pas (Soldat_bots).
 *)
@@ -48,6 +66,10 @@ open Soldat_model
 
 (* its looks, and the weapon it appears with *)
 val character : character
+
+(* the next waypoint of the cheapest path over the map's waypoints
+ * from a place to another; none on a map without them *)
+val way : Soldat_map.t -> float * float -> float * float -> Pms.waypoint option
 
 (* what soldier [i] may know of a round, from what it knew a tick ago *)
 val sense : senses option -> play * int -> senses

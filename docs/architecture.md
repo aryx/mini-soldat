@@ -329,7 +329,8 @@ The game can be drawn as each step of its making drew it:
 | 2 | their pictures | flat polygons | 17 bitmaps a soldier, 134 polygons |
 | 3 | their pictures | its texture and scenery | 17 bitmaps a soldier, 14 tiles |
 
-`g` goes round them, `graphics=N` starts at one. The flags `sticks`
+`g` goes round them, `graphics=N` starts at one; the picture is one of
+six layers, each with its key and its levels (`docs/twins.md`). The flags `sticks`
 and `hitboxes` add the skeleton and the points the game tests, over
 any of them.
 

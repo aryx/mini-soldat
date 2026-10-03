@@ -111,10 +111,23 @@ let start (name : string) (s : Audio.sound) ~(volume : float) ~(pan : float) : u
 (* Played *)
 (*****************************************************************************)
 
+(* the sound's layer (docs/twins.md): 0 silence; 1 every sound as loud;
+ * 2 the Playground's Space; 3 Soldat's *)
+let level = ref 3
+
 let heard ~(listener : float * float) ((x, y) : float * float) : (float * float) option =
   let (dx, dy) = (x -. fst listener, y -. snd listener) in
   let d = Float.hypot dx dy /. max_dist in
-  if d > 1. then None else Some (1. -. d, dx /. Float.hypot dx pan_width)
+  match !level with
+  | 0 -> None
+  | 1 -> Some (1., 0.)
+  | 2 ->
+      (* the twin: full within 100 units then as their inverse
+       * (Space.attenuation), and the sine of its angle from straight
+       * ahead for a listener looking into the screen (Space.direction) *)
+      let volume = Space.attenuation ~reference:100. (Float.hypot dx dy) in
+      Some (volume, Space.direction ~listener:(Space.vec 0. 0. (-300.)) ~right:(Space.vec 1. 0. 0.) (Space.vec dx dy 0.))
+  | _ -> if d > 1. then None else Some (1. -. d, dx /. Float.hypot dx pan_width)
 
 (* what is heard of it from far, in its place and besides *)
 let distant (sfx : Soldat_sfx.t) : Soldat_sfx.t option =
@@ -131,7 +144,7 @@ let play ~(listener : float * float) ~(frame : int) (sounds : (Soldat_sfx.t * (f
           let pan = dx /. Float.hypot dx pan_width in
           let far =
             match distant sfx with
-            | Some rumble when d > 0.5 ->
+            | Some rumble when d > 0.5 && !level = 3 ->
                 (* louder up to the sound's own reach, fading over as much again *)
                 let d' = if d > 1. then d -. 1. else 1. -. (2. *. d) in
                 if d' > 1. then [] else [ (Float.min 1. (1. -. d'), pan, Soldat_sfx.file rumble (frame + i)) ]

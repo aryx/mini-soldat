@@ -52,8 +52,9 @@ Yoann's direction (2026-10-02), to follow in every part:
   weapons' numbers as in Soldat. When in doubt, Soldat's numbers
   (`shared/Constants.pas`, `weapons.ini`), at its 60 ticks a second.
 - **The physics is elm-playground's** (`~/playground/libs/physics/`,
-  `tiny_libs.physics_2d`), Soldat's logic encoded on it and on the
-  Playground's `Physics` layer. Soldat's own physics is a small Verlet
+  `tiny_libs.physics_2d`), Soldat's logic encoded on its `Particles`
+  (the Playground's `Physics` layer and its rigid bodies are not used
+  yet: `docs/twins.md`). Soldat's own physics is a small Verlet
   particle system with stick constraints (`shared/Parts.pas`: a
   soldier is one particle that moves, in `SpriteParts`, and a skeleton
   of particles and sticks, `GostekSkeleton`, for its body), which is
@@ -86,10 +87,24 @@ Rambomatch, with the bow), the sparks
 (`Soldat_sparks`, `Soldat_sparks_view`) and the sounds (`Soldat_sfx`,
 `Soldat_sound`). Of
 TinySoldat one thing is kept, on purpose: `Soldat_engine_bot`, a bot on
-elm-playground's `Sense` and `Bot` (the flag `ai=engine` puts it in a
-round in place of the last of Soldat's), as an example of that library
-next to a bot written Soldat's way. It is not a port: keep it small,
-its mind reading its senses and nothing else.
+elm-playground's `ai` library, as an example of that library next to a
+bot written Soldat's way. It is not a port: keep it small, its mind
+reading its senses and nothing else.
+
+**Twins and layers** (`docs/twins.md`, Yoann, 2026-10-03): the game is
+also to showcase the Playground's libraries and to teach. Where a part
+is a port and the Playground has a library for it, the part gets a
+*twin*, the same job on that library, chosen while the game runs
+(`Soldat_engine_bot` on `Sense`, `Bot`, `Pathfind`, `Behavior`;
+`Soldat_juice` on `Emitter`, `Trauma`, `Follow`; the sound's place on
+`Space`). Soldat's port stays the default. And each part is a *layer*
+with levels from nothing to Soldat's own, a key each
+(`Soldat_model.layers`: `g` graphics, `v` audio, `j` effects, `i` the
+bots, `p` physics, `u` interface; the same names as flags, `ai=1`;
+`basic`: all at their lowest; `z` or `twins`: every twin at once, and
+back), so that the game can be had bare and a
+layer added at a time. A new part gets its layer's levels and, where
+the Playground has the library, its twin; keep `docs/twins.md` true.
 
 How a port is written here, as `Soldat_soldier.ml` is:
 
@@ -182,7 +197,8 @@ keys each says to hold), and, read by the main before the game starts:
 to 5 often; none without it, as in Soldat),
 `mode=dm|pm|tdm|ctf|rm|inf|htf` (`Soldat_model.mode_words`; the map's own without it: capture the flag where
 the map has the two flags' places), `bots=N` (how many to play with
-and against: 3), `ai=engine` (the last of
+and against: 3), the layers' (`graphics=N`, `audio=N`, `effects=N`,
+`ai=N`, `physics=N`, `interface=N`, `basic`), `ai=engine` (the last of
 them the bot on `Sense` and `Bot`), `mute` (no sound), `sparks=N` (at
 most N sparks: 558, or 150 in a browser),
 `map=FILE` (a `.pms`; `~/` understood), `map=NAME` (`maps/NAME.pms`
@@ -193,8 +209,8 @@ base64, `src/map/dune`'s rule); `base=DIR` where the content is
 `base=~/work/GAMES/opensoldat-base/shared` has every map's);
 `weapon=N` (the weapon to appear with, by its key in Soldat's menu: 1
 the Desert Eagles ... 9 the Minimi, 0 the minigun);
-`graphics=N` (1 to 3: `Soldat_model.graphics_name`; the key `g` goes
-round them).
+`graphics=N` (1 to 3: `Soldat_model.layers`; the key `g` goes round
+them).
 
 The content got while the game runs (`Soldat_assets`: a map's texture
 and scenery, a map by its name) comes at once natively and later in a

@@ -165,6 +165,7 @@ let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_wea
     brains = Array.of_list (None :: List.mapi (fun i c -> if i + 1 = engine_at then None else Some (Soldat_bots.brain c)) bots);
     minds = Array.of_list (None :: List.mapi (fun i _ -> if i + 1 = engine_at then Some (Bot.start still) else None) bots);
     bullets = []; things; events = []; sparks = []; spark_seed = Lehmer.scramble (seed' + 1000); sounds = []; time_left = time_limit; seed = !seed; frame = 0; log = []; bonuses;
+    ai = top Ai; physics = top Physics; effects = top Effects; juice = Soldat_juice.none;
   }
 
 (* a tick: [player] is what the human soldier wants, [look] where its
@@ -193,13 +194,18 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
   |> Array.iteri (fun i s ->
          if s.dead = None then begin
            let it =
-             match (brains.(i), minds.(i)) with
+             (* a bot at the round's level of bots (docs/twins.md): 0, it
+              * stands; 1, the Playground's twin for all of them *)
+             let mind = if p.ai = 1 && brains.(i) <> None then Some (Option.value minds.(i) ~default:(Bot.start still)) else minds.(i) in
+             match (brains.(i), mind) with
              | (None, None) -> ( match controls with Some of_ -> of_ i | None -> player)
-             | (None, Some mind) ->
-                 (* the bot of ai=engine: its senses, late, and its mind *)
+             | (Some _, _) when p.ai = 0 -> still
+             | (_, Some mind) when p.ai = 1 || brains.(i) = None ->
+                 (* the twin: its senses, late, and its mind *)
                  let (it, mind) = Bot.step Soldat_engine_bot.mind (p, i) mind in
                  minds.(i) <- Some mind;
                  it
+             | (None, Some _) -> still
              | (Some brain, _) ->
                  let (it, brain, looked) = Soldat_bots.control p i brain ~random in
                  brains.(i) <- Some brain;
@@ -306,7 +312,8 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
            match thing.kind with
            | Flag team -> Some (flag team thing)
            | _ ->
-           match Soldat_things.tick ~heard p.map thing with
+           (* the physics' level 0: a thing stays where it is *)
+           match Soldat_things.tick ~heard p.map (if p.physics = 0 then { thing with still = true } else thing) with
            | None -> None
            | Some thing when Soldat_things.lost p.map thing -> Some (Soldat_things.again p.map ~random thing)
            | Some thing -> (
@@ -453,7 +460,7 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
                soldiers.(i) <- { s with dead = None; health = full_health; body = Soldat_soldier.create ~primary ~secondary:s.secondary ~human:s.human ~team:(team s) (x, y) p.map.jet };
                if not s.human then heard := Sound (Spawn, (x, y)) :: !heard
              end
-             else soldiers.(i) <- { s with dead = Some (ticks + 1, Soldat_ragdoll.tick ~heard p.map ragdoll) });
+             else soldiers.(i) <- { s with dead = Some (ticks + 1, if p.physics = 0 then ragdoll else Soldat_ragdoll.tick ~heard p.map ragdoll) });
   say (-1) (List.rev !heard);
   (* 6. what it all gave to see and to hear: the sparks, with a chance
    * of their own, and the sounds *)
@@ -470,11 +477,20 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
         (sparks @ s, sounds @ h))
       ([], clinks) (List.rev !events)
   in
-  let sparks = Soldat_sparks.capped (old @ fresh) in
-  (* the camera, shaken by an explosion's fire *)
-  let (cx, cy) = follow p soldiers.(me) look in
-  let (wx, wy) = Soldat_sparks.wobble ~random sparks in
-  { p with log; captures = !captures; news = !news; camera = (cx +. wx, cy +. wy); soldiers; brains; minds; bullets; things; events = List.rev !events; sparks; spark_seed = !spark_seed; sounds; seed = !seed }
+  (* the effects' level: 2, Soldat's sparks; 1, the Playground's twin,
+   * fed the same events (the sounds are the sparks' all the same); 0, none *)
+  let sparks = if p.effects = 2 then Soldat_sparks.capped (old @ fresh) else [] in
+  let juice = if p.effects = 1 then Soldat_juice.step (List.fold_left (fun j (_, event) -> Soldat_juice.of_event j event) p.juice (List.rev !events)) else Soldat_juice.none in
+  (* the camera, shaken by an explosion's fire; the twin's goes after
+   * its soldier with Follow, and is shaken by its Trauma *)
+  let (cx, cy) =
+    if p.effects = 1 then
+      let (px, py) = Soldat_bullets.place soldiers.(me) and (x, y) = p.camera in
+      (Follow.smooth ~rate:9. ~dt:(1. /. 60.) (px +. fst look) x, Follow.smooth ~rate:9. ~dt:(1. /. 60.) (py +. snd look) y)
+    else follow p soldiers.(me) look
+  in
+  let (wx, wy) = match p.effects with 2 -> Soldat_sparks.wobble ~random sparks | 1 -> Soldat_juice.shake juice | _ -> (0., 0.) in
+  { p with log; juice; captures = !captures; news = !news; camera = (cx +. wx, cy +. wy); soldiers; brains; minds; bullets; things; events = List.rev !events; sparks; spark_seed = !spark_seed; sounds; seed = !seed }
 
 (*****************************************************************************)
 (* The rounds *)
@@ -502,11 +518,28 @@ let winner (p : play) : string option =
  * which know the keys that just went down *)
 let common (computer : computer) (model : model) : model * scene Scene2d.t =
   let scenes = Scene2d.update computer model.scenes in
-  (* g: the next way of drawing, round to the first *)
+  (* a layer's key: its next level, round to its first, said for a moment *)
+  let model = { model with said = (match model.said with Some (words, frames) when frames > 1 -> Some (words, frames - 1) | _ -> None) } in
   let model =
-    if Scene2d.pressed (fun k -> Set_.mem "g" k.keys) scenes then { model with graphics = (model.graphics mod graphics_levels) + 1; graphics_shown = 150 }
-    else { model with graphics_shown = max 0 (model.graphics_shown - 1) }
+    List.fold_left
+      (fun model (layer, key, name, first, names) ->
+        if model.typing = None && Scene2d.pressed (fun k -> Set_.mem key k.keys) scenes then begin
+          let n = first + ((level model layer - first + 1) mod List.length names) in
+          { model with levels = (layer, n) :: List.remove_assoc layer model.levels; said = Some (Printf.sprintf "%s %d: %s" name n (List.nth names (n - first)), 150) }
+        end
+        else model)
+      model layers
   in
+  (* z: every twin at once, the Playground's libraries; again: Soldat's own *)
+  let model =
+    if model.typing = None && Scene2d.pressed (fun k -> Set_.mem "z" k.keys) scenes then begin
+      let on = List.for_all (fun (layer, n) -> level model layer = n) twins in
+      let levels = List.map (fun (layer, n) -> match List.assoc_opt layer twins with Some twin -> (layer, if on then top layer else twin) | None -> (layer, n)) model.levels in
+      { model with levels; said = Some ((if on then "Soldat's own" else "the twins: the Playground's Space, Juice and ai"), 150) }
+    end
+    else model
+  in
+  Soldat_sound.level := level model Audio;
   (* 1 to 9 and 0: the weapon to appear with, from now on *)
   let model = match chosen computer with Some primary -> { model with primary } | None -> model in
   (* c: the second weapon, round the four *)
@@ -551,6 +584,8 @@ let update (computer : computer) (model : model) : model =
         let z = zoom computer.screen in
         let mine = p.soldiers.(0) in
         let p =
+          (* the round's layers are the model's *)
+          let p = { p with ai = level model Ai; physics = level model Physics; effects = level model Effects } in
           if mine.primary <> model.primary || mine.secondary <> model.secondary then
             { p with soldiers = Array.mapi (fun i (s : soldier) -> if i = 0 then { s with primary = model.primary; secondary = model.secondary } else s) p.soldiers }
           else p

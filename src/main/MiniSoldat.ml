@@ -47,6 +47,9 @@ let help =
          c      the second weapon: USSOCOM, knife, chainsaw, LAW
          Tab, b the scores as a table
          g      the graphics: as each step of the game's making drew it
+         v j i p u   the other layers, each round its levels: the
+                sound, the effects, the bots, the physics, the interface
+         z      all the twins at once (elm-playground's libraries), and back
          m      on the title: the next map (Arena2, ctf_Ash)
          down and a side, running: a roll; up and a side: a jump sideways
   mouse: aim; left button: shoot; right button (or shift): the jets
@@ -75,6 +78,10 @@ let help =
                    choose from (room=NAME: straight into one; a
                    room's name is its map's). There: t, a line,
                    enter, to talk; escape, back to the lobby
+         audio=N effects=N ai=N physics=N interface=N   a layer's
+                   level, 0 none to Soldat's own (docs/twins.md);
+                   basic: every layer at its lowest; twins: each
+                   that has a twin at it (the key z: there and back)
          ai=engine the last of them not Soldat's but one on
                    elm-playground's Sense and Bot: it knows only what
                    it has seen, and reacts as late as a hand does
@@ -124,8 +131,23 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
   let map = map_of_flags caps flags in
   (* how much of Soldat's look is drawn: all of it, unless the flag says
    * (the key g goes round the ways) *)
-  let graphics = Option.value (Option.bind (List.assoc_opt "graphics" flags) int_of_string_opt) ~default:Soldat_model.graphics_levels in
-  let first = match map with Map map -> Soldat_model.initial_model ~graphics map | Named name -> Soldat_model.loading_model ~graphics name in
+  (* each layer's level (docs/twins.md): its highest, Soldat's own,
+   * unless its flag says (graphics=1, ai=1...; its key goes round
+   * them); basic: every layer at its lowest *)
+  let levels =
+    List.filter_map
+      (fun (layer, _, name, first, _) ->
+        match Option.bind (List.assoc_opt name flags) int_of_string_opt with
+        | Some n -> Some (layer, n)
+        | None ->
+            if List.mem_assoc "basic" flags then Some (layer, first)
+            else if List.mem_assoc "twins" flags then Option.map (fun n -> (layer, n)) (List.assoc_opt layer Soldat_model.twins)
+            else None)
+      Soldat_model.layers
+  in
+  let first = match map with Map map -> Soldat_model.initial_model ~levels map | Named name -> Soldat_model.loading_model ~levels name in
+  (* the system's cursor is hidden only where Soldat's is drawn *)
+  if Soldat_model.level first Interface >= 2 then Playground_platform.set_cursor Hidden;
   (* the weapon to appear with, by its key in Soldat's menu *)
   let primary =
     match Option.bind (List.assoc_opt "weapon" flags) int_of_string_opt with
@@ -163,7 +185,5 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
         Soldat_online.connect caps ~host ~port ~nick ~room;
         { first with scenes = Scene2d.start (Soldat_model.Connecting ("connecting to " ^ host ^ "...")) })
   in
-  (* the system's cursor hidden: Soldat's own is drawn (Soldat_view.view_cursor) *)
-  Playground_platform.set_cursor Hidden;
   let app = Playground.game Soldat_view.view Soldat_online.update first in
   Playground_platform.run_app ~flags app))

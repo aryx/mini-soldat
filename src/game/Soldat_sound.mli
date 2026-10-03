@@ -72,3 +72,8 @@ val warm : unit -> int
 
 (* no sound at all: for a program that only steps the game *)
 val mute : bool ref
+
+(* the sound's layer (docs/twins.md): 0 silence; 1 every sound as loud,
+ * wherever it is; 2 the Playground's Space (its attenuation, its
+ * direction); 3 Soldat's own, with a far fight's rumble *)
+val level : int ref

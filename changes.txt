@@ -5,6 +5,15 @@
 # (with direction from me)
 
 ** Features
+- layers (docs/twins.md): each part of the game with levels from
+  nothing to Soldat's own, a key each (g graphics, v audio, j effects,
+  i the bots, p physics, u interface; the same as flags; basic: all at
+  their lowest), to have the game bare and add a layer at a time
+- twins, the same job on elm-playground's libraries, a level of their
+  layer: the bots on Sense, Bot, Pathfind (a way over the waypoints)
+  and Behavior (a tree); the effects on Juice (Soldat_juice: Emitter,
+  Trauma, Follow); the sound's place on Space. The key z (the flag
+  twins): all the twins at once, and back to Soldat's own
 - Soldat's cursor: the system's hidden (elm-playground 0.3.5's
   set_cursor), its own drawn at the mouse: the sight when aiming,
   wider as moving spoils the aim, the arrow otherwise

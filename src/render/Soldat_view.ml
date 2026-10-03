@@ -343,7 +343,7 @@ let view_scores (computer : computer) (p : play) : shape list =
 (* through the camera, in Soldat's order: what is behind, the bullets,
  * the soldiers, then the map's polygons over them; over it all and
  * not moving with the map, the score *)
-let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(primary : Soldat_weapons.id) (p : play) : shape list =
+let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(interface : int) ~(primary : Soldat_weapons.id) (p : play) : shape list =
   let top = computer.screen.top in
   let (x, y) = at p.camera in
   let soldiers = Array.to_list p.soldiers in
@@ -355,15 +355,19 @@ let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(primary : Sold
     @ List.concat_map (view_thing ~graphics) p.things
     @ List.concat_map (view_soldier computer ~graphics) soldiers
     @ Soldat_sparks_view.view p.sparks
+    (* the effects' twin: Juice's dots, each fading as its life goes (docs/twins.md) *)
+    @ List.map
+        (fun (x, y, size, (kind : Soldat_juice.kind), left) ->
+          let color = match kind with Blood -> rgb 190 20 20 | Chip -> rgb 150 150 150 | Smoke -> rgb 200 200 200 | Fire -> rgb 255 170 40 in
+          circle color (size / 2.) |> fade left |> move x y)
+        (Soldat_juice.dots p.juice)
     @ front
     @ (if List.mem_assoc "waypoints" computer.flags then view_waypoints p.map else [])
     @ if List.mem_assoc "hitboxes" computer.flags then List.concat_map view_tested soldiers else [])
-  :: view_scores computer p
-  @ view_log computer p
-  @ view_interface computer p.map p.soldiers.(me)
-  @ icon (Some p.soldiers.(me).body.weapon.kind.id) (computer.screen.left + 330., computer.screen.bottom + 70.)
-  @ (if p.soldiers.(me).dead <> None then (text white 3. "respawning..." |> move_y (top - 150.)) :: view_menu primary (0., top - 200.) else [])
-  @ view_board computer p
+  (* the interface's level: 1, the gauges and the scores; 2, Soldat's *)
+  :: (if interface >= 1 then view_scores computer p @ view_interface computer p.map p.soldiers.(me) else [])
+  @ (if interface >= 2 then view_log computer p @ icon (Some p.soldiers.(me).body.weapon.kind.id) (computer.screen.left + 330., computer.screen.bottom + 70.) @ view_board computer p else [])
+  @ (if p.soldiers.(me).dead <> None && interface >= 1 then (text white 3. "respawning..." |> move_y (top - 150.)) :: view_menu primary (0., top - 200.) else [])
 
 (* Soldat's cursor, drawn where the mouse is (the system's own is
  * hidden: MiniSoldat): aiming, its sight, wider as moving spoils the
@@ -380,9 +384,9 @@ let view_cursor (computer : computer) (model : model) : shape list =
   | _ -> picture "menucursor" 16. (x + 8., y - 8.)
 
 let view (computer : computer) (model : model) : shape list =
-  let graphics = model.graphics in
-  (* the way of drawing just chosen, said for a moment *)
-  let said = if model.graphics_shown > 0 then [ text white 2. ("graphics " ^ graphics_name graphics) |> move_y (computer.screen.bottom + 40.) ] else [] in
+  let graphics = level model Graphics and interface = level model Interface in
+  (* the level just chosen, said for a moment *)
+  let said = match model.said with Some (words, _) -> [ text white 2. words |> move_y (computer.screen.bottom + 40.) ] | None -> [] in
   (match model.scenes.scene with
   | Loading name -> [ rectangle (rgb 40 60 80) computer.screen.width computer.screen.height; text white 3. ("loading " ^ name ^ "...") ]
   | Title map ->
@@ -406,7 +410,7 @@ let view (computer : computer) (model : model) : shape list =
         text white 2. (map.name ^ "      g: the graphics   m: the next map") |> move_y 110. ]
       @ view_menu ~secondary:model.secondary model.primary (0., 50.)
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-230.) ]
-  | Playing p -> view_play computer ~graphics ~primary:model.primary p
+  | Playing p -> view_play computer ~graphics ~interface ~primary:model.primary p
   | Lobby { rooms; chosen; here; mode } ->
       let screen = computer.screen in
       [ rectangle (rgb 40 60 80) screen.width screen.height;
@@ -426,11 +430,11 @@ let view (computer : computer) (model : model) : shape list =
   | Online (p, me) ->
       (* a server's round: the same picture, and what is said in the room *)
       let screen = computer.screen in
-      view_play ~me computer ~graphics ~primary:model.primary p
+      view_play ~me computer ~graphics ~interface ~primary:model.primary p
       @ List.mapi (fun i line -> text white 1.6 line |> move 0. (screen.bottom + 150. - (22. * float_of_int i))) model.lines
       @ (match model.typing with Some line -> [ text (rgb 255 220 80) 1.8 ("say: " ^ line ^ "_") |> move 0. (screen.bottom + 20.) ] | None -> [])
   | Over (name, map) ->
       [ view_map computer ~graphics map; text white 5. (if name = "YOU" then "YOU WIN!" else name ^ " WINS") |> move_y 200. ]
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-50.) ])
   @ said
-  @ view_cursor computer model
+  @ if interface >= 2 then view_cursor computer model else []
