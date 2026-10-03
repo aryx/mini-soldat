@@ -14,7 +14,9 @@
 
 (* See Soldat_things.mli *)
 
-type kind = Weapon of Soldat_soldier.gun | Medikit | Grenade_kit | Flag of int
+(* the five bonus kits (OBJECT_FLAMER_KIT to OBJECT_CLUSTER_KIT) *)
+type bonus = Flamer_kit | Predator_kit | Vest_kit | Berserker_kit | Cluster_kit
+type kind = Weapon of Soldat_soldier.gun | Medikit | Grenade_kit | Flag of int | Bonus of bonus
 
 type t = {
   kind : kind;
@@ -72,6 +74,10 @@ let rifle (id : Soldat_weapons.id) : float * float * float =
   | Minigun -> (5.5, 0.991, 1.4)
   (* OBJECT_RAMBO_BOW: RifleSkeleton50, light *)
   | Bow | Bow2 -> (5.0, 0.996, 0.65)
+  (* OBJECT_COMBAT_KNIFE, CHAINSAW, LAW; the others are never let go of *)
+  | Knife | Thrown_knife -> (1.8, 0.994, 1.15)
+  | Chainsaw -> (2.8, 0.994, 1.15)
+  | Law | Flamer | Cluster_grenade | Cluster -> (2.8, 0.994, 1.15)
 
 (* objects/kit.po at its scale of 2.15: a box, its first point at the
  * bottom right (a .po's x is turned over and divided by 1.2) *)
@@ -99,7 +105,7 @@ let sticks (thing : t) : Particles.stick list =
   | Weapon g ->
       let (scale, _, _) = rifle g.kind.id in
       [ { a = 1; b = 0; length = 4. *. scale } ]
-  | Medikit | Grenade_kit ->
+  | Medikit | Grenade_kit | Bonus _ ->
       let l a b : Particles.stick = { a; b; length = length box.(a) box.(b) } in
       [ l 3 2; l 2 1; l 1 0; l 0 3; l 3 1; l 2 0 ]
 
@@ -111,9 +117,10 @@ let physics (kind : kind) : float * float =
       (damping, weight)
   | Medikit -> (0.989, 1.05)
   | Grenade_kit -> (0.989, 1.07)
+  | Bonus _ -> (0.989, 1.05)
   | Flag _ -> (0.991, 1.0)
 
-let radius (kind : kind) : float = match kind with Weapon g when Soldat_weapons.is_bow g.kind.id -> bow_radius | Weapon _ -> gun_radius | Medikit | Grenade_kit -> kit_radius | Flag _ -> flag_radius
+let radius (kind : kind) : float = match kind with Weapon g when Soldat_weapons.is_bow g.kind.id -> bow_radius | Weapon _ -> gun_radius | Medikit | Grenade_kit | Bonus _ -> kit_radius | Flag _ -> flag_radius
 
 (*****************************************************************************)
 (* Made *)
@@ -140,11 +147,13 @@ let weapon (s : Soldat_soldier.t) ~(alive : bool) (g : Soldat_soldier.gun) : t =
   { kind = Weapon g; points = [| point (2. *. scale) first; point (-2. *. scale) second |]; ttl = gun_time; interest = (if bow then bow_interest else 0); still = false; facing = s.direction; place = -1; hits = 0; holder = -1; in_base = false }
 
 (* OBJECT_RAMBO_BOW, as the map gets it: lying at a place, its arrow in *)
-let bow ((x, y) : float * float) : t =
-  let g = Soldat_soldier.gun Bow in
-  let (scale, _, _) = rifle Bow in
+let lying (id : Soldat_weapons.id) ((x, y) : float * float) : t =
+  let g = Soldat_soldier.gun id in
+  let (scale, _, _) = rifle id in
   { kind = Weapon g; points = [| Particles.particle (x, y +. (2. *. scale)); Particles.particle (x, y -. (2. *. scale)) |]; ttl = gun_time;
-    interest = bow_interest; still = false; facing = 1; place = -1; hits = 0; holder = -1; in_base = false }
+    interest = (if Soldat_weapons.is_bow id then bow_interest else 0); still = false; facing = 1; place = -1; hits = 0; holder = -1; in_base = false }
+
+let bow : float * float -> t = lying Bow
 
 let is_bow (thing : t) : bool = match thing.kind with Weapon g -> Soldat_weapons.is_bow g.kind.id | _ -> false
 
@@ -165,7 +174,15 @@ let flag (map : Soldat_map.t) (team : int) : t option =
 let flags (map : Soldat_map.t) : t list = List.filter_map (flag map) [ 1; 2 ]
 
 let places (map : Soldat_map.t) (kind : kind) : (float * float) list =
-  match kind with Medikit -> map.medikit_spawns | Grenade_kit -> map.grenade_spawns | Weapon _ | Flag _ -> []
+  match kind with
+  | Medikit -> map.medikit_spawns
+  | Grenade_kit -> map.grenade_spawns
+  | Weapon _ | Flag _ -> []
+  | Bonus b -> (
+      (* the map's places for that kit (its spawn points of "team" 9 to
+       * 13); a map that has none: where soldiers appear *)
+      let team = match b with Cluster_kit -> 9 | Vest_kit -> 10 | Flamer_kit -> 11 | Berserker_kit -> 12 | Predator_kit -> 13 in
+      match List.filter_map (fun (t, at) -> if t = team then Some at else None) map.bonus_spawns with [] -> map.spawns | places -> places)
 
 (* Random(n): a whole number from 0 to n - 1 *)
 let pick ~(random : unit -> float) (n : int) : int = if n <= 0 then 0 else min (n - 1) (int_of_float (random () *. float_of_int n))
@@ -197,6 +214,10 @@ let kits (map : Soldat_map.t) ~(random : unit -> float) : t list =
   in
   let medikits = some Medikit map.medikits in
   medikits @ some Grenade_kit map.grenade_kits
+
+(* a bonus kit appearing (SpawnThings): at one of its places *)
+let bonus (map : Soldat_map.t) ~(random : unit -> float) (b : bonus) : t option =
+  Option.map (fun (place, at) -> kit_at (Bonus b) at place) (somewhere map ~random (Bonus b) ~but:(-1))
 
 let again (map : Soldat_map.t) ~(random : unit -> float) (thing : t) : t =
   match thing.kind with
@@ -303,10 +324,10 @@ let tick ?(heard : Soldat_event.t list ref option) ?(carried : (float * float) o
       (* it is heard as it first lands, and while it still bounces hard:
        * a weapon up to 30 times, a kit 3 *)
       let lands (p : Particles.particle) : unit =
-        let often = match thing.kind with Weapon _ -> 30 | Medikit | Grenade_kit | Flag _ -> 3 in
+        let often = match thing.kind with Weapon _ -> 30 | _ -> 3 in
         let n = thing.hits + !touched in
         if n = 0 || (length p.pos p.old > 1.5 && n < often) then
-          Option.iter (fun l -> l := Soldat_event.Sound ((match thing.kind with Weapon _ -> Weapon_hit | Medikit | Grenade_kit -> Kit_fall | Flag _ -> Flag_fall), p.pos) :: !l) heard
+          Option.iter (fun l -> l := Soldat_event.Sound ((match thing.kind with Weapon _ -> Weapon_hit | Flag _ -> Flag_fall | _ -> Kit_fall), p.pos) :: !l) heard
       in
       let points =
         Array.map (fun p -> match out_of_walls map p with Some p -> lands p; incr touched; p | None -> p) thing.points
@@ -322,7 +343,8 @@ let tick ?(heard : Soldat_event.t list ref option) ?(carried : (float * float) o
   in
   let ttl = max (-1000) (thing.ttl - 1) in
   match thing.kind with
-  | Weapon _ when ttl = 0 || lost map thing -> None
+  (* a weapon and a bonus kit are gone when their time is over (T:1068) *)
+  | (Weapon _ | Bonus _) when ttl = 0 || lost map thing -> None
   | _ -> Some { thing with ttl }
 
 (*****************************************************************************)

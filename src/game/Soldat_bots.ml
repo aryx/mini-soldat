@@ -347,6 +347,8 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
         (* the bow, for who has it not *)
         | Weapon _ -> p.mode = Rambomatch && Soldat_things.is_bow thing && not (rambo me)
         | Flag _ -> thing.holder <> i
+        (* a bonus, for who has none *)
+        | Bonus _ -> me.bonus = None && not run_away
       in
       if (not !see_thing) && wanted then begin
         let (p1x, _) = thing.points.(0).pos and (p2x, p2y) = thing.points.(1).pos in

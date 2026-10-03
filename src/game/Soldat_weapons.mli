@@ -38,9 +38,8 @@
    ([single_shot]: the Eagles, the shotgun, the Ruger, the Barrett, the
    USSOCOM), and how long its bullet lives (7 seconds; a grenade 3).
 
-   Left out: the knife, the chainsaw and the LAW (the other three
-   secondaries), the flamer, the stationary gun, and realistic
-   mode's own table (weapons_realistic.ini).
+   Left out: the stationary gun, and realistic mode's own table
+   (weapons_realistic.ini).
 
    In Soldat: shared/Weapons.pas (TGun, CreateWeapons, the defaults
    the file overrides) and shared/Game.pas (LoadWeapons).
@@ -50,12 +49,21 @@
  * [Punch]; the punch itself is not here). [Bow] and [Bow2]: Rambo's
  * bow and its other arrows (the file's [Rambo Bow] and [Flamed
  * Arrows], whose flames are not here), which nobody chooses: the bow
- * is found on the map, in a Rambomatch *)
+ * is found on the map, in a Rambomatch. [Knife], [Chainsaw] and [Law]
+ * are the three other weapons one may have as the second, in place of
+ * the USSOCOM; [Flamer] is the bonus's. The last three are no weapon
+ * one holds but what leaves the hands: the knife thrown, a cluster
+ * grenade, and one of the five it bursts into (their numbers are the
+ * knife's and the grenade's, as in CreateWeapons) *)
 type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade | Hands | Bow | Bow2
+  | Knife | Chainsaw | Law | Flamer | Thrown_knife | Cluster_grenade | Cluster
 
 (* what its bullet is: BulletStyle 1, 3, 4 and 2 *)
-(* [Arrow]: 7, the bow's, and 8, its flaming one *)
-type style = Plain | Pellets | Explosive | Thrown | Arrow
+(* [Arrow]: 7, the bow's, and 8, its flaming one; [Melee]: 6 and 11,
+ * a fist's, a knife's and the chainsaw's, a "bullet" that lives a
+ * tick at the hand; [Flame]: 5; [Explosive] is 12 too, the LAW's
+ * rocket; [Flying_knife]: 13, the knife thrown *)
+type style = Plain | Pellets | Explosive | Thrown | Arrow | Melee | Flame | Flying_knife
 
 type t = {
   id : id;
@@ -90,6 +98,9 @@ val get : id -> t
 (* the ten a soldier chooses from, in the order of Soldat's menu: the
  * keys 1 to 9, then 0 *)
 val primaries : id list
+
+(* the four to have as the second weapon: the USSOCOM first *)
+val secondaries : id list
 
 (* what a hit at this point of the skeleton is worth: the legs (1 to
  * 4), the chest (to 11), the head *)

@@ -25,6 +25,10 @@
 open Playground
 
 
+(* what a bonus kit gives for a time (BONUS_FLAMEGOD, PREDATOR,
+ * BERSERKER): the flamer and no harm; not seen; four times the harm *)
+type bonus = Flame_god | Predator | Berserker
+
 type soldier = {
   name : string;
   color : color;
@@ -46,7 +50,22 @@ type soldier = {
   (* who hit it last, for a bot to turn on (Brain.PissedOff is set by
    * the bullet); nobody: -1 *)
   hit_by : int;
+  (* the weapon it will have as its second *)
+  secondary : Soldat_weapons.id;
+  (* its bonus, and the ticks left of it *)
+  bonus : (bonus * int) option;
+  (* what is left of its vest, of 100 (DEFAULTVEST) *)
+  vest : float;
 }
+
+(* DEFAULTVEST, CLUSTER_GRENADES, and the bonuses' times *)
+let default_vest = 100.
+let cluster_grenades = 3
+let flamer_time = 600
+let predator_time = 1500
+let berserker_time = 900
+
+let has (s : soldier) (b : bonus) : bool = match s.bonus with Some (b', _) -> b' = b | None -> false
 
 (* what a soldier wants to do this tick: the player's keys and mouse,
  * or a bot's mind *)
@@ -175,6 +194,8 @@ type play = {
   (* the game's chance: the next number comes from it (Lehmer) *)
   seed : Lehmer.t;
   frame : int;
+  (* how often bonus kits appear, 1 to 5; never: 0 *)
+  bonuses : int;
 }
 
 (* the map goes from a round to the next: the title's, the round's,
@@ -210,6 +231,10 @@ type model = {
   graphics_shown : int;
   (* the weapon the player appears with: the keys 1 to 9 and 0 *)
   primary : Soldat_weapons.id;
+  (* and as its second (the key c goes round them) *)
+  secondary : Soldat_weapons.id;
+  (* how often bonus kits appear, 1 to 5 (sv_bonus_frequency); never: 0 *)
+  bonuses : int;
   (* the rounds started: a round's number is its chance's seed *)
   rounds : int;
   (* how many bots the player is against (the flag bots) *)
@@ -274,7 +299,7 @@ let rambo (s : soldier) : bool = s.dead = None && Soldat_weapons.is_bow s.body.w
 let team_shirt (t : int) : int * int * int = if t = 1 then (210, 15, 5) else (21, 31, 217)
 
 let model_at ?(graphics = graphics_levels) (first : scene) : model =
-  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; rounds = 0; bots = 3; mode = None; next_map = 1; lines = []; typing = None }
+  { scenes = Scene2d.start first; graphics = max 1 (min graphics_levels graphics); graphics_shown = 0; primary = Ak74; secondary = Socom; bonuses = 0; rounds = 0; bots = 3; mode = None; next_map = 1; lines = []; typing = None }
 
 let initial_model ?graphics (map : Soldat_map.t) : model = model_at ?graphics (Title map)
 

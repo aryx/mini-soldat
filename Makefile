@@ -58,10 +58,19 @@ serve-website:
 	@echo "serving docs/ at http://localhost:8000/"
 	python3 -m http.server --directory docs --bind 127.0.0.1 8000
 
+# the lines of OCaml, and how much of the budget (10,000 for src/, a
+# tenth of OpenSoldat's Pascal; a file's opening comments not counted)
+# they are; loc-v: a library a line. docs/omitted.md is the other side
+# of that number
+loc:
+	scripts/stats/loc.py
+loc-v:
+	scripts/stats/loc.py -v
+
 #coupling: see also .github/workflows/docker.yml
 build-docker:
 	docker build -t "mini-soldat" .
 build-docker-ocaml5:
 	docker build -t "mini-soldat" --build-arg OCAML_VERSION=5.5.1 .
 
-.PHONY: all test clean run run-software serve website serve-website build-docker build-docker-ocaml5
+.PHONY: all test clean run run-software serve website serve-website loc loc-v build-docker build-docker-ocaml5

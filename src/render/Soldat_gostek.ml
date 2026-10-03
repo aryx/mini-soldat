@@ -74,6 +74,10 @@ let look (id : Soldat_weapons.id) : look =
   | Minigun -> l "minigun" 0.05 0.5 true "minigun-fire" (-0.2) 0.45 (Some 0.5)
   | Socom | Grenade | Hands -> l "colt1911" 0.2 0.55 true "colt1911-fire" (-0.24) 0.85 None
   | Bow | Bow2 -> l "bow" (-0.4) 0.55 false "bow-fire" 0. 0. None
+  | Knife | Thrown_knife -> l "knife" (-0.1) 0.6 false "" 0. 0. None
+  | Chainsaw -> l "chainsaw" 0.1 0.5 false "chainsaw-fire" 0. 0. (Some 0.5)
+  | Law -> l "law" 0.1 0.6 false "law-fire" (-0.1) 0.55 (Some 0.45)
+  | Flamer | Cluster_grenade | Cluster -> l "flamer" 0.2 0.7 false "flamer-fire" 0. 0. None
 
 (* what is drawn of the weapon in the hands: [clip], its clip is in;
  * [fire], it fired this tick. Under the right arm, which holds it *)

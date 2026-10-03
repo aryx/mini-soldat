@@ -101,6 +101,8 @@ let view_soldier (computer : computer) ~(graphics : int) (s : soldier) : shape l
          Soldat_gostek.view
            ~weapon:(Soldat_gostek.in_hands b.weapon.kind.id ~clip:(clip_in b.weapon) ~fire:b.fired)
            ~back:(Soldat_gostek.on_back b.secondary.kind.id) (colors s) ~point:(Soldat_soldier.point b) ~direction:b.direction ~jets:b.jetting ~dead:false
+         (* the predator's is hardly seen (PREDATORALPHA: 5 of 255; here a tenth, to be played) *)
+         |> List.map (if has s Predator then fade 0.1 else Fun.id)
        else
          (* the gun: from the arm's end, away from the hand that holds it *)
          let (hx, hy) = Soldat_soldier.point b 16 and (tx, ty) = Soldat_soldier.point b 15 in
@@ -142,8 +144,12 @@ let view_bullet ~(graphics : int) (b : bullet) : shape list =
   match (Soldat_weapons.get b.weapon).style with
   | Plain -> plain ()
   | Pellets -> [ segment (rgb 250 240 180) 0.6 (b.x, b.y) (b.x - (b.vx * 0.3), b.y - (b.vy * 0.3)) ]
-  | Thrown -> or_dot "frag-grenade" (float_of_int b.ttl * -0.2 * if b.vx >= 0. then 1. else -1.)
-  | Explosive -> or_dot "m79-bullet" (Float.atan2 b.vy b.vx)
+  | Thrown -> or_dot (if b.weapon = Cluster_grenade then "cluster-grenade" else "frag-grenade") (float_of_int b.ttl * -0.2 * if b.vx >= 0. then 1. else -1.)
+  | Explosive -> or_dot (match b.weapon with Law -> "missile" | Cluster -> "cluster" | _ -> "m79-bullet") (Float.atan2 b.vy b.vx)
+  (* a blow is not seen; a flame grows as it goes; the knife turns *)
+  | Melee -> []
+  | Flame -> let (x, y) = at (b.x, b.y) in [ circle (rgb 255 150 40) (3. + (float_of_int (32 -.. b.ttl) / 3.)) |> fade 0.6 |> move x y ]
+  | Flying_knife -> or_dot "knife" (float_of_int b.ttl * 0.4)
   | Arrow -> or_dot "arrow" (Float.atan2 b.vy b.vx)
 
 (* a thing on the ground (TThing.Render): a weapon its picture from
@@ -171,8 +177,17 @@ let view_thing ~(graphics : int) (thing : Soldat_things.t) : shape list =
         (* the bow on the ground has pictures of its own *)
         let name = (if Soldat_weapons.is_bow g.kind.id then "n-bow" else (Soldat_gostek.look g.kind.id).image) ^ if thing.facing = 1 then "" else "-2" in
         match Soldat_gostek.lying name (ax, ay) angle with [] -> plain (rgb 40 40 40) | shapes -> shapes)
-  | Medikit | Grenade_kit -> (
-      let name = if thing.kind = Medikit then "medikit" else "grenadekit" in
+  | Medikit | Grenade_kit | Bonus _ -> (
+      let name =
+        match thing.kind with
+        | Medikit -> "medikit"
+        | Bonus Flamer_kit -> "flamerkit"
+        | Bonus Predator_kit -> "predatorkit"
+        | Bonus Vest_kit -> "vestkit"
+        | Bonus Berserker_kit -> "berserkerkit"
+        | Bonus Cluster_kit -> "clusterkit"
+        | _ -> "grenadekit"
+      in
       let n = float_of_int (Array.length thing.points) in
       let middle = Array.fold_left (fun (x, y) (p : Particles.particle) -> (x + (fst p.pos / n), y + (snd p.pos / n))) (0., 0.) thing.points in
       let box () =
@@ -221,11 +236,18 @@ let view_interface (computer : computer) (map : Soldat_map.t) (me : soldier) : s
   gauge 3 (rgb 220 60 60) "health" (me.health / full_health) (string_of_int (int_of_float (Float.max 0. me.health)))
   @ gauge 2 (if g.ammo > 0 then rgb 230 230 230 else rgb 130 130 130) "ammo" ammo (if g.ammo > 0 || g.kind.id = Spas then string_of_int g.ammo else "reloading")
   @ gauge 1 (rgb 240 200 60) "jets" (float_of_int me.body.jets / float_of_int (max 1 map.jet)) ""
-  @ [ text white 1.6 (Printf.sprintf "%s    grenades %d" g.kind.name me.body.grenades) |> move (screen.left + 150.) (line 0) ]
+  @ (if me.vest > 0. then gauge 4 (rgb 120 160 220) "vest" (me.vest / default_vest) "" else [])
+  @ [ text white 1.6
+        (Printf.sprintf "%s    %s %d%s" g.kind.name (if me.body.cluster then "clusters" else "grenades") me.body.grenades
+           (match me.bonus with
+           | Some (b, ticks) -> Printf.sprintf "    %s %d" (match b with Flame_god -> "flame god" | Predator -> "predator" | Berserker -> "berserker") (ticks /.. 60)
+           | None -> ""))
+      |> move (screen.left + 150.) (line 0) ]
 
 (* Soldat's menu: the ten weapons by their keys, the one chosen marked *)
-let view_menu (chosen : Soldat_weapons.id) ((x, y) : float * float) : shape list =
-  List.mapi
+let view_menu ?(secondary : Soldat_weapons.id = Socom) (chosen : Soldat_weapons.id) ((x, y) : float * float) : shape list =
+  (text white 1.8 ("c  " ^ (Soldat_weapons.get secondary).name) |> move x (y - 250.))
+  :: List.mapi
     (fun i id ->
       let w = Soldat_weapons.get id in
       text (if id = chosen then rgb 255 220 80 else white) 1.8 (Printf.sprintf "%d  %s" ((i +.. 1) mod 10) w.name) |> move x (y - (24. * float_of_int i)))
@@ -300,7 +322,7 @@ let view (computer : computer) (model : model) : shape list =
           | Rambomatch -> Printf.sprintf "a Rambomatch: empty hands (f) take the bow; Rambo's kills count, first to %d" rambo_limit)
         |> move_y 150.;
         text white 2. (map.name ^ "      g: the graphics   m: the next map") |> move_y 110. ]
-      @ view_menu model.primary (0., 50.)
+      @ view_menu ~secondary:model.secondary model.primary (0., 50.)
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-230.) ]
   | Playing p -> view_play computer ~graphics ~primary:model.primary p
   | Lobby { rooms; chosen; here } ->

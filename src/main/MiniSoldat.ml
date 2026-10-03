@@ -44,6 +44,7 @@ let help =
          e      a grenade: held longer, thrown harder
          f      throw the weapon away: empty hands pick another up
          1-9, 0 the weapon to appear with (weapon=N)
+         c      the second weapon: USSOCOM, knife, chainsaw, LAW
          g      the graphics: as each step of the game's making drew it
          m      on the title: the next map (Arena2, ctf_Ash)
          down and a side, running: a roll; up and a side: a jump sideways
@@ -58,6 +59,10 @@ let help =
          weapon=N  the weapon to appear with, by its key: 1 Desert Eagles,
                    2 HK MP5, 3 Ak-74, 4 Steyr AUG, 5 Spas-12, 6 Ruger 77,
                    7 M79, 8 Barrett, 9 FN Minimi, 0 Minigun
+         secondary=W  the second weapon: knife, saw or law (the USSOCOM
+                   without it; the key c goes round them)
+         bonus=N   bonus kits appear (flame god, predator, berserker,
+                   a vest, cluster grenades): 1 seldom to 5 often
          mode=M    dm a deathmatch, tdm two teams, ctf capture the flag,
                    rm a Rambomatch: the bow, for empty hands
                    (the map's own without it: ctf where it has flags)
@@ -133,7 +138,11 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
     match List.assoc_opt "mode" flags with Some "dm" -> Some Deathmatch | Some "tdm" -> Some Team_match | Some "ctf" -> Some Capture_the_flag | Some "rm" -> Some Rambomatch | _ -> None
   in
   let bots = match Option.bind (List.assoc_opt "bots" flags) int_of_string_opt with Some n when n >= 0 && n <= 15 -> n | _ -> first.bots in
-  let first = { first with primary; bots; mode } in
+  (* secondary=knife, saw or law: the second weapon, not the USSOCOM;
+   * bonus=N: bonus kits appear, the more often the higher N (1 to 5) *)
+  let secondary : Soldat_weapons.id = match List.assoc_opt "secondary" flags with Some "knife" -> Knife | Some "saw" -> Chainsaw | Some "law" -> Law | _ -> Socom in
+  let bonuses = match Option.bind (List.assoc_opt "bonus" flags) int_of_string_opt with Some n -> max 0 (min 5 n) | None -> 0 in
+  let first = { first with primary; secondary; bonuses; bots; mode } in
   (* server=HOST[:PORT]: the round is a server's (mini-soldat-server),
    * in the room room= (a room's name is its map's; none: the lobby's
    * screen), as nick= *)

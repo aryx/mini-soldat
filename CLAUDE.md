@@ -151,6 +151,7 @@ has come: a map's texture and scenery, the weapons' pictures
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build @default (the web program's page too)
 make test              # dune runtest -f, the six suites
+make loc               # lines of OCaml, and the budget's (loc-v: a library a line)
 make run               # dune exec mini-soldat
 make run-software      # dune exec mini-soldat-software
 make serve             # the game in a browser, http://localhost:8001/
@@ -177,6 +178,8 @@ keys each says to hold), and, read by the main before the game starts:
 `server=HOST[:PORT]`, `nick=NAME`, `room=NAME` (the round is a
 `mini-soldat-server`'s: `Soldat_online`, `docs/network.md`; without
 `room=`, the lobby's screen),
+`secondary=knife|saw|law`, `bonus=N` (bonus kits appear, 1 seldom
+to 5 often; none without it, as in Soldat),
 `mode=dm|tdm|ctf|rm` (the map's own without it: capture the flag where
 the map has the two flags' places), `bots=N` (how many to play with
 and against: 3), `ai=engine` (the last of
@@ -206,7 +209,8 @@ by `Gen_assets` at `make website`), never as PNG: elm-playground's
 `Png.decode` is quadratic there.
 
 The keys are Soldat's: a/d, w (jump), s (crouch), x (prone), the left
-button (fire), the right one or shift (jets), r, q, e, f, 1 to 0;
+button (fire), the right one or shift (jets), r, q, e, f, 1 to 0, and
+c (the second weapon: USSOCOM, knife, chainsaw, LAW);
 space starts a round, m on the title asks for the next map
 (`Soldat_model.maps`: those whose content is in `data/`). In
 a `-script`, `d:10-70` holds d, `at(300;120):3-200` puts the mouse
@@ -297,6 +301,18 @@ The server listens on 127.0.0.1 unless told otherwise.
 
 Working on elm-playground at the same time: `make && make install`
 there (in `~/playground`), then build here.
+
+## The budget
+
+`src/` is to stay near 10,000 lines, a tenth of OpenSoldat's Pascal
+(Yoann, 2026-10-03): `make loc` says where it stands
+(`scripts/stats/loc.py`, mini-chrome's). Not a hard limit: clear code
+comes first. A file's opening comments (the notice, what the module
+is, its worked example, where it comes from) are not counted, so that
+a cap is never a reason to teach less; nor are the tests.
+`docs/omitted.md` is the other side of the number: what of OpenSoldat
+is not here, and what it would take. Keep it true when a part is
+ported or left out.
 
 ## Conventions
 

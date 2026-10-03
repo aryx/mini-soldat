@@ -198,6 +198,8 @@ type t = {
   mutable weapon : gun; (* in its hands *)
   mutable secondary : gun; (* on its back *)
   mutable grenades : int;
+  (* they are cluster grenades (the bonus kit's three) *)
+  mutable cluster : bool;
   mutable ceasefire : int; (* ticks before it may fire and be hit: 90 when it appears *)
   mutable burst : int; (* shots since the trigger was pulled *)
   mutable fired : bool; (* it fired, this tick *)
@@ -212,9 +214,16 @@ type t = {
 }
 
 (* a soldier standing at a place, with that much fuel, [primary] in
- * its hands (the USSOCOM if none is said), the USSOCOM on its back,
- * one grenade; a player's unless [human] is false *)
-val create : ?primary:Soldat_weapons.id -> ?human:bool -> ?team:int -> float * float -> int -> t
+ * its hands (the USSOCOM if none is said), [secondary] on its back
+ * (the USSOCOM, or the knife, the chainsaw, the LAW), one grenade; a
+ * player's unless [human] is false.
+ *
+ * Empty hands and the knife strike (the fire key: a blow at the 11th
+ * frame of the punch, a "bullet" that lives a tick along the hand);
+ * the knife is thrown by the key that drops the others, harder the
+ * longer it is held; the LAW fires from the ground only, crouched or
+ * lying, after 13 ticks of that *)
+val create : ?primary:Soldat_weapons.id -> ?secondary:Soldat_weapons.id -> ?human:bool -> ?team:int -> float * float -> int -> t
 
 (* with a weapon picked up from the ground in its hands, and with its
  * weapon let go (it died): [dropped] says which *)

@@ -19,6 +19,14 @@ type t =
   | Take_gun
   | Take_medikit
   | Take_bow
+  (* a bonus kit taken: Flame god, Predator, Berserker, the vest; a vest hit *)
+  | God_flame
+  | Predator
+  | Berserker
+  | Vest_take
+  | Vest_hit
+  | Cluster_grenade
+  | Cluster_explosion
   | Pickup
   | Grenade_pullout
   | Grenade_throw
@@ -75,11 +83,23 @@ let weapon (id : Soldat_weapons.id) : string =
   | Minigun -> "minigun"
   | Socom | Grenade | Hands -> "colt1911"
   | Bow | Bow2 -> "bow"
+  | Knife | Thrown_knife | Chainsaw | Law | Flamer | Cluster_grenade | Cluster -> ""
 
 (* its recordings: one, or several to take one of *)
 let names (s : t) : string list =
   match s with
+  | Fire (Knife | Hands) -> [ "slash" ]
+  | Fire Chainsaw -> [ "chainsaw-r" ]
+  | Fire Law -> [ "law" ]
+  | Fire Flamer -> [ "flamer" ]
   | Fire id -> [ weapon id ^ "-fire" ]
+  | God_flame -> [ "godflame" ]
+  | Predator -> [ "predator" ]
+  | Berserker -> [ "berserker" ]
+  | Vest_take -> [ "vesttake" ]
+  | Vest_hit -> [ "vesthit" ]
+  | Cluster_grenade -> [ "clustergrenade" ]
+  | Cluster_explosion -> [ "cluster-explosion" ]
   | Reload id -> [ weapon id ^ "-reload" ]
   | Change_weapon -> [ "changeweapon" ]
   | Change_spin -> [ "changespin" ]
@@ -137,8 +157,8 @@ let file (s : t) (n : int) : string =
 let files : string list =
   let weapons : Soldat_weapons.id list = Bow :: Socom :: Soldat_weapons.primaries in
   List.concat_map names
-    (List.map (fun id -> Fire id) weapons
+    (List.map (fun id -> Fire id) (Knife :: Chainsaw :: Law :: Flamer :: weapons)
     @ List.map (fun id -> Reload id) weapons
-    @ [ Change_weapon; Change_spin; Throw_gun; Take_gun; Take_medikit; Take_bow; Pickup; Grenade_pullout; Grenade_throw; Grenade_bounce; Grenade_explosion; M79_explosion;
+    @ [ Change_weapon; Change_spin; Throw_gun; Take_gun; Take_medikit; Take_bow; God_flame; Predator; Berserker; Vest_take; Vest_hit; Cluster_grenade; Cluster_explosion; Pickup; Grenade_pullout; Grenade_throw; Grenade_bounce; Grenade_explosion; M79_explosion;
         Explosion_erg; Ric; Ricochet; Hit_arg; Dead_hit; Death; Headchop; Bryzg; Bodyfall; Bonecrack; Step; Jump; Fall; Fall_hard; Crouch; Crouch_move; Prone_move;
         Go_prone; Stand_up; Roll; Stop; Rocketz; Spawn; Weapon_hit; Kit_fall; Shell; Gauge_shell; Clip_fall; Dist_gun; Dist_grenade; Dist_m79; Flag_fall; Capture; Ctf_score ])

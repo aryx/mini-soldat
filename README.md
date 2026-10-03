@@ -143,6 +143,13 @@ themselves, enter rooms and talk; a room is a round the server plays,
 In a browser the same flags are the page's:
 `play.html?server=127.0.0.1&nick=pad&room=Arena2`.
 
+## How much code
+
+`make loc` counts it: about 8,400 lines of a budget of 10,000, a tenth
+of OpenSoldat's Pascal. [docs/omitted.md](docs/omitted.md) is the
+other side of that number: what of OpenSoldat is not here, what of
+its lines is not the game at all, and what the rest would take.
+
 ## Playing
 
 Soldat's keys:
@@ -174,6 +181,12 @@ them the map is in flat colours). With a checkout of
 (`base=` where the content is, `map=` a map's name, or a `.pms` file).
 `graphics=N` starts at that way of drawing, `weapon=N` with that
 weapon (its key in the menu: 1 the Desert Eagles ... 0 the minigun).
+The second weapon is the USSOCOM, or the knife (the fire key strikes,
+`f` throws it), the chainsaw or the LAW (fired crouched or lying
+only): the key `c` goes round them, or `secondary=knife`, `saw`,
+`law`. Empty hands punch. `bonus=N` (1 seldom to 5 often) makes
+Soldat's bonus kits appear: the Flame God's flamer, the predator, the
+berserker, a bulletproof vest, cluster grenades.
 `mode=dm`, `tdm`, `ctf` or `rm` asks for a deathmatch, a team match,
 capture the flag or a Rambomatch (a bow lies on the map; empty hands
 take it, so throw your weapon away first, `f`; who has it is Rambo,

@@ -346,7 +346,9 @@ pixels, so distance counts.
 | the reload: at 0 ammo, a count-down holding the gun; `ClipOut` then `ClipIn` and `SlideBack` animations at 80% and 30% of it | `weapon_timers`, and in `control` |
 | bink (being hit shakes one's aim) and recoil (0 for every weapon but in realistic mode) | *to come*: both move the cursor, which is the player's here |
 | the bow and its flaming arrows (`Guns[BOW]`, `Guns[BOW2]`), nobody's choice: found on the map in a Rambomatch | `Soldat_weapons.id`'s `Bow` and `Bow2`, `is_bow`; `Reload_bow` its reload's animation; never thrown away |
-| the knife, the chainsaw, the LAW, the fist and the rifle's butt, the flamer, the stationary gun | *to come*, or never |
+| the knife, the chainsaw, the LAW, the fist, the flamer (`Guns[KNIFE]`...): the punch's 11th frame (`Control.pas:784`), the knife thrown (`:752`), the LAW's crouch (`Sprites.pas:4243`) | `Soldat_weapons.id`'s `Knife`, `Chainsaw`, `Law`, `Flamer`, `Thrown_knife`; styles `Melee`, `Flame`, `Flying_knife`; `Soldat_soldier.weapons`, `law_ready`; `secondaries` |
+| the bonuses (`BonusStyle`, `Vest`; `HealthHit`, `Sprites.pas:3323`), their kits (`Things.pas:2041`) and when they appear (`ServerLoop.pas:378`); cluster grenades (`Bullets.pas:2321`) | `Soldat_model.bonus`, `soldier.bonus`, `vest`; `Soldat_bullets.hurt`, `burst`; `Soldat_things.Bonus`; `Soldat_update.tick`; the flag `bonus=N` |
+| the rifle's butt, the stationary gun, a soldier burning | *to come*, or never |
 
 ## The things
 
@@ -370,7 +372,7 @@ gravity, its radius, how long it stays.
 | a flag (`OBJECT_ALPHA_FLAG`, `OBJECT_BRAVO_FLAG`): `flag.po`, four points; standing, its foot stopped and its top pulled up (16 times gravity); held, its first point on its holder's waist (point 8), its top pulled up (14 times) | `Soldat_things.kind`'s `Flag team`, `flag_shape`, `tick_flag`; `holder`, `in_base` (within 75 of its place: `Soldat_map.t.alpha_flag`, `bravo_flag`, the file's spawn points 5 and 6) |
 | taken (`CheckSpriteCollision`): by the nearest living soldier within 19, past its first 90 ticks; its own team's sends it home at once unless it is there; left 25 seconds on the ground it goes home. A capture (`TThing.Update`): carried within 28 of its carrier's own flag standing at home | the rule in `Soldat_update.tick` (`flag`), `play.captures`, `play.news` (Soldat's big message), the sounds `Capture` and `Ctf_score` |
 | the bow on the map (`OBJECT_RAMBO_BOW`: taken by empty hands only, 100 ticks after it appeared; let go by the dead; made again each second if neither on the map nor in hands, `ServerLoop.pas:642`) | `Soldat_things.bow`, `is_bow`: a weapon on the ground as any other, wider to reach (20) and one the bots walk to; `Soldat_update.bow`, and its tick |
-| the bonus kits, the parachute, the knife, the stationary gun; a thing hit by a bullet or an explosion | *to come*, or never |
+| the parachute, the stationary gun; a thing hit by a bullet or an explosion | *to come*, or never |
 
 ## The sparks
 

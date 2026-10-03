@@ -5,6 +5,15 @@
 # (with direction from me)
 
 ** Features
+- the other weapons: the knife (a blow, or thrown: it lies where it
+  fell), the chainsaw, the LAW (crouched or lying only), chosen as
+  the second weapon (the key c, secondary=); empty hands punch
+- the bonus kits (bonus=N; none without it, as in Soldat): the Flame
+  God and its flamer, the predator, the berserker, the vest, cluster
+  grenades (five bits each)
+- a budget of lines: make loc (10,000 for src/, opening comments not
+  counted), and docs/omitted.md, what of OpenSoldat is not here and
+  what it would take
 - a Rambomatch (mode=rm), from Soldat's GAMESTYLE_RAMBO: the bow on
   the map, for empty hands; its arrow, which kills at once and stays
   in a wall; Rambo's rules (who may hurt whom, which kills count, its

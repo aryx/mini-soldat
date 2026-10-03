@@ -123,7 +123,7 @@ let bow (map : Soldat_map.t) ~(random : unit -> float) : Soldat_things.t =
  * places. [engine]: the last of the bots is not Soldat's but the one
  * on elm-playground's Sense and Bot (Soldat_engine_bot). [seed]: the
  * round's chance, the same round from the same one *)
-let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_weapons.id = Ak74) ?(seed = 1) ?(mode : mode option) (map : Soldat_map.t) : play =
+let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_weapons.id = Ak74) ?(secondary : Soldat_weapons.id = Socom) ?(bonuses = 0) ?(seed = 1) ?(mode : mode option) (map : Soldat_map.t) : play =
   let mode = Option.value mode ~default:(mode_of map) in
   let seed' = seed in
   (* which of the bots, numbered from 1 as the soldiers are, is it *)
@@ -136,10 +136,12 @@ let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_wea
   in
   let teams = mode = Team_match || mode = Capture_the_flag in
   let soldier (place : float * float) (name : string) ~(team : int) ~(shirt : int * int * int) ~(trousers : int * int * int) ~(skin : int * int * int) ~(human : bool) (primary : Soldat_weapons.id) : soldier =
+    let secondary = if human then secondary else Soldat_weapons.Socom in
     (* a team's soldiers wear its colour *)
     let shirt = if team = 0 then shirt else team_shirt team in
     let (r, g, b) = shirt in
-    { name; color = Playground.rgb r g b; shirt; trousers; skin; human; body = Soldat_soldier.create ~primary ~human ~team place map.jet; health = full_health; dead = None; kills = 0; primary; hit_by = -1 }
+    { name; color = Playground.rgb r g b; shirt; trousers; skin; human; body = Soldat_soldier.create ~primary ~secondary ~human ~team place map.jet; health = full_health; dead = None; kills = 0; primary; hit_by = -1;
+      secondary; bonus = None; vest = 0. }
   in
   let first = if teams then place map ~random 1 else spawn map 0 in
   let (soldiers, _) =
@@ -159,7 +161,7 @@ let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_wea
     map; mode; captures = (0, 0); news = None; camera = first; soldiers = Array.of_list (List.rev soldiers);
     brains = Array.of_list (None :: List.mapi (fun i c -> if i + 1 = engine_at then None else Some (Soldat_bots.brain c)) bots);
     minds = Array.of_list (None :: List.mapi (fun i _ -> if i + 1 = engine_at then Some (Bot.start still) else None) bots);
-    bullets = []; things; events = []; sparks = []; spark_seed = Lehmer.scramble (seed' + 1000); sounds = []; time_left = time_limit; seed = !seed; frame = 0;
+    bullets = []; things; events = []; sparks = []; spark_seed = Lehmer.scramble (seed' + 1000); sounds = []; time_left = time_limit; seed = !seed; frame = 0; bonuses;
   }
 
 (* a tick: [player] is what the human soldier wants, [look] where its
@@ -205,11 +207,11 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
            shots := !shots @ List.map (Soldat_bullets.of_shot ~owner:i) body.shots;
            say i (List.rev body.events);
            (* out of the map: back at a spawn point, as Soldat does *)
-           let body = if Soldat_soldier.out_of_map p.map body then Soldat_soldier.create ~primary:s.primary ~human:s.human ~team:(team s) (spawn p.map (i + p.frame)) p.map.jet else body in
+           let body = if Soldat_soldier.out_of_map p.map body then Soldat_soldier.create ~primary:s.primary ~secondary:s.secondary ~human:s.human ~team:(team s) (spawn p.map (i + p.frame)) p.map.jet else body in
            soldiers.(i) <- { s with body; hit_by = -1 }
          end);
   (* 2. the bullets: tested along their way, then moved *)
-  let (soldiers, bullets, of_bullets) = Soldat_bullets.tick_heard ~rambo:(p.mode = Rambomatch) p.map soldiers (p.bullets @ !shots) in
+  let (soldiers, bullets, of_bullets, knives) = Soldat_bullets.tick_heard ~rambo:(p.mode = Rambomatch) p.map soldiers (p.bullets @ !shots) in
   say (-1) of_bullets;
   (* 3. the walls (by one's own hand, as Soldat counts it) *)
   let world : Soldat_bullets.world = { (Soldat_bullets.world ~rambo:(p.mode = Rambomatch) p.map soldiers []) with soldiers } in
@@ -283,8 +285,14 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
                  &&
                  match thing.kind with
                  | Medikit -> s.health < full_health
-                 | Grenade_kit -> s.body.grenades < Soldat_things.max_grenades
+                 | Grenade_kit -> s.body.grenades < Soldat_things.max_grenades && not (s.body.cluster && s.body.grenades > 0)
                  | Weapon _ | Flag _ -> true
+                 (* a bonus: for who has none, and may fire; a vest, for
+                  * who has less than a whole one (T:1716) *)
+                 | Bonus Vest_kit -> s.vest < default_vest
+                 | Bonus Cluster_kit -> (not s.body.cluster) || s.body.grenades = 0
+                 | Bonus Flamer_kit -> s.bonus = None && s.body.ceasefire = 0 && not (rambo s)
+                 | Bonus (Predator_kit | Berserker_kit) -> s.bonus = None && s.body.ceasefire = 0
                in
                let nearest =
                  Array.to_list (Array.mapi (fun i (s : soldier) -> (i, s)) soldiers)
@@ -316,9 +324,27 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
                    Some (Soldat_things.again p.map ~random thing)
                | ((_, i) :: _, Grenade_kit) ->
                    let s = soldiers.(i) in
-                   soldiers.(i) <- { s with body = { s.body with grenades = Soldat_things.max_grenades } };
+                   soldiers.(i) <- { s with body = { s.body with grenades = Soldat_things.max_grenades; cluster = false } };
                    heard := Sound (Pickup, (s.body.x, s.body.y)) :: !heard;
                    Some (Soldat_things.again p.map ~random thing)
+               | ((_, i) :: _, Bonus b) ->
+                   (* T:2041: the kit's gift, said to who took it *)
+                   let s = soldiers.(i) in
+                   let (s, sound, words) : soldier * Soldat_sfx.t * string =
+                     match b with
+                     | Flamer_kit ->
+                         (* its weapon goes to its back, the flamer to its hands *)
+                         let body = { s.body with secondary = s.body.weapon; weapon = Soldat_soldier.gun Flamer } in
+                         ({ s with body; bonus = Some (Flame_god, flamer_time); health = full_health }, God_flame, "Flame God Mode!")
+                     | Predator_kit -> ({ s with bonus = Some (Predator, predator_time); health = full_health }, Predator, "Predator Mode!")
+                     | Berserker_kit -> ({ s with bonus = Some (Berserker, berserker_time); health = full_health }, Berserker, "Berserker Mode!")
+                     | Vest_kit -> ({ s with vest = default_vest }, Vest_take, "Bulletproof Vest!")
+                     | Cluster_kit -> ({ s with body = { s.body with grenades = cluster_grenades; cluster = true } }, Pickup, "Cluster grenades!")
+                   in
+                   soldiers.(i) <- s;
+                   heard := Sound (sound, (s.body.x, s.body.y)) :: !heard;
+                   if i = me then tell words;
+                   None
                | (_, Flag _) | ([], _) -> Some thing))
   in
   (* the weapons let go of this tick, thrown away or by the dead *)
@@ -327,10 +353,35 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
   |> Array.iteri (fun i s ->
          match s.body.dropped with
          | Some g ->
-             dropped := Soldat_things.weapon s.body ~alive:(s.dead = None) g :: !dropped;
+             (* the flamer is nobody's to pick up *)
+             if g.kind.id <> Flamer then dropped := Soldat_things.weapon s.body ~alive:(s.dead = None) g :: !dropped;
              soldiers.(i) <- { s with body = { s.body with dropped = None } }
          | None -> ());
-  let things = things @ List.rev !dropped in
+  (* a knife thrown lies where it fell (B:1395) *)
+  let things = things @ List.rev !dropped @ List.map (Soldat_things.lying Knife) knives in
+  (* a bonus's time (S:1250); the dead have none, nor a vest (S:2353);
+   * the flamer leaves with the Flame God's (this last is not Soldat's:
+   * there the flamer is kept) *)
+  soldiers
+  |> Array.iteri (fun i (s : soldier) ->
+         match s.bonus with
+         | _ when s.dead <> None -> if s.bonus <> None || s.vest > 0. then soldiers.(i) <- { s with bonus = None; vest = 0. }
+         | Some (b, ticks) when ticks > 1 -> soldiers.(i) <- { s with bonus = Some (b, ticks - 1) }
+         | Some (Flame_god, _) when s.body.weapon.kind.id = Flamer -> soldiers.(i) <- { s with bonus = None; body = { s.body with weapon = Soldat_soldier.gun Hands } }
+         | Some _ -> soldiers.(i) <- { s with bonus = None }
+         | None -> ());
+  (* the bonus kits appear now and then, by chance (ServerLoop:378) *)
+  let things =
+    if p.bonuses = 0 then things
+    else
+      let often = [| 7400; 4300; 2500; 1600; 800 |].(min 4 (p.bonuses - 1)) in
+      let clusters = if p.mode = Capture_the_flag then 3 else 4 in
+      List.fold_left
+        (fun things ((kit : Soldat_things.bonus), every, one_in) ->
+          if p.frame mod every = 0 && int_of_float (random () *. float_of_int one_in) = 0 then things @ Option.to_list (Soldat_things.bonus p.map ~random kit) else things)
+        things
+        [ (Berserker_kit, often, 4); (Flamer_kit, 444, 5); (Predator_kit, often, 5); (Vest_kit, often / 2, 4); (Cluster_kit, often / 2, clusters) ]
+  in
   (* a Rambomatch: the bow gives health back to who holds it, one every
    * 3 ticks (S:1276); and, looked at every second, if it is neither on
    * the map nor in anybody's hands, another appears (ServerLoop:642) *)
@@ -353,7 +404,7 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
                (* at one of the map's places for it, by chance (RandomizeStart) *)
                let (x, y) = place p.map ~random (team s) in
                let primary = match brains.(i) with Some brain -> Soldat_bots.weapon brain.character ~random | None -> s.primary in
-               soldiers.(i) <- { s with dead = None; health = full_health; body = Soldat_soldier.create ~primary ~human:s.human ~team:(team s) (x, y) p.map.jet };
+               soldiers.(i) <- { s with dead = None; health = full_health; body = Soldat_soldier.create ~primary ~secondary:s.secondary ~human:s.human ~team:(team s) (x, y) p.map.jet };
                if not s.human then heard := Sound (Spawn, (x, y)) :: !heard
              end
              else soldiers.(i) <- { s with dead = Some (ticks + 1, Soldat_ragdoll.tick ~heard p.map ragdoll) });
@@ -412,6 +463,14 @@ let common (computer : computer) (model : model) : model * scene Scene2d.t =
   in
   (* 1 to 9 and 0: the weapon to appear with, from now on *)
   let model = match chosen computer with Some primary -> { model with primary } | None -> model in
+  (* c: the second weapon, round the four *)
+  let model =
+    if Scene2d.pressed (fun k -> Set_.mem "c" k.keys) scenes && model.typing = None then
+      let all = Soldat_weapons.secondaries in
+      let rec next = function a :: b :: _ when a = model.secondary -> b | _ :: rest -> next rest | [] -> List.hd all in
+      { model with secondary = next all }
+    else model
+  in
   (model, scenes)
 
 let update (computer : computer) (model : model) : model =
@@ -440,11 +499,16 @@ let update (computer : computer) (model : model) : model =
         let engine = List.assoc_opt "ai" computer.flags = Some "engine" in
         (* m: the next of the game's maps, got as any content *)
         if Scene2d.pressed (fun k -> Set_.mem "m" k.keys) scenes then Scene2d.go (Loading (List.nth maps (model.next_map mod List.length maps))) scenes
-        else if space then Scene2d.go (Playing (start ~bots:(Soldat_bots.cast model.bots model.rounds) ~engine ~primary:model.primary ~seed:model.rounds ?mode:model.mode map)) scenes else scenes
+        else if space then Scene2d.go (Playing (start ~bots:(Soldat_bots.cast model.bots model.rounds) ~engine ~primary:model.primary ~secondary:model.secondary ~bonuses:model.bonuses ~seed:model.rounds ?mode:model.mode map)) scenes else scenes
     | Online _ | Lobby _ | Connecting _ -> scenes (* Soldat_online's *)
     | Playing p -> (
         let z = zoom computer.screen in
-        let p = if p.soldiers.(0).primary <> model.primary then { p with soldiers = Array.mapi (fun i (s : soldier) -> if i = 0 then { s with primary = model.primary } else s) p.soldiers } else p in
+        let mine = p.soldiers.(0) in
+        let p =
+          if mine.primary <> model.primary || mine.secondary <> model.secondary then
+            { p with soldiers = Array.mapi (fun i (s : soldier) -> if i = 0 then { s with primary = model.primary; secondary = model.secondary } else s) p.soldiers }
+          else p
+        in
         let p = tick p (human computer p) ~look:(computer.mouse.mx /. z, -.computer.mouse.my /. z) in
         (* what the tick gave to hear, from where the player is *)
         let listener = Soldat_bullets.place p.soldiers.(0) in

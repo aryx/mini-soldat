@@ -69,16 +69,18 @@ let get_one (r : r) (all : 'a list) (what : string) : 'a =
 (* The game's own *)
 (*****************************************************************************)
 
-let weapons : Soldat_weapons.id list = [ Eagles; Mp5; Ak74; Steyr; Spas; Ruger; M79; Barrett; Minimi; Minigun; Socom; Grenade; Hands; Bow; Bow2 ]
+let weapons : Soldat_weapons.id list = [ Eagles; Mp5; Ak74; Steyr; Spas; Ruger; M79; Barrett; Minimi; Minigun; Socom; Grenade; Hands; Bow; Bow2; Knife; Chainsaw; Law; Flamer; Thrown_knife; Cluster_grenade; Cluster ]
 let animations : Soldat_anims.id list = List.map (fun (id, _, _, _) -> id) Soldat_anims.all
 let stances : Soldat_soldier.stance list = [ Standing; Crouching; Lying ]
+let bonuses : bonus option list = [ None; Some Flame_god; Some Predator; Some Berserker ]
+let kits : Soldat_things.bonus list = [ Flamer_kit; Predator_kit; Vest_kit; Berserker_kit; Cluster_kit ]
 let modes : mode list = [ Deathmatch; Team_match; Capture_the_flag; Rambomatch ]
 
 (* the sounds, a weapon's by its weapon *)
 let sounds : Soldat_sfx.t list =
   List.map (fun id -> Soldat_sfx.Fire id) weapons
   @ List.map (fun id -> Soldat_sfx.Reload id) weapons
-  @ [ Change_weapon; Change_spin; Throw_gun; Take_gun; Take_medikit; Pickup; Grenade_pullout; Grenade_throw; Grenade_bounce; Grenade_explosion; M79_explosion;
+  @ [ Change_weapon; Change_spin; Throw_gun; Take_gun; Take_medikit; Take_bow; God_flame; Predator; Berserker; Vest_take; Vest_hit; Cluster_grenade; Cluster_explosion; Pickup; Grenade_pullout; Grenade_throw; Grenade_bounce; Grenade_explosion; M79_explosion;
       Explosion_erg; Ric; Ricochet; Hit_arg; Dead_hit; Death; Headchop; Bryzg; Bodyfall; Bonecrack; Step; Jump; Fall; Fall_hard; Crouch; Crouch_move;
       Prone_move; Go_prone; Stand_up; Roll; Stop; Rocketz; Spawn; Weapon_hit; Kit_fall; Shell; Gauge_shell; Clip_fall; Dist_gun; Dist_grenade; Dist_m79;
       Flag_fall; Capture; Ctf_score ]
@@ -136,6 +138,7 @@ let put_body (w : w) (s : Soldat_soldier.t) : unit =
   put_points w s.old_skeleton;
   put_gun w s.weapon;
   put_gun w s.secondary;
+  put_bool w s.cluster;
   Wire.put_varint w s.grenades; Wire.put_varint w s.ceasefire; Wire.put_varint w s.burst; Wire.put_u8 w s.team
 
 let get_body (r : r) : Soldat_soldier.t =
@@ -159,6 +162,7 @@ let get_body (r : r) : Soldat_soldier.t =
   if Array.length skeleton <> 20 || Array.length old_skeleton <> 20 then Wire.fail r "a skeleton is 20 points";
   let weapon = get_gun r in
   let secondary = get_gun r in
+  let cluster = get_bool r in
   let grenades = Wire.get_varint r in
   let ceasefire = Wire.get_varint r in
   let burst = Wire.get_varint r in
@@ -168,7 +172,7 @@ let get_body (r : r) : Soldat_soldier.t =
     direction = (if bit k 0 then 1 else -1); old_direction = (if bit k 1 then 1 else -1);
     on_ground = bit k 2; on_ground_last = bit k 3; on_ground_permanent = bit k 4; jetting = bit k 5; was_running_left = bit k 6; was_jumping = bit k 7;
     fired = bit k 8; can_throw = bit k 9; trigger_released = bit k 10; reload_wanted = bit k 11; human = bit k 12;
-    stance; legs; body; jets; touched = []; skeleton; old_skeleton; weapon; secondary; grenades; ceasefire; burst; team;
+    stance; legs; body; jets; touched = []; skeleton; old_skeleton; weapon; secondary; grenades; cluster; ceasefire; burst; team;
     shots = []; dropped = None; events = [];
   }
 
@@ -198,6 +202,10 @@ let put_soldier (w : w) (s : soldier) : unit =
   put_float w s.health;
   Wire.put_varint w s.kills;
   put_weapon w s.primary;
+  put_weapon w s.secondary;
+  put_one w bonuses (Option.map fst s.bonus);
+  Wire.put_varint w (match s.bonus with Some (_, ticks) -> ticks | None -> 0);
+  put_float w s.vest;
   match s.dead with
   | None -> put_bool w false
   | Some (ticks, ragdoll) ->
@@ -217,6 +225,10 @@ let get_soldier (r : r) : soldier =
   let health = get_float r in
   let kills = Wire.get_varint r in
   let primary = get_weapon r in
+  let secondary = get_weapon r in
+  let bonus = get_one r bonuses "a bonus" in
+  let ticks = Wire.get_varint r in
+  let vest = get_float r in
   let dead =
     if get_bool r then begin
       let ticks = Wire.get_varint r in
@@ -229,7 +241,7 @@ let get_soldier (r : r) : soldier =
     else None
   in
   let (red, green, blue) = shirt in
-  { name; color = Playground.rgb red green blue; shirt; trousers; skin; human; body; health; dead; kills; primary; hit_by = -1 }
+  { name; color = Playground.rgb red green blue; shirt; trousers; skin; human; body; health; dead; kills; primary; hit_by = -1; secondary; bonus = Option.map (fun b -> (b, ticks)) bonus; vest }
 
 let put_bullet (w : w) (b : bullet) : unit =
   List.iter (put_float w) [ b.x; b.y; b.vx; b.vy ];
@@ -252,7 +264,8 @@ let put_thing (w : w) (t : Soldat_things.t) : unit =
   | Weapon g -> Wire.put_u8 w 0; put_gun w g
   | Medikit -> Wire.put_u8 w 1
   | Grenade_kit -> Wire.put_u8 w 2
-  | Flag team -> Wire.put_u8 w 3; Wire.put_u8 w team);
+  | Flag team -> Wire.put_u8 w 3; Wire.put_u8 w team
+  | Bonus b -> Wire.put_u8 w 4; put_one w kits b);
   put_particles w t.points;
   Wire.put_varint w (max 0 t.ttl);
   Wire.put_signed w t.holder;
@@ -265,6 +278,7 @@ let get_thing (r : r) : Soldat_things.t =
     | 1 -> Medikit
     | 2 -> Grenade_kit
     | 3 -> Flag (Wire.get_u8 r)
+    | 4 -> Bonus (get_one r kits "a kit")
     | _ -> Wire.fail r "not a thing"
   in
   let points = get_particles r in
@@ -396,6 +410,6 @@ let decode_world (map : Soldat_map.t) (bytes : string) : (play, string) result =
         Wire.fail r "a soldier that is not there";
       {
         map; mode; captures = (alpha, bravo); news; camera = (0., 0.); soldiers; brains = Array.make n None; minds = Array.make n None; bullets; things;
-        sparks = []; spark_seed = Lehmer.of_int 1; sounds = []; events; time_left; seed = Lehmer.of_int 1; frame;
+        sparks = []; spark_seed = Lehmer.of_int 1; sounds = []; events; time_left; seed = Lehmer.of_int 1; frame; bonuses = 0;
       })
     bytes

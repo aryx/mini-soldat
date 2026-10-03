@@ -105,6 +105,10 @@ type t = {
   grenade_spawns : (float * float) list;
   (* where Rambo's bow lies (the file's spawn points of "team" 15) *)
   bow_spawns : (float * float) list;
+  (* where the bonus kits appear, each with its "team": 9 the cluster
+   * grenades, 10 the vest, 11 the flamer, 12 the berserker, 13 the
+   * predator *)
+  bonus_spawns : (int * (float * float)) list;
   (* where each team's soldiers appear (the file's spawn points of
    * teams 1 and 2), and where its flag stands (5 and 6): a map for
    * capture the flag has them *)

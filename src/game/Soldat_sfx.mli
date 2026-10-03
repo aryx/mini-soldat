@@ -29,6 +29,14 @@ type t =
   | Take_gun
   | Take_medikit
   | Take_bow
+  (* a bonus kit taken: Flame god, Predator, Berserker, the vest; a vest hit *)
+  | God_flame
+  | Predator
+  | Berserker
+  | Vest_take
+  | Vest_hit
+  | Cluster_grenade
+  | Cluster_explosion
   | Pickup (* a kit of grenades *)
   (* grenades and explosions *)
   | Grenade_pullout

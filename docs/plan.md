@@ -326,6 +326,16 @@ be.
   fire at Rambo alone. `tests/game/Unit_rambo.ml`. Not over the
   network: a server's room plays its map's own mode.
 
+- After the steps: **the other weapons and the bonus kits**. The
+  second weapon chosen (the key `c`, `secondary=`): the knife (a blow,
+  or thrown), the chainsaw, the LAW (fired crouched or lying only);
+  empty hands punch. The five bonus kits (`bonus=N`, off without it,
+  as in Soldat): the Flame God and its flamer, the predator, the
+  berserker, the vest, cluster grenades. Three new styles of bullets:
+  a blow (it lives a tick, along the hand), a flame, the knife
+  flying. `tests/game/Unit_goodies.ml`. Not there: a soldier burning
+  after a flame; the bots choosing these weapons.
+
 Nothing is the toy's any more but the bot of `ai=engine`, kept as an
 example.
 
@@ -375,9 +385,12 @@ flags, 8 the network.
 
 ## To decide
 
-- **A budget of lines**, as mini-chrome has. The Pascal behind steps 1
-  to 7 is about 39,000 lines (`shared/` without its network, and
-  `client/`); a first guess for all of `src/` here is 10,000.
+- **A budget of lines**: decided (2026-10-03). 10,000 for `src/`, a
+  tenth of OpenSoldat's 109,196 lines of Pascal, a file's opening
+  comments not counted (`make loc`, as mini-chrome's). Not a hard
+  limit: clear code first. `docs/omitted.md` says what is not here,
+  what of the 109,196 is not the game at all (bindings, the server's
+  scripting), and what the rest would take.
 - **A reference to compare with**: playing the real game beside ours
   is the check of a feel. Building OpenSoldat here (Free Pascal) and
   making it print a soldier's position each tick for given keys would

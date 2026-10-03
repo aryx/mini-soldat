@@ -15,7 +15,8 @@
 (* See Soldat_weapons.mli *)
 
 type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade | Hands | Bow | Bow2
-type style = Plain | Pellets | Explosive | Thrown | Arrow
+  | Knife | Chainsaw | Law | Flamer | Thrown_knife | Cluster_grenade | Cluster
+type style = Plain | Pellets | Explosive | Thrown | Arrow | Melee | Flame | Flying_knife
 
 type t = {
   id : id;
@@ -58,9 +59,17 @@ let known : (id * string * string * bool * bool) list =
     (Grenade, "Grenade", "Grenade", false, false);
     (Hands, "Hands", "Punch", false, false);
     (Bow, "Bow", "Rambo Bow", false, false);
-    (Bow2, "Flame Bow", "Flamed Arrows", false, false) ]
+    (Bow2, "Flame Bow", "Flamed Arrows", false, false);
+    (Knife, "Combat Knife", "Combat Knife", false, false);
+    (Chainsaw, "Chainsaw", "Chainsaw", false, false);
+    (Law, "M72 LAW", "M72 LAW", false, true);
+    (Flamer, "Flamer", "Flamer", false, false);
+    (Thrown_knife, "Combat Knife", "Combat Knife", false, false);
+    (Cluster_grenade, "Cluster Grenade", "Grenade", false, false);
+    (Cluster, "Clusters", "Grenade", false, false) ]
 
 let primaries : id list = [ Eagles; Mp5; Ak74; Steyr; Spas; Ruger; M79; Barrett; Minimi; Minigun ]
+let secondaries : id list = [ Socom; Knife; Chainsaw; Law ]
 
 let parse (text : string) : (string * (string * float) list) list =
   let sections =
@@ -84,6 +93,8 @@ let parse (text : string) : (string * (string * float) list) list =
 (* BULLET_TIMEOUT and GRENADE_TIMEOUT (shared/Constants.pas) *)
 let bullet_timeout = 420
 let grenade_timeout = 180
+let melee_timeout = 1
+let flamer_timeout = 32
 
 let of_ini (sections : (string * (string * float) list) list) : (id -> t, string) result =
   let weapon (id, name, section, clip_reload, single_shot) : (t, string) result =
@@ -93,7 +104,18 @@ let of_ini (sections : (string * (string * float) list) list) : (id -> t, string
         let missing = ref None in
         let number key = match List.assoc_opt key numbers with Some v -> v | None -> missing := Some key; 0. in
         let int key = int_of_float (number key) in
-        let style = match int "BulletStyle" with 2 -> Thrown | 3 -> Pellets | 4 -> Explosive | 7 | 8 -> Arrow | _ -> Plain in
+        let style =
+          match (id, int "BulletStyle") with
+          | (Thrown_knife, _) -> Flying_knife
+          | (Cluster, _) -> Explosive
+          | (_, 2) -> Thrown
+          | (_, 3) -> Pellets
+          | (_, (4 | 12)) -> Explosive
+          | (_, (7 | 8)) -> Arrow
+          | (_, (6 | 11)) -> Melee
+          | (_, 5) -> Flame
+          | _ -> Plain
+        in
         let reload_time = int "ReloadTime" in
         let w =
           {
@@ -103,7 +125,7 @@ let of_ini (sections : (string * (string * float) list) list) : (id -> t, string
             clip_reload; single_shot;
             clip_out = (if clip_reload then int_of_float (float_of_int reload_time *. 0.8) else 0);
             clip_in = (if clip_reload then int_of_float (float_of_int reload_time *. 0.3) else 0);
-            timeout = (if style = Thrown then grenade_timeout else bullet_timeout);
+            timeout = (match style with Thrown -> grenade_timeout | Melee -> melee_timeout | Flame -> flamer_timeout | _ -> bullet_timeout);
           }
         in
         match !missing with Some key -> Error (Printf.sprintf "weapons.ini: [%s] has no %s" section key) | None -> Ok w)

@@ -81,6 +81,8 @@ type t = {
   mutable weapon : gun;
   mutable secondary : gun;
   mutable grenades : int;
+  (* they are cluster grenades (the bonus kit's three) *)
+  mutable cluster : bool;
   (* ticks before it may fire or be hit (CeaseFireCounter) *)
   mutable ceasefire : int;
   (* shots since the trigger was pulled (BurstCount) *)
@@ -213,7 +215,7 @@ let aim_skeleton (s : t) (points : (float * float) array) : unit =
 let ceasefire_time = 90
 let grenades_at_start = 1
 
-let create ?(primary : Soldat_weapons.id = Socom) ?(human = true) ?(team = 0) ((x, y) : float * float) (jets : int) : t =
+let create ?(primary : Soldat_weapons.id = Socom) ?(secondary : Soldat_weapons.id = Socom) ?(human = true) ?(team = 0) ((x, y) : float * float) (jets : int) : t =
   let s =
     {
       x; y; vx = 0.; vy = 0.; fx = 0.; fy = 0.; old_x = x; old_y = y;
@@ -227,7 +229,7 @@ let create ?(primary : Soldat_weapons.id = Socom) ?(human = true) ?(team = 0) ((
       skeleton = [||]; old_skeleton = [||];
       was_running_left = false; was_jumping = false;
       (* with the pistol chosen, it is in the hands and nothing on the back *)
-      weapon = gun primary; secondary = gun Socom; grenades = grenades_at_start;
+      weapon = gun primary; secondary = gun secondary; grenades = grenades_at_start; cluster = false;
       ceasefire = ceasefire_time; burst = 0; fired = false; can_throw = true; trigger_released = true; reload_wanted = false; shots = []; dropped = None; events = []; human; team;
     }
   in
@@ -316,12 +318,18 @@ let recoil (s : t) (w : Soldat_weapons.t) : unit =
   | M79 -> if free && s.stance <> Lying then body_apply s Small_recoil 1
   | Barrett -> if free then body_apply s Barret 1
   | Minigun -> if free && s.stance = Standing then body_apply s Small_recoil 2
-  | Grenade | Hands | Bow | Bow2 -> ()
+  | _ -> ()
+
+(* the LAW is fired from the ground only, crouched or lying (S:4243) *)
+let law_ready (s : t) : bool =
+  (s.on_ground || s.on_ground_permanent)
+  && match s.legs.id with Crouch -> s.legs.frame > 13 | Crouch_run | Crouch_run_back -> true | Prone -> s.legs.frame > 23 | _ -> false
 
 (* TSprite.Fire (S:4024). [random]: a number from 0 to 1, the next of
  * the game's *)
 let fire (map : Soldat_map.t) (s : t) ~(jetting : bool) ~(random : unit -> float) : unit =
   let w = s.weapon.kind in
+  if w.id = Law && not (law_ready s) then () else
   let (ax, ay) = aim_direction s in
   let (hx, hy) = point s 15 in
   let from = (hx -. (ax *. 4.), hy -. (ay *. 4.) -. 2.) in
@@ -415,9 +423,10 @@ let throw_grenade (map : Soldat_map.t) (s : t) (c : control) : unit =
       let (hx, hy) = point s 15 in
       let from = (hx +. (bx *. 3.), hy -. 2. +. (by *. 3.)) in
       if (not (Soldat_map.in_bullet_wall map from)) && Soldat_map.clear map (s.x, s.y -. 12.) from then begin
-        s.shots <- s.shots @ [ { from; velocity = (bx, by); weapon = Grenade } ];
+        s.shots <- s.shots @ [ { from; velocity = (bx, by); weapon = (if s.cluster then Cluster_grenade else Grenade) } ];
         emit s (Sound (Grenade_throw, from));
-        s.grenades <- s.grenades - 1
+        s.grenades <- s.grenades - 1;
+        if s.grenades = 0 then s.cluster <- false
       end
     end;
     if c.grenade then s.can_throw <- false;
@@ -435,10 +444,14 @@ let weapons (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
   if (not rolling) && s.body.id <> Melee && s.body.id <> Change then begin
     if s.body.id <> Hands_up_aim || s.body.frame = 11 then
       if c.fire && s.ceasefire = 0 then begin
-        (* empty hands punch, there: not here *)
-        if w.id <> Hands && s.weapon.fire_count = 0 && s.weapon.ammo > 0 then
-          (* the Barrett and the minigun: held a while first *)
-          if w.startup > 0 && s.weapon.startup_count > 0 then s.weapon <- { s.weapon with startup_count = s.weapon.startup_count - 1 }
+        (* empty hands and the knife strike: an animation (C:457) *)
+        if w.id = Hands || w.id = Knife then body_apply s Punch 1
+        else if s.weapon.fire_count = 0 && s.weapon.ammo > 0 then
+          (* the Barrett, the minigun and the LAW: held a while first; the
+           * LAW's time runs only when it may fire *)
+          if w.startup > 0 && s.weapon.startup_count > 0 then begin
+            if w.id <> Law || law_ready s then s.weapon <- { s.weapon with startup_count = s.weapon.startup_count - 1 }
+          end
           else fire map s ~jetting ~random
       end
       else s.weapon <- { s.weapon with startup_count = w.startup }
@@ -451,6 +464,17 @@ let weapons (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
   (* once a pull: the trigger still held, the next shot does not come *)
   if s.human && w.single_shot && c.fire && (s.burst > 0 || c.reload) && s.weapon.fire_count < 2 then
     s.weapon <- { s.weapon with fire_count = s.weapon.fire_count + 1 };
+  (* the blow, at the punch's 11th frame (C:784): a "bullet" along the
+   * hand, from the wrist to just past the fist, that lives a tick *)
+  if s.body.id = Punch && s.body.frame = 11 && w.id <> Law && w.id <> M79 then begin
+    let (wx, wy) = point s 15 and (fx, fy) = point s 16 in
+    let (dx, dy) = normalize (wx -. fx, wy -. fy) in
+    let from = (wx +. (4. *. dx), wy +. (4. *. dy)) in
+    let d = float_of_int s.direction in
+    s.shots <- s.shots @ [ { from; velocity = (fx +. (2.1 *. d) -. fst from, fy +. 3. -. snd from); weapon = w.id } ];
+    if w.id = Knife then sound s (Fire Knife);
+    frame_to s 12
+  end;
   throw_grenade map s c;
   if (not rolling) && c.change then body_apply s Change 1;
   (* the weapon thrown away: an animation, at whose 19th frame it
@@ -496,6 +520,15 @@ let weapons (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
     s.burst <- 0
   end;
   if s.body.id = Change && Soldat_anims.ended s.body && s.weapon.ammo = 0 then body_apply s Stand 1;
+  (* the knife is thrown, not dropped: when the key is let go, or at
+   * the 16th frame; harder the longer it was held (C:752) *)
+  if s.weapon.kind.id = Knife && s.body.id = Throw_weapon && ((not c.drop) || s.body.frame = 16) then begin
+    let (ax, ay) = aim_direction s in
+    let power = (Soldat_weapons.get Knife).speed *. 1.5 *. (float_of_int (min 16 (max 8 s.body.frame)) /. 16.) in
+    s.shots <- s.shots @ [ { from = point s 16; velocity = (ax *. power, ay *. power); weapon = Thrown_knife } ];
+    s.weapon <- gun Hands;
+    body_apply s Stand 1
+  end;
   if s.body.id = Throw_weapon && s.body.frame = 19 && s.weapon.kind.id <> Hands then begin
     s.dropped <- Some s.weapon;
     s.weapon <- gun Hands;
@@ -531,7 +564,7 @@ let weapon_timers (s : t) (c : control) : unit =
     if w.id <> Spas then begin
       let g = s.weapon in
       (* the reload's sound as it starts; its clip as it comes out *)
-      if g.reload_count = w.reload_time && w.id <> Hands then sound s (Reload w.id);
+      if g.reload_count = w.reload_time && not (List.mem w.id [ Hands; Knife; Chainsaw; Law; Flamer ]) then sound s (Reload w.id);
       if g.reload_count = w.clip_out && w.clip_reload then emit s (Clip { weapon = w.id; hand = point s 15; speed = (s.vx, s.vy) });
       let reload_count = max 0 (g.reload_count - 1) in
       s.weapon <-

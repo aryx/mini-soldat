@@ -109,6 +109,7 @@ let hit_points = [ 12; 11; 10; 6; 5; 4; 3 ]
  * [after_radius] other grenades go off; EXPLOSION_IMPACT_MULTIPLY *)
 let frag_radius = 85.
 let m79_radius = 64.
+let cluster_radius = 35.
 let after_radius = 50.
 let impact = 3.75
 
@@ -124,7 +125,10 @@ let distance ((ax, ay) : float * float) ((bx, by) : float * float) : float = Flo
 let of_shot ~(owner : int) (shot : Soldat_soldier.shot) : bullet =
   let w = Soldat_weapons.get shot.weapon in
   let (x, y) = shot.from and (vx, vy) = shot.velocity in
-  { x; y; vx; vy; old = shot.from; owner; weapon = shot.weapon; damage = w.damage; ttl = w.timeout; start = shot.from; halved = 0; bounced_at = (0., 0.); through = -1 }
+  (* a fist's or a knife's blow is worth a tenth of its number, however
+   * long the hand is: Soldat's goes at 0.1 a tick (C:793) *)
+  let damage = if w.style = Melee && shot.weapon <> Chainsaw then w.damage *. 0.1 /. Float.max 0.1 (Float.hypot vx vy) else w.damage in
+  { x; y; vx; vy; old = shot.from; owner; weapon = shot.weapon; damage; ttl = w.timeout; start = shot.from; halved = 0; bounced_at = (0., 0.); through = -1 }
 
 (*****************************************************************************)
 (* The soldiers, as a bullet sees them *)
@@ -144,6 +148,10 @@ type world = {
   mutable events : Soldat_event.t list;
   (* a Rambomatch: its rules of who is hurt and what a kill is worth *)
   rambo : bool;
+  (* the bullets born of a bullet this tick (a cluster grenade's five),
+   * and where thrown knives fell *)
+  mutable born : bullet list;
+  mutable knives : (float * float) list;
 }
 
 let emit (w : world) (e : Soldat_event.t) : unit = w.events <- e :: w.events
@@ -170,7 +178,14 @@ let hurt ?(weapon : Soldat_weapons.id option) (w : world) (i : int) ~(by : int) 
    * to each other (HealthHit, S:3326) *)
   let third = ref false in
   if w.rambo && by <> i then Array.iteri (fun j o -> if j <> i && j <> by && rambo o then third := true) w.soldiers;
-  if !third then () else
+  if !third || has s Flame_god then () (* BONUS_FLAMEGOD: nothing harms it (S:3323) *) else
+  (* a vest takes a third of the blow and lets a quarter through; a
+   * berserker's blow is four times itself (S:3339) *)
+  let vest = if s.vest > 0. then s.vest -. Float.round (0.33 *. amount) else s.vest in
+  let amount = if s.vest > 0. then Float.round (0.25 *. amount) else amount in
+  let amount = if by >= 0 && has w.soldiers.(by) Berserker then 4. *. amount else amount in
+  if s.vest > 0. then emit w (Sound (Vest_hit, place s));
+  let s = { s with vest } in
   (* its own team's bullets do nothing to it (sv_friendlyfire is off);
    * its own do *)
   if by <> i && by >= 0 && team s <> 0 && team w.soldiers.(by) = team s then ()
@@ -208,17 +223,32 @@ let hurt ?(weapon : Soldat_weapons.id option) (w : world) (i : int) ~(by : int) 
  * left or less, it hits nobody *)
 let arrow_resist = 280
 
-let explosive (b : bullet) : bool = match (Soldat_weapons.get b.weapon).style with Thrown | Explosive -> true | Plain | Pellets | Arrow -> false
+let explosive (b : bullet) : bool = match (Soldat_weapons.get b.weapon).style with Thrown | Explosive -> true | Plain | Pellets | Arrow | Melee | Flame | Flying_knife -> false
+
+(* HIT_TYPE_CLUSTERNADE (B:2321): a cluster grenade bursts into five,
+ * thrown back the way it came. Soldat scatters them by chance (up to 5
+ * sideways, 2.5 up); here evenly, a tick having no chance of its own *)
+let burst (w : world) (b : bullet) ~(at : float * float) : unit =
+  emit w (Sound (Cluster_grenade, at));
+  let from = (fst at -. b.vx, snd at -. b.vy) in
+  for i = 0 to 4 do
+    let k = float_of_int i /. 4. in
+    let v = ((0.75 *. b.vx) -. 2.5 +. (5. *. k), (-0.75 *. b.vy) -. 2.5 +. (2.5 *. k)) in
+    w.born <- { (of_shot ~owner:b.owner { from; velocity = v; weapon = Cluster }) with old = from } :: w.born
+  done
 
 (* ExplosionHit: [b] goes off at a place. [direct]: the soldier it
  * struck and where, if it struck one: that point is the one measured
  * from *)
 let rec explode (w : world) (b : bullet) ~(at : float * float) ~(direct : (int * int) option) : unit =
-  let m79 = b.weapon = M79 in
-  let gun = Soldat_weapons.get (if m79 then M79 else Grenade) in
-  let radius = if m79 then m79_radius else frag_radius in
+  (* what is fired (the M79's, the LAW's rocket), a cluster's bit, or a
+   * grenade thrown: its reach, and its harm (a bit's is half) *)
+  let m79 = b.weapon = M79 || b.weapon = Law in
+  let gun = Soldat_weapons.get (if m79 then b.weapon else Grenade) in
+  let radius = if m79 then m79_radius else if b.weapon = Cluster then cluster_radius else frag_radius in
+  let gun = if b.weapon = Cluster then { gun with damage = gun.damage /. 2. } else gun in
   w.explosions <- { at; radius; age = 0 } :: w.explosions;
-  emit w (Blast ((if m79 then M79 else Grenade), at));
+  emit w (Blast (b.weapon, at));
   for i = 0 to Array.length w.soldiers - 1 do
     let s = w.soldiers.(i) in
     match s.dead with
@@ -286,7 +316,7 @@ let against_map ?(team = 0) (map : Soldat_map.t) (b : bullet) ~(lift : float) : 
                 let (nx, ny) = normalize perp in
                 Bounced { b with x = fst pos; y = snd pos; vx = (b.vx -. (nx *. depth)) *. grenade_bounce; vy = (b.vy -. (ny *. depth)) *. grenade_bounce }
             (* an arrow goes into what it meets, and stays *)
-            | Arrow -> Stopped pos
+            | Arrow | Melee | Flame | Flying_knife -> Stopped pos
             | Plain | Pellets | Explosive ->
                 let back = (fst pos -. b.vx, snd pos -. b.vy) in
                 if distance back b.bounced_at > 50. then begin
@@ -367,7 +397,7 @@ let update (w : world) (k : int) (b : bullet) : unit =
               stuck := true;
               if b.ttl > arrow_resist then emit w (Wall ((b.x, b.y), (b.vx, b.vy)));
               b)
-      | Plain | Pellets | Explosive -> (
+      | Plain | Pellets | Explosive | Melee | Flame | Flying_knife -> (
           match against_map ~team w.map b ~lift:0. with
           | Free -> b
           | Lost -> lost := true; b
@@ -378,7 +408,9 @@ let update (w : world) (k : int) (b : bullet) : unit =
               ended := Some (fst hit -. b.vx, snd hit -. b.vy);
               limit := Some (distance hit b.old);
               (* a bullet's end in a wall; the M79's is its explosion *)
-              if style <> Explosive then emit w (Wall ((fst hit -. b.vx, snd hit -. b.vy), (b.vx, b.vy)));
+              if style <> Explosive && style <> Flame then emit w (Wall ((fst hit -. b.vx, snd hit -. b.vy), (b.vx, b.vy)));
+              (* the knife thrown lies where it fell (B:1395) *)
+              if style = Flying_knife then w.knives <- (fst hit -. b.vx, snd hit -. b.vy) :: w.knives;
               b)
     in
     if not !lost then begin
@@ -396,7 +428,7 @@ let update (w : world) (k : int) (b : bullet) : unit =
       let radius = if style = Thrown then part_radius +. 1. else part_radius in
       let targets =
         List.init (Array.length w.soldiers) Fun.id
-        |> List.filter (fun i -> (i <> b.owner || b.ttl < vulnerable) && i <> b.through)
+        |> List.filter (fun i -> (i <> b.owner || (b.ttl < vulnerable && style <> Melee && style <> Flame)) && i <> b.through)
         (* B:1453: an arrow that has stopped, or flown too long, hits nobody *)
         |> List.filter (fun _ -> not (style = Arrow && (!stuck || b.ttl <= arrow_resist)))
         |> List.map (fun i -> (distance (b.x, b.y) (place w.soldiers.(i)), i))
@@ -443,6 +475,14 @@ let update (w : world) (k : int) (b : bullet) : unit =
                     else if w.soldiers.(j).dead <> None || speed > 23. then on 0.75
                     else if speed > 5. && speed /. gun.speed >= 0.9 then on 0.66
                     else ended := Some hit
+                | Melee | Flame | Flying_knife ->
+                    (* a blade or a flame: felt once, by the first it meets *)
+                    pos := hit;
+                    if style <> Flame then emit w (Blood (hit, (vx, vy)));
+                    emit w (Sound ((if was_dead then Dead_hit else Hit_arg), hit));
+                    hurt ~weapon:b.weapon w j ~by:b.owner ~where (Float.hypot vx vy *. b.damage *. Soldat_weapons.modifier gun where);
+                    if style = Flying_knife then w.knives <- hit :: w.knives;
+                    ended := Some hit
                 | Arrow ->
                     (* B:1749: it stops in who it hits *)
                     pos := hit;
@@ -453,7 +493,7 @@ let update (w : world) (k : int) (b : bullet) : unit =
                 | Thrown ->
                     if not was_dead then begin
                       blown := true;
-                      explode w b ~at:!pos ~direct:(Some (j, where))
+                      if b.weapon = Cluster_grenade then burst w b ~at:!pos else explode w b ~at:!pos ~direct:(Some (j, where))
                     end
                 | Explosive ->
                     if not was_dead then begin
@@ -472,7 +512,8 @@ let update (w : world) (k : int) (b : bullet) : unit =
       end
       else if !ended <> None || ttl = 0 then begin
         (* what explodes does, where it ended *)
-        if explosive b then explode w b ~at:(Option.value !ended ~default:(b.x, b.y)) ~direct:None
+        let at = Option.value !ended ~default:(b.x, b.y) in
+        if b.weapon = Cluster_grenade then burst w b ~at else if explosive b then explode w b ~at ~direct:None
       end
       else begin
         (* 5. weaker with the distance, looked at every 6 ticks *)
@@ -481,25 +522,29 @@ let update (w : world) (k : int) (b : bullet) : unit =
         let (damage, halved) = if weakens then (b.damage *. 0.5, b.halved + 1) else (b.damage, b.halved) in
         (* 6. ParticleSystem.Euler *)
         let (x, y) = !pos and (vx, vy) = !v in
-        let vy = vy +. gravity in
+        let vy = vy +. gravity -. if style = Flame then 0.15 else 0. in
         w.bullets.(k) <- Some { b with x = x +. vx; y = y +. vy; vx = vx *. damping; vy = vy *. damping; old = (x, y); ttl; damage; halved; through = !through }
       end
     end
   end
 
 let world ?(rambo = false) (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : world =
-  { rambo; map; soldiers = Array.copy soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = Array.of_list (List.map Option.some bullets); explosions = []; events = [] }
+  { rambo; born = []; knives = []; map; soldiers = Array.copy soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = Array.of_list (List.map Option.some bullets); explosions = []; events = [] }
 
 (* a tick of all the bullets, [fired] the ones that left this tick,
  * over these soldiers: the soldiers after, the bullets left, and the
  * explosions there were *)
-let tick ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * explosion list =
+let run ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : world * bullet list =
   let w = world ?rambo map soldiers bullets in
   Array.iteri (fun k b -> match w.bullets.(k) with Some _ -> update w k (Option.get b) | None -> ()) (Array.copy w.bullets);
-  (w.soldiers, List.filter_map Fun.id (Array.to_list w.bullets), List.rev w.explosions)
+  (w, List.filter_map Fun.id (Array.to_list w.bullets) @ List.rev w.born)
 
-(* the same, with what is to be heard and seen of it, in its order *)
-let tick_heard ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * Soldat_event.t list =
-  let w = world ?rambo map soldiers bullets in
-  Array.iteri (fun k b -> match w.bullets.(k) with Some _ -> update w k (Option.get b) | None -> ()) (Array.copy w.bullets);
-  (w.soldiers, List.filter_map Fun.id (Array.to_list w.bullets), List.rev w.events)
+let tick ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * explosion list =
+  let (w, left) = run ?rambo map soldiers bullets in
+  (w.soldiers, left, List.rev w.explosions)
+
+(* the same, with what is to be heard and seen of it, in its order, and
+ * where the knives thrown fell *)
+let tick_heard ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * Soldat_event.t list * (float * float) list =
+  let (w, left) = run ?rambo map soldiers bullets in
+  (w.soldiers, left, List.rev w.events, w.knives)

@@ -82,7 +82,7 @@ let of_event (map : Soldat_map.t) ~(random : unit -> float) ~(owner : int) (even
             let first = (hx +. 3. -. (0.17 *. bx), hy -. 2. -. (0.15 *. by)) in
             let second = (hx -. 3. -. (0.25 *. bx), hy -. 3. -. (0.3 *. by)) in
             (second, [ (first, c); (second, across ()) ])
-        | Spas | M79 | Grenade | Hands | Bow | Bow2 -> (usual, [])
+        | _ -> (usual, [])
       in
       (* none out of a muzzle that is in a wall *)
       let shells = if Soldat_map.in_bullet_wall map usual then [] else List.map (fun (at, v) -> spark (Shell weapon) at v 255) shells in
@@ -165,11 +165,11 @@ let of_event (map : Soldat_map.t) ~(random : unit -> float) ~(owner : int) (even
       let (bx, by) = (bx *. 1.5, by *. 0.4) in
       ([ a; b; spark Blood at (bx, by) 70; spark Blood at (bx, by) 75 ], [])
   | Blast (weapon, at) ->
-      let m79 = weapon = M79 in
+      let m79 = weapon = M79 || weapon = Law in
       ( [ spark Big_smoke at (0., 0.) (if m79 then 255 else 190);
           spark Smoke_ring at (0., 0.) ((smoke_anims * 4) + 10);
           spark (if m79 then Explosion_m79 else Explosion) at (0., 0.) (explosion_anims * 3) ],
-        [ ((if m79 then M79_explosion else Grenade_explosion), at) ] )
+        [ ((if m79 then M79_explosion else if weapon = Cluster then Cluster_explosion else Grenade_explosion), at) ] )
 
 (*****************************************************************************)
 (* A tick *)

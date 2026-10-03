@@ -65,9 +65,13 @@
    taken only 100 ticks after it appeared. Whoever lets it go, with
    whichever arrows on it, lets go of the bow.
 
-   Left out: the bonus kits (flamer, predator,
-   vest, berserker, cluster), the parachute, the knife, the stationary
-   gun; a thing hit by a bullet or thrown by an explosion.
+   **A bonus kit** (the flamer's, the predator's, the vest's, the
+   berserker's, the cluster grenades') is a box as the two others,
+   appearing now and then at the map's places for it (the round's
+   rule, Soldat_update) and gone after 25 seconds if nobody took it.
+
+   Left out: the parachute, the stationary gun; a thing hit by a
+   bullet or thrown by an explosion.
 
    In Soldat: shared/mechanics/Things.pas (CreateThing, TThing.Update,
    CheckMapCollision, CheckSpriteCollision, Respawn, SpawnBoxes) and
@@ -75,7 +79,9 @@
 *)
 
 (* [Flag team]: Alpha's (1) or Bravo's (2) *)
-type kind = Weapon of Soldat_soldier.gun | Medikit | Grenade_kit | Flag of int
+(* the five bonus kits (OBJECT_FLAMER_KIT to OBJECT_CLUSTER_KIT) *)
+type bonus = Flamer_kit | Predator_kit | Vest_kit | Berserker_kit | Cluster_kit
+type kind = Weapon of Soldat_soldier.gun | Medikit | Grenade_kit | Flag of int | Bonus of bonus
 
 type t = {
   kind : kind;
@@ -113,7 +119,14 @@ val weapon : Soldat_soldier.t -> alive:bool -> Soldat_soldier.gun -> t
  * other on the ground, but wider to reach (20) and one the bots walk
  * to; and whether a thing is it *)
 val bow : float * float -> t
+
+(* any weapon lying at a place, as a knife thrown is where it fell *)
+val lying : Soldat_weapons.id -> float * float -> t
 val is_bow : t -> bool
+
+(* a bonus kit appearing at one of the map's places for it (a
+ * soldier's, on a map that has none); gone 25 seconds later *)
+val bonus : Soldat_map.t -> random:(unit -> float) -> bonus -> t option
 
 (* the map's kits at a round's start (SpawnThings): as many as the map
  * says, each at one of its places for that kind, moved by chance up

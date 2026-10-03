@@ -27,7 +27,7 @@ let map ?(spawns = [ (0., -20.) ]) ?(waypoints : Pms.waypoint list = []) ?(medik
   let walls = Array.of_list walls in
   let num = 25 in
   let side = (2 * num) + 1 in
-  { name = "test"; pms = None; sky = []; back = []; front = []; walls; division = 100.; num; sectors = Array.make (side * side) (Array.init (Array.length walls) Fun.id); colliders = []; spawns; jet = 190; waypoints = Array.of_list waypoints; medikits = List.length medikit_spawns; grenade_kits = List.length grenade_spawns; medikit_spawns; grenade_spawns; bow_spawns; alpha_spawns; bravo_spawns; alpha_flag; bravo_flag }
+  { name = "test"; pms = None; sky = []; back = []; front = []; walls; division = 100.; num; sectors = Array.make (side * side) (Array.init (Array.length walls) Fun.id); colliders = []; spawns; jet = 190; waypoints = Array.of_list waypoints; medikits = List.length medikit_spawns; grenade_kits = List.length grenade_spawns; medikit_spawns; grenade_spawns; bow_spawns; bonus_spawns = []; alpha_spawns; bravo_spawns; alpha_flag; bravo_flag }
 
 let empty : Soldat_map.t = map []
 
