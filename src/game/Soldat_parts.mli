@@ -62,6 +62,11 @@ val lobby : (Playground.computer -> rooms:(string * int) list -> modes:string li
 (* the dead: a body let loose, a tick later *)
 type dead = ?heard:Soldat_event.t list ref -> Soldat_map.t -> Soldat_ragdoll.t -> Soldat_ragdoll.t
 
+(* and the title's: the weapons' names and the one chosen, the second
+ * weapons' and theirs, in; the two chosen after this frame, whether
+ * "play" was clicked, and whether "the next map" was *)
+val title : (Playground.computer -> weapons:string list -> int -> seconds:string list -> int -> int * int * bool * bool) option ref
+
 val bots : bots slot
 val effects : effects slot
 val things : things slot

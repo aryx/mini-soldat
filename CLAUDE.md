@@ -226,7 +226,8 @@ and scenery, a map by its name) comes at once natively and later in a
 browser: nothing may wait for it. One asks each frame and has it or
 not (`Loading`, `Missing`, `Here`); until then the map is drawn in
 flat colours. This, the tiles drawn of it (`Soldat_scene`), the
-pictures tinted once (`Soldat_gostek`, `Soldat_sparks_view`) and the
+pictures tinted once (`Soldat_gostek`, `Soldat_sparks_view`), a map's
+minimap (`Soldat_scene.minimap`) and the
 recordings read (`Soldat_sound`) are the only memories outside the
 model, and no rule of the game reads them.
 In a browser a picture is fetched as plain pixels (`name.rgba`, made
@@ -236,7 +237,7 @@ by `Gen_assets` at `make website`), never as PNG: elm-playground's
 The keys are Soldat's: a/d, w (jump), s (crouch), x (prone), the left
 button (fire), the right one or shift (jets), r, q, e, f, 1 to 0, and
 c (the second weapon: USSOCOM, knife, chainsaw, LAW), Tab or b (the
-scores as a table);
+scores as a table), F3 or n (the minimap);
 space starts a round, m on the title asks for the next map
 (`Soldat_model.maps`: those whose content is in `data/`). In
 a `-script`, `d:10-70` holds d, `at(300;120):3-200` puts the mouse

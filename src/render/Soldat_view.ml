@@ -343,6 +343,47 @@ let view_scores (computer : computer) (p : play) : shape list =
 (* through the camera, in Soldat's order: what is behind, the bullets,
  * the soldiers, then the map's polygons over them; over it all and
  * not moving with the map, the score *)
+(* Soldat's minimap (InterfaceGraphics.pas:2492): the whole map small at
+ * the top of the screen, and on it a dot for what one may know: one's
+ * own soldier (white), one's team's (its colour; black, dead), who of
+ * them carries a flag (yellow), the flags at home, the yellow flag
+ * and the bow lying. Not the enemy *)
+let view_minimap (computer : computer) (p : play) (me : int) : shape list =
+  match Soldat_scene.minimap p.map with
+  | None -> []
+  | Some (picture, left, top, scale) ->
+      let side = float_of_int picture.width in
+      (* its top left corner: 285 of 640 across, as Soldat's; under the
+       * round's clock, which Soldat has not there *)
+      let (x0, y0) = (computer.screen.left + (285. / 640. * computer.screen.width), computer.screen.top - 50.) in
+      let dot color size ((x, y) : float * float) = circle color size |> move (x0 + ((x - left) * scale)) (y0 - ((y - top) * scale)) in
+      let mine = p.soldiers.(me) in
+      let held i = List.exists (fun (t : Soldat_things.t) -> t.holder = i && (match t.kind with Flag _ -> true | _ -> false)) p.things in
+      let things =
+        List.filter_map
+          (fun (t : Soldat_things.t) ->
+            let at = t.points.(0).pos in
+            match t.kind with
+            | Flag 0 when t.holder < 0 -> Some (dot (rgb 255 255 0) 2.5 at)
+            | Flag team when t.holder < 0 && t.in_base -> Some (dot (if team = 1 then rgb 255 0 0 else rgb 19 19 255) 2.5 at)
+            | Weapon _ when p.mode = Rambomatch && Soldat_things.is_bow t -> Some (dot white 2.5 at)
+            | _ -> None)
+          p.things
+      in
+      let soldiers =
+        List.concat
+          (List.mapi
+             (fun i (s : soldier) ->
+               let at = (s.body.x, s.body.y) in
+               (* one's own team's only; alone, oneself *)
+               if i <> me && (team mine = 0 || team s <> team mine) then []
+               else if held i then [ dot (rgb 255 255 0) 2.5 at ]
+               else if i = me then [ dot white 2. at ]
+               else [ dot (if s.dead <> None then black else let (r, g, b) = team_shirt (team s) in rgb r g b) 1.6 at ])
+             (Array.to_list p.soldiers))
+      in
+      (bitmap side side picture |> move (x0 + (side / 2.)) (y0 - (side / 2.)) |> fade 0.75) :: (things @ soldiers)
+
 (* how what is only seen is drawn: each of the parts a program has
  * (Soldat_parts.mli) puts here the picture of its own (Soldat's
  * sparks, the twin's dots), which says nothing of another's; and what
@@ -350,7 +391,7 @@ let view_scores (computer : computer) (p : play) : shape list =
 let effects : (Soldat_state.fx -> shape list option) list ref = ref []
 let warm : (unit -> unit) list ref = ref []
 
-let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(interface : int) ~(primary : Soldat_weapons.id) (p : play) : shape list =
+let view_play ?(me = 0) ?(minimap = false) (computer : computer) ~(graphics : int) ~(interface : int) ~(primary : Soldat_weapons.id) (p : play) : shape list =
   let top = computer.screen.top in
   let (x, y) = at p.camera in
   let soldiers = Array.to_list p.soldiers in
@@ -369,6 +410,7 @@ let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(interface : in
   (* the interface's level: 1, the gauges and the scores; 2, Soldat's *)
   :: (if interface >= 1 then view_scores computer p @ view_interface computer p.map p.soldiers.(me) else [])
   @ (if interface >= 3 then view_log computer p @ icon (Some p.soldiers.(me).body.weapon.kind.id) (computer.screen.left + 330., computer.screen.bottom + 70.) @ view_board computer p else [])
+  @ (if minimap && interface >= 3 then view_minimap computer p me else [])
   @ (if p.soldiers.(me).dead <> None && interface >= 1 then (text white 3. "respawning..." |> move_y (top - 150.)) :: view_menu primary (0., top - 200.) else [])
 
 (* Soldat's cursor, drawn where the mouse is (the system's own is
@@ -411,9 +453,11 @@ let view (computer : computer) (model : model) : shape list =
           | Infiltration -> "infiltration: Alpha brings Bravo's flag home for 30; Bravo scores while it stays; first team to 90")
         |> move_y 150.;
         text white 2. (map.name ^ "      g: the graphics   m: the next map") |> move_y 110. ]
-      @ view_menu ~secondary:model.secondary model.primary (0., 50.)
-      @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-230.) ]
-  | Playing p -> view_play computer ~graphics ~interface ~primary:model.primary p
+      (* the interface's twin: the widgets Soldat_update asked the
+       * Playground's Gui for this frame; else Soldat's list and keys *)
+      @ if interface = 2 && !Soldat_parts.title <> None then Gui.draw ()
+        else view_menu ~secondary:model.secondary model.primary (0., 50.) @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-230.) ]
+  | Playing p -> view_play ~minimap:model.minimap computer ~graphics ~interface ~primary:model.primary p
   | Lobby { rooms; chosen; here; mode } ->
       let screen = computer.screen in
       [ rectangle (rgb 40 60 80) screen.width screen.height;
@@ -438,7 +482,7 @@ let view (computer : computer) (model : model) : shape list =
   | Online (p, me) ->
       (* a server's round: the same picture, and what is said in the room *)
       let screen = computer.screen in
-      view_play ~me computer ~graphics ~interface ~primary:model.primary p
+      view_play ~me ~minimap:model.minimap computer ~graphics ~interface ~primary:model.primary p
       @ List.mapi (fun i line -> text white 1.6 line |> move 0. (screen.bottom + 150. - (22. * float_of_int i))) model.lines
       @ (match model.typing with Some line -> [ text (rgb 255 220 80) 1.8 ("say: " ^ line ^ "_") |> move 0. (screen.bottom + 20.) ] | None -> [])
   | Over (name, map) ->

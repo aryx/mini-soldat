@@ -145,6 +145,9 @@ In a browser the same flags are the page's:
 
 While a round is played, the top left says who killed whom and with
 what, and Tab (or `b`) shows the scores as a table, kills and deaths.
+F3 (or `n`) shows Soldat's minimap, not there at first, as in Soldat:
+the whole map small, with one's own soldier, one's team and the
+flags.
 
 ## How much code
 
@@ -188,7 +191,7 @@ compare ([docs/twins.md](docs/twins.md)):
 | `j` | `effects=` | the effects | 0 none, 1 the Playground's `Juice`, 2 Soldat's sparks |
 | `i` | `ai=` | the bots | 0 they stand, 1 the Playground's `ai` library, 2 Soldat's bots |
 | `p` | `physics=` | the physics | 0 the dead and the things stay, 1 the Playground's `Physics` (a thing a rigid body, a dead soldier ten held by joints), 2 Soldat's |
-| `u` | `interface=` | the interface | 0 none, 1 gauges and scores, 2 the Playground's `Gui` (the lobby's buttons), 3 Soldat's |
+| `u` | `interface=` | the interface | 0 none, 1 gauges and scores, 2 the Playground's `Gui` (the lobby's and the title's buttons and menus), 3 Soldat's |
 
 The network has its twin too: `net=host` on one computer and
 `net=join host=ADDRESS` on another (started with the same flags) play

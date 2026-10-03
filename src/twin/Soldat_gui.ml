@@ -21,3 +21,11 @@ let lobby (computer : computer) ~(rooms : (string * int) list) ~(modes : string 
       if Gui.button computer ~at:(0., 180. -. (50. *. float_of_int i)) label && not (Gui.modal ()) then clicked := Some room)
     rooms;
   (mode, !clicked)
+
+let title (computer : computer) ~(weapons : string list) (weapon : int) ~(seconds : string list) (second : int) : int * int * bool * bool =
+  let weapon = Gui.menu computer ~at:(-170., 60.) weapons weapon in
+  let second = Gui.menu computer ~at:(170., 60.) seconds second in
+  (* the buttons last: under an open menu's items, they do not count (limit 2) *)
+  let play = Gui.button computer ~at:(0., -40.) "play" && not (Gui.modal ()) in
+  let next = Gui.button computer ~at:(0., -100.) "the next map" && not (Gui.modal ()) in
+  (weapon, second, play, next)

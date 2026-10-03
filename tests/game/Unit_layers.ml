@@ -54,6 +54,43 @@ let tests =
           (* asked at the start; a level that is none is the nearest *)
           let basic = Soldat_model.initial_model ~levels:[ (Ai, 0); (Graphics, 0); (Audio, 9) ] (Testutil_map.floor ()) in
           Alcotest.(check (list int)) "asked for" [ 0; 1; 3 ] (List.map (level basic) [ Ai; Graphics; Audio ]));
+      Testo.create "the title's twin: the Playground's Gui" (fun () ->
+          let model = ref (Soldat_model.initial_model ~levels:[ (Interface, 2) ] (Testutil_map.floor ())) in
+          (* a frame with the mouse there: the update, then the view's Gui.draw, which ends a frame of widgets *)
+          let at (x, y) mdown mclick =
+            let c = Playground.initial_computer in
+            model := Soldat_update.update { c with mouse = { c.mouse with mx = x; my = y; mdown; mclick } } !model;
+            ignore (Gui.draw ())
+          in
+          let click place = at place false false; at place true false; at place true false; at place false true; at place false false in
+          at (300., 300.) false false;
+          Alcotest.(check bool) "the title" true (match !model.scenes.scene with Title _ -> true | _ -> false);
+          (* the button "play", at (0, -40) *)
+          click (0., -40.);
+          Alcotest.(check bool) "a click on play: a round" true (match !model.scenes.scene with Playing _ -> true | _ -> false);
+          (* at Soldat's level the same click does nothing: space does *)
+          model := Soldat_model.initial_model (Testutil_map.floor ());
+          click (0., -40.);
+          Alcotest.(check bool) "at Soldat's level: no button there" true (match !model.scenes.scene with Title _ -> true | _ -> false));
+      Testo.create "the minimap" (fun () ->
+          let model = Soldat_model.initial_model (Testutil_map.floor ()) in
+          let press key model = frame [] (frame [ key ] (frame [] model)) in
+          Alcotest.(check (list bool)) "not shown at first; n, or F3: shown; again: not" [ false; true; true; false ]
+            [ model.minimap; (press "n" model).minimap; (press "F3" model).minimap; (press "n" (press "n" model)).minimap ];
+          (* its picture: Arena2 whole, its width and height making 406 pixels *)
+          let arena = Lazy.force Soldat_map.arena2 in
+          (match Soldat_scene.minimap arena with
+          | None -> Alcotest.fail "no minimap of Arena2"
+          | Some (picture, left, top, scale) ->
+              let xs = List.concat_map (fun (w : Soldat_map.wall) -> [ fst w.a; fst w.b; fst w.c ]) (Array.to_list arena.walls) in
+              let ys = List.concat_map (fun (w : Soldat_map.wall) -> [ snd w.a; snd w.b; snd w.c ]) (Array.to_list arena.walls) in
+              let least = List.fold_left Float.min infinity and most = List.fold_left Float.max neg_infinity in
+              Alcotest.(check bool) "from the map's left and top" true (left <= least xs && top <= least ys);
+              Alcotest.(check bool) (Printf.sprintf "its width and height make 406 (%.1f)" (scale *. (most xs -. left +. most ys -. top))) true
+                (scale *. (most xs -. left +. most ys -. top) <= 407.);
+              Alcotest.(check bool) "a picture no wider than that" true (picture.width <= 407 && picture.width > 100);
+              Alcotest.(check bool) "made once: the very same picture again" true (match Soldat_scene.minimap arena with Some (again, _, _, _) -> again == picture | None -> false));
+          Alcotest.(check bool) "a map made by hand has none" true (Soldat_scene.minimap (Testutil_map.floor ()) = None));
       Testo.create "the bots: standing, the Playground's, Soldat's" (fun () ->
           let p = after 100 (Soldat_update.start ~bots:(Soldat_bots.cast 2 0) road) in
           let stand = after 300 { p with ai = 0 } in

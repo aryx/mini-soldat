@@ -5,6 +5,11 @@
 # (with direction from me)
 
 ** Features
+- Soldat's minimap (F3 or n; not shown at first, as in Soldat): the
+  whole map small, rastered once, with one's own soldier, one's
+  team's, the flags at home, the yellow flag, the bow
+- the title on the Playground's Gui (the interface's level 2): two
+  menus for the weapons, a button to play and one for the next map
 - the dead body's twin (Soldat_limbs; the physics' level 1): ten rigid
   limbs of the Playground's Physics held by nine pins, where Soldat's
   is twenty points and their sticks (now src/orig/Soldat_tumble). The

@@ -56,3 +56,11 @@ val pixels : int
 (* the tiles drawn so far and kept, for this map: for the tests and
  * the curious *)
 val drawn : Soldat_map.t -> int
+
+(* the minimap: the whole map as a small picture, drawn once and kept
+ * (its polygons in their corners' colours, without their texture),
+ * with the map's left and top and how many pixels a unit is: what
+ * turns a place of the map into a place on it. Its width and height
+ * make 406 pixels, Soldat's 260 of a screen 640 wide. None for a map
+ * made by hand, which has no file *)
+val minimap : Soldat_map.t -> (Rgba_image.t * float * float * float) option

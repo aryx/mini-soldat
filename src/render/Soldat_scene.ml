@@ -23,7 +23,13 @@ type key = bool * int * int
 
 (* what is kept for a map: its tiles, and its texture once it came, at
  * the size it is drawn at *)
-type t = { tiles : (key, drawn) Hashtbl.t; mutable texture : Rgba_image.t option }
+type t = {
+  tiles : (key, drawn) Hashtbl.t;
+  mutable texture : Rgba_image.t option;
+  (* the whole map as a small picture, once it was asked for: the
+   * picture, the map's left and top, and how many pixels a unit is *)
+  mutable mini : (Rgba_image.t * float * float * float) option;
+}
 
 (* the maps drawn so far: by themselves. A game plays one at a time,
  * and the last few are enough *)
@@ -33,7 +39,7 @@ let scene (map : Soldat_map.t) : t =
   match List.find_opt (fun (m, _) -> m == map) !scenes with
   | Some (_, s) -> s
   | None ->
-      let s = { tiles = Hashtbl.create 64; texture = None } in
+      let s = { tiles = Hashtbl.create 64; texture = None; mini = None } in
       scenes := List.filteri (fun i _ -> i < 2) ((map, s) :: !scenes);
       s
 
@@ -167,3 +173,36 @@ let view (map : Soldat_map.t) ~(centre : float * float) ~(half : float * float) 
       (* a tile of the screen not drawn yet: the flat map under the
        * others, for this frame *)
       if missing on_screen = [] then (tiles false, tiles true) else (map.back @ tiles false, map.front @ tiles true)
+
+(*****************************************************************************)
+(* The minimap *)
+(*****************************************************************************)
+
+(* MINIMAP (MapGraphics.pas:774): its width and its height make 260 of
+ * a screen 640 wide: 406 of the 1000 units here, a pixel a unit *)
+let mini_size = 260. *. 1000. /. 640.
+
+let minimap (map : Soldat_map.t) : (Rgba_image.t * float * float * float) option =
+  let s = scene map in
+  match (s.mini, map.pms) with
+  | (Some mini, _) -> Some mini
+  | (None, None) -> None
+  | (None, Some pms) when Array.length pms.polygons = 0 -> None
+  | (None, Some pms) ->
+      (* the map's bounds: its polygons' *)
+      let corners = Array.to_list pms.polygons |> List.concat_map (fun (p : Pms.polygon) -> [ p.a; p.b; p.c ]) in
+      let least f = List.fold_left (fun m (v : Pms.vertex) -> Float.min m (f v)) infinity corners and most f = List.fold_left (fun m (v : Pms.vertex) -> Float.max m (f v)) neg_infinity corners in
+      let (left, top) = (least (fun v -> v.x), least (fun v -> v.y)) in
+      let (width, height) = (most (fun v -> v.x) -. left, most (fun v -> v.y) -. top) in
+      let scale = mini_size /. Float.max 1. (width +. height) in
+      (* every polygon in its corners' colours, no texture, the ones
+       * behind first; as dark as Soldat's, a little see-through *)
+      let tile = Soldat_raster.tile ~left ~top ~scale ~pixels:(1 + int_of_float (scale *. Float.max width height)) in
+      let draw (front : bool) =
+        Array.iter (fun (p : Pms.polygon) -> if is_back p.kind <> front then Soldat_raster.triangle tile None (corner p.a) (corner p.b) (corner p.c)) pms.polygons
+      in
+      draw false;
+      draw true;
+      let mini = (tile.image, left, top, scale) in
+      s.mini <- Some mini;
+      Some mini

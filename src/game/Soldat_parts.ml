@@ -33,6 +33,7 @@ type things = ?heard:Soldat_event.t list ref -> Soldat_map.t -> Soldat_things.t 
 let lobby : (Playground.computer -> rooms:(string * int) list -> modes:string list -> int -> int * string option) option ref = ref None
 type dead = ?heard:Soldat_event.t list ref -> Soldat_map.t -> Soldat_ragdoll.t -> Soldat_ragdoll.t
 
+let title : (Playground.computer -> weapons:string list -> int -> seconds:string list -> int -> int * int * bool * bool) option ref = ref None
 let bots : bots slot = { orig = None; twin = None }
 let effects : effects slot = { orig = None; twin = None }
 let things : things slot = { orig = None; twin = None }

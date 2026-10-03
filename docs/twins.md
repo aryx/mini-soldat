@@ -58,7 +58,7 @@ compared.
 | the effects | `j` | `effects=` | none | **the Playground's `Juice`**: `Emitter`'s particles, `Trauma`'s shake, `Follow`'s camera | Soldat's sparks | |
 | the bots | `i` | `ai=` | they stand | **the Playground's `ai`**: `Sense`, `Bot`, `Pathfind`, `Behavior` | Soldat's bots | |
 | the physics | `p` | `physics=` | the dead stay as they fell, things do not fall | **the Playground's `Physics`**: a thing is one rigid body, a dead soldier ten held by joints | Soldat's: ragdolls and things on `Particles` | |
-| the interface | `u` | `interface=` | none | the gauges and the scores | **the Playground's `Gui`**: the lobby's buttons and its menu | Soldat's: the kill console, the pictures, the cursor, the table |
+| the interface | `u` | `interface=` | none | the gauges and the scores | **the Playground's `Gui`**: the lobby's and the title's buttons and menus | Soldat's: the kill console, the pictures, the cursor, the table |
 
 The network is not a layer with a key (a round cannot change its
 network while it is played) but a way to start: `server=HOST` for
@@ -88,15 +88,15 @@ between: the particles are seen only, but live in the round.
 | things on the ground | `Soldat_things` on `Particles` | `Soldat_bodies`: a kit or a weapon as one body of the `Physics` layer (`body`, `immovable` for the map's walls, `simulate`) | done |
 | a dead body | `Soldat_tumble`: its skeleton's points and sticks, on `Particles` | `Soldat_limbs`: ten rigid limbs of the `Physics` layer held by nine `Physics.pin`, and a slack `Physics.rope` between any two others for them not to collide | done; a limb cut off is not there |
 | the network | `Soldat_room`: the server plays, `Prediction`, `Interpolation` | `Soldat_lockstep`: two players, no server, only the keys sent (`Lockstep.step`, `packet`, `receive`, `checksum`, `desync`); `Sim_net` as the network in its tests; and with the flag `rollback`, the other's keys guessed and the round played again when the guess was wrong (`Rollback.create`, `step`, `model`) | done |
-| the menus | text shapes by hand | `Soldat_gui`: the lobby on `Gui` (immediate mode: `Gui.button`, `Gui.menu`, `Gui.draw`) | done for the lobby; the title and the weapons' menu to come |
+| the menus | text shapes by hand | `Soldat_gui`: the lobby and the title on `Gui` (immediate mode: `Gui.button`, `Gui.menu`, `Gui.draw`) | done; the weapons' menu of the dead is Soldat's |
 
 ## The book
 
 A literate book of mini-soldat, a chapter a part, each with its twin
 as a section ("the bots, Soldat's way"; "the bots, on `Pathfind` and
-`Behavior`"), is to follow once the twins give it its shape. Its
-form is to decide: noweb kept in step by syncweb (as efuns's), or
-Markdown quoting the code.
+`Behavior`"). Decided (Yoann, 2026-10-03): noweb kept in step by
+syncweb, as efuns's; and not yet: once the code is stable and all that
+is to be added is in, so that its chunks' markers are put once.
 
 1. The game in a page: Model, View, Update (`Playground`, `Scene2d`)
 2. The map (`Pms`, `Soldat_map`)

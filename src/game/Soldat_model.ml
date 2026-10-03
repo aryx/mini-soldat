@@ -238,6 +238,8 @@ type model = {
    * line being typed, if one is *)
   lines : string list;
   typing : string option;
+  (* the minimap is shown (the key F3, or n): not at first, as in Soldat *)
+  minimap : bool;
 }
 
 (* the maps whose content this game has (data/maps): the key m goes
@@ -300,7 +302,7 @@ let level (model : model) (layer : layer) : int = List.assoc layer model.levels
 
 let model_at ?(levels : (layer * int) list = []) (first : scene) : model =
   { scenes = Scene2d.start first; said = None;
-    levels = List.map (fun (l, _, _, first, _) -> (l, match List.assoc_opt l levels with Some n -> max first (min (top l) n) | None -> top l)) layers; primary = Ak74; secondary = Socom; bonuses = 0; rounds = 0; bots = 3; mode = None; next_map = 1; lines = []; typing = None }
+    levels = List.map (fun (l, _, _, first, _) -> (l, match List.assoc_opt l levels with Some n -> max first (min (top l) n) | None -> top l)) layers; primary = Ak74; secondary = Socom; bonuses = 0; rounds = 0; bots = 3; mode = None; next_map = 1; lines = []; typing = None; minimap = false }
 
 let initial_model ?levels (map : Soldat_map.t) : model = model_at ?levels (Title map)
 

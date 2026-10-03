@@ -524,6 +524,8 @@ let common (computer : computer) (model : model) : model * scene Scene2d.t =
         else model)
       model layers
   in
+  (* F3 (Soldat's key), or n: the minimap, shown or not *)
+  let model = if model.typing = None && Scene2d.pressed (fun k -> Set_.mem "F3" k.keys || Set_.mem "n" k.keys) scenes then { model with minimap = not model.minimap } else model in
   (* z: every twin at once, the Playground's libraries; again: Soldat's own *)
   let model =
     if model.typing = None && Scene2d.pressed (fun k -> Set_.mem "z" k.keys) scenes then begin
@@ -549,6 +551,22 @@ let common (computer : computer) (model : model) : model * scene Scene2d.t =
 let update (computer : computer) (model : model) : model =
   let (model, scenes) = common computer model in
   let space = Scene2d.pressed (fun k -> k.kspace) scenes in
+  (* the title at the interface's twin's level (docs/twins.md): its
+   * widgets, in a program that has them, say the weapons, and whether
+   * to play or to go to the next map; the keys still do *)
+  let (model, play, next) =
+    match (scenes.scene, level model Interface, !Soldat_parts.title) with
+    | (Title _, 2, Some widgets) ->
+        let place all id = let rec at i = function [] -> 0 | x :: rest -> if x = id then i else at (i + 1) rest in at 0 all in
+        let names = List.map (fun id -> (Soldat_weapons.get id).name) in
+        let (w, s, play, next) =
+          widgets computer ~weapons:(names Soldat_weapons.primaries) (place Soldat_weapons.primaries model.primary) ~seconds:(names Soldat_weapons.secondaries)
+            (place Soldat_weapons.secondaries model.secondary)
+        in
+        ({ model with primary = List.nth Soldat_weapons.primaries w; secondary = List.nth Soldat_weapons.secondaries s }, play, next)
+    | _ -> (model, false, false)
+  in
+  let space = space || play in
   let scenes =
     match scenes.scene with
     | Loading name -> (
@@ -571,7 +589,7 @@ let update (computer : computer) (model : model) : model =
         (* ai=engine: one of them on Sense and Bot *)
         let engine = List.assoc_opt "ai" computer.flags = Some "engine" in
         (* m: the next of the game's maps, got as any content *)
-        if Scene2d.pressed (fun k -> Set_.mem "m" k.keys) scenes then Scene2d.go (Loading (List.nth maps (model.next_map mod List.length maps))) scenes
+        if next || Scene2d.pressed (fun k -> Set_.mem "m" k.keys) scenes then Scene2d.go (Loading (List.nth maps (model.next_map mod List.length maps))) scenes
         else if space then Scene2d.go (Playing (start ~bots:(Soldat_cast.cast model.bots model.rounds) ~engine ~primary:model.primary ~secondary:model.secondary ~bonuses:model.bonuses ~seed:model.rounds ?mode:model.mode map)) scenes else scenes
     | Online _ | Lobby _ | Connecting _ -> scenes (* Soldat_online's *)
     | Playing p -> (

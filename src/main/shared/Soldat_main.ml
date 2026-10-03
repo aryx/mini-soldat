@@ -46,6 +46,7 @@ let help =
          1-9, 0 the weapon to appear with (weapon=N)
          c      the second weapon: USSOCOM, knife, chainsaw, LAW
          Tab, b the scores as a table
+         F3, n  the minimap
          g      the graphics: as each step of the game's making drew it
          v j i p u   the other layers, each round its levels: the
                 sound, the effects, the bots, the physics, the interface

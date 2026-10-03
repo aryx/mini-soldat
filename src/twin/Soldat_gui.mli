@@ -1,9 +1,12 @@
-(* Soldat_gui: the lobby's screen's twin, on the Playground's Gui.
+(* Soldat_gui: the menus' twin, on the Playground's Gui: the lobby's
+   screen and the title's.
 
    Soldat_online's lobby is lines of text and keys: the arrows move a
-   mark, enter enters. This is the same screen as elm-playground's Gui
-   would have one write it first (docs/twins.md): a button a room, a
-   menu for the mode, clicked.
+   mark, enter enters; the title is a list of weapons by their keys,
+   and "press space". These are the same screens as elm-playground's
+   Gui would have one write them first (docs/twins.md): a button a
+   room and a menu for the mode; two menus for the weapons, a button
+   to play and one for the next map; all clicked.
 
    Gui is *immediate mode*: there is no button object, no callback. A
    widget is a question asked each frame, in update:
@@ -43,3 +46,9 @@ open Playground
  * by its place. The place chosen after this frame, and the room whose
  * button was clicked, if one was *)
 val lobby : computer -> rooms:(string * int) list -> modes:string list -> int -> int * string option
+
+(* the title's widgets for a frame: a menu of the weapons and one of
+ * the second weapons, each with the one chosen by its place, a button
+ * to play and one for the next map. The two chosen after this frame,
+ * and whether each button was clicked *)
+val title : computer -> weapons:string list -> int -> seconds:string list -> int -> int * int * bool * bool
