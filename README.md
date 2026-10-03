@@ -148,6 +148,9 @@ themselves, enter rooms and talk; a room is a round the server plays,
 In a browser the same flags are the page's:
 `play.html?server=127.0.0.1&nick=pad&room=Arena2`.
 
+A grenade is `e`, Soldat's key, or the middle button of the mouse
+(`mclick` in a `-script`).
+
 While a round is played, the top left says who killed whom and with
 what, and Tab (or `b`) shows the scores as a table, kills and deaths.
 F3 (or `n`) shows Soldat's minimap, not there at first, as in Soldat:

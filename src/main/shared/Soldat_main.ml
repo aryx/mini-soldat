@@ -41,7 +41,8 @@ let help =
   keys:  a/d    run              w      jump
          s      crouch           x      lie down, get up
          r      reload           q      the other weapon
-         e      a grenade: held longer, thrown harder
+         e      a grenade: held longer, thrown harder (the middle
+                button too)
          f      throw the weapon away: empty hands pick another up
          1-9, 0 the weapon to appear with (weapon=N)
          c      the second weapon: USSOCOM, knife, chainsaw, LAW

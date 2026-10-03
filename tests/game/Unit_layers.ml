@@ -72,6 +72,15 @@ let tests =
           model := Soldat_model.initial_model (Testutil_map.floor ());
           click (0., -40.);
           Alcotest.(check bool) "at Soldat's level: no button there" true (match !model.scenes.scene with Title _ -> true | _ -> false));
+      Testo.create "the keys: a grenade by e, or the middle button" (fun () ->
+          let p = Soldat_update.start ~bots:[] (Testutil_map.floor ()) in
+          let c = Playground.initial_computer in
+          let keys computer = Soldat_update.human computer p in
+          Alcotest.(check bool) "nothing held: none" false (keys c).grenade;
+          Alcotest.(check bool) "e" true (keys { c with keyboard = Playground.update_keyboard true "e" c.keyboard }).grenade;
+          Alcotest.(check bool) "the middle button" true (keys { c with mouse = { c.mouse with mmdown = true } }).grenade;
+          Alcotest.(check bool) "which is not the trigger, nor the jets" true
+            (let k = keys { c with mouse = { c.mouse with mmdown = true } } in not k.fire && not k.jetpack));
       Testo.create "the minimap" (fun () ->
           let model = Soldat_model.initial_model (Testutil_map.floor ()) in
           let press key model = frame [] (frame [ key ] (frame [] model)) in

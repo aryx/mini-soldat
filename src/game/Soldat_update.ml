@@ -57,7 +57,9 @@ let human (computer : computer) (p : play) : intent =
     left = key "a"; right = key "d"; up = key "w"; down = key "s"; prone = key "x";
     jetpack = m.mrdown || k.kshift;
     fire = m.mdown;
-    reload = key "r"; change = key "q"; grenade = key "e"; drop = key "f";
+    (* a grenade: e, Soldat's key; or the middle button, where many a
+     * player put it (not one of Soldat's own bindings) *)
+    reload = key "r"; change = key "q"; grenade = key "e" || m.mmdown; drop = key "f";
     aim = (cx +. (m.mx /. z), cy -. (m.my /. z));
   }
 

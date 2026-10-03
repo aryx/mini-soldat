@@ -5,6 +5,8 @@
 # (with direction from me)
 
 ** Features
+- a grenade by the middle button of the mouse too (elm-playground's
+  new mouse.mmdown; mclick in a -script), beside e
 - fixed: the page showed nothing in a browser (the system's cursor was
   hidden before the page had a body: now at the first frame); CI
   pinned elm-playground 0.3.3: the Dockerfile now clones elm-playground

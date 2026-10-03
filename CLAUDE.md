@@ -235,7 +235,8 @@ by `Gen_assets` at `make website`), never as PNG: elm-playground's
 `Png.decode` is quadratic there.
 
 The keys are Soldat's: a/d, w (jump), s (crouch), x (prone), the left
-button (fire), the right one or shift (jets), r, q, e, f, 1 to 0, and
+button (fire), the right one or shift (jets), the middle one or e (a
+grenade), r, q, f, 1 to 0, and
 c (the second weapon: USSOCOM, knife, chainsaw, LAW), Tab or b (the
 scores as a table), F3 or n (the minimap);
 space starts a round, m on the title asks for the next map
