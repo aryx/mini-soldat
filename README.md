@@ -6,6 +6,11 @@ deathmatch, soldiers running, jumping and flying on jet boots over a
 map of polygons, shooting and throwing grenades, and falling as
 ragdolls.
 
+[![A deathmatch on Arena2: the kill console, the minimap, the scores](docs/screenshots/game.png)](https://aryx.github.io/mini-soldat/play.html)
+
+Play it in a browser: https://aryx.github.io/mini-soldat/ (the
+[title and its weapons' menu](docs/screenshots/menu.png)).
+
 It started as [elm-playground](https://github.com/aryx/ocaml-elm-playground)'s
 TinySoldat, a toy of 600 lines: one screen of flat-coloured polygons,
 you against two bots, the first to 5 kills. Here it grows, towards the
