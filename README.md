@@ -143,9 +143,12 @@ themselves, enter rooms and talk; a room is a round the server plays,
 In a browser the same flags are the page's:
 `play.html?server=127.0.0.1&nick=pad&room=Arena2`.
 
+While a round is played, the top left says who killed whom and with
+what, and Tab (or `b`) shows the scores as a table, kills and deaths.
+
 ## How much code
 
-`make loc` counts it: about 8,400 lines of a budget of 10,000, a tenth
+`make loc` counts it: about 8,600 lines of a budget of 10,000, a tenth
 of OpenSoldat's Pascal. [docs/omitted.md](docs/omitted.md) is the
 other side of that number: what of OpenSoldat is not here, what of
 its lines is not the game at all, and what the rest would take.
@@ -187,8 +190,12 @@ only): the key `c` goes round them, or `secondary=knife`, `saw`,
 `law`. Empty hands punch. `bonus=N` (1 seldom to 5 often) makes
 Soldat's bonus kits appear: the Flame God's flamer, the predator, the
 berserker, a bulletproof vest, cluster grenades.
-`mode=dm`, `tdm`, `ctf` or `rm` asks for a deathmatch, a team match,
-capture the flag or a Rambomatch (a bow lies on the map; empty hands
+`mode=dm`, `pm`, `tdm`, `ctf`, `rm`, `inf` or `htf` asks for one of
+Soldat's seven modes: a deathmatch; a Pointmatch (a kill is a point,
+two for who holds the yellow flag); a team match; capture the flag;
+Infiltration (Alpha brings Bravo's flag home for 30 points, Bravo
+scores every 5 seconds it stays); hold the flag (a point every 5
+seconds your team has the yellow flag); or a Rambomatch (a bow lies on the map; empty hands
 take it, so throw your weapon away first, `f`; who has it is Rambo,
 kills with one arrow and gets its health back, and only Rambo's kills
 and Rambo's death count), whatever the map (its own without it: capture the

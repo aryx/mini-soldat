@@ -53,9 +53,9 @@ let to_player (p : play) (i : int) (nick : string) : play =
 
 (* a round for these seats: the first soldier, which Soldat_update makes
  * the player's, is its bot's until somebody takes it *)
-let round (map : Soldat_map.t) (seats : seat array) (seed : int) : play =
+let round ?mode ?bonuses (map : Soldat_map.t) (seats : seat array) (seed : int) : play =
   let cast = Array.to_list (Array.map (fun (s : seat) -> s.character) seats) in
-  let p = Soldat_update.start ~bots:(List.tl cast) ~seed map in
+  let p = Soldat_update.start ~bots:(List.tl cast) ~seed ?mode ?bonuses map in
   let p = to_bot p 0 (List.hd cast) in
   (* a team's soldier keeps its team's shirt; in a deathmatch, its own *)
   let p = if team p.soldiers.(0) = 0 then (
@@ -68,11 +68,11 @@ let round (map : Soldat_map.t) (seats : seat array) (seed : int) : play =
   (* and those that players have are theirs again *)
   Array.to_list seats |> List.mapi (fun i s -> (i, s)) |> List.fold_left (fun p (i, (s : seat)) -> match s.nick with Some nick -> to_player p i nick | None -> p) p
 
-let create ?(seats = 6) ?(seed = 1) ~(name : string) (map : Soldat_map.t) : t =
+let create ?(seats = 6) ?(seed = 1) ?mode ?bonuses ~(name : string) (map : Soldat_map.t) : t =
   let seats =
     Array.of_list (List.map (fun character -> { nick = None; character; queue = []; acked = -1; last = Soldat_soldier.no_control }) (Soldat_bots.cast (max 1 seats) seed))
   in
-  { name; play = round map seats seed; seats; pending = []; rounds = 1 }
+  { name; play = round ?mode ?bonuses map seats seed; seats; pending = []; rounds = 1 }
 
 let join (nick : string) (t : t) : (t * int) option =
   let rec free i = if i >= Array.length t.seats then None else if t.seats.(i).nick = None then Some i else free (i + 1) in
@@ -104,11 +104,12 @@ let input (i : int) ~(seq : int) (c : Soldat_soldier.control) (t : t) : t =
     { t with seats }
   end
 
-let weapon (i : int) (primary : Soldat_weapons.id) (t : t) : t =
+let weapon ?secondary (i : int) (primary : Soldat_weapons.id option) (t : t) : t =
   if i < 0 || i >= Array.length t.seats || t.seats.(i).nick = None then t
   else begin
     let soldiers = Array.copy t.play.soldiers in
-    soldiers.(i) <- { (soldiers.(i)) with primary };
+    let s = soldiers.(i) in
+    soldiers.(i) <- { s with primary = Option.value primary ~default:s.primary; secondary = Option.value secondary ~default:s.secondary };
     { t with play = { t.play with soldiers } }
   end
 
@@ -123,7 +124,7 @@ let tick (t : t) : t =
   | None -> { t with seats; play = p; pending }
   | Some who ->
       (* the round is over: another, on the same map, said to all *)
-      let next = round p.map seats (t.rounds + 1) in
+      let next = round ~mode:p.mode ~bonuses:p.bonuses p.map seats (t.rounds + 1) in
       { t with seats; play = { next with news = Some (who ^ " wins the round", 300) }; pending = []; rounds = t.rounds + 1 }
 
 let snapshot (t : t) : t * string = ({ t with pending = [] }, Soldat_wire.encode_world t.play t.pending)

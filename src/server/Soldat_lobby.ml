@@ -64,7 +64,7 @@ let receive (id : int) (message : Soldat_protocol.to_server) (t : t) : t * (int 
       else (t, List.map (fun (other, _) -> (other, Soldat_protocol.Said (c.nick, text))) (members c.room t))
   | Some _, List -> (t, [ (id, Rooms (List.map (fun (room, nicks) -> (room, List.length nicks)) (rooms t))) ])
   (* a game's keys are the room's game's, not the lobby's (Soldat_server) *)
-  | Some _, (Input _ | Weapon _) -> (t, [])
+  | Some _, (Input _ | Weapon _ | Secondary _) -> (t, [])
 
 let who (id : int) (t : t) : (string * string) option = Option.map (fun (c : client) -> (c.nick, c.room)) (Ints.find_opt id t.clients)
 

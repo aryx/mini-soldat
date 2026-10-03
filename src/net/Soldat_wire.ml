@@ -74,7 +74,7 @@ let animations : Soldat_anims.id list = List.map (fun (id, _, _, _) -> id) Solda
 let stances : Soldat_soldier.stance list = [ Standing; Crouching; Lying ]
 let bonuses : bonus option list = [ None; Some Flame_god; Some Predator; Some Berserker ]
 let kits : Soldat_things.bonus list = [ Flamer_kit; Predator_kit; Vest_kit; Berserker_kit; Cluster_kit ]
-let modes : mode list = [ Deathmatch; Team_match; Capture_the_flag; Rambomatch ]
+let modes : mode list = [ Deathmatch; Team_match; Capture_the_flag; Rambomatch; Pointmatch; Hold_the_flag; Infiltration ]
 
 (* the sounds, a weapon's by its weapon *)
 let sounds : Soldat_sfx.t list =
@@ -201,6 +201,7 @@ let put_soldier (w : w) (s : soldier) : unit =
   put_body w s.body;
   put_float w s.health;
   Wire.put_varint w s.kills;
+  Wire.put_varint w s.deaths;
   put_weapon w s.primary;
   put_weapon w s.secondary;
   put_one w bonuses (Option.map fst s.bonus);
@@ -224,6 +225,7 @@ let get_soldier (r : r) : soldier =
   let body = get_body r in
   let health = get_float r in
   let kills = Wire.get_varint r in
+  let deaths = Wire.get_varint r in
   let primary = get_weapon r in
   let secondary = get_weapon r in
   let bonus = get_one r bonuses "a bonus" in
@@ -241,7 +243,7 @@ let get_soldier (r : r) : soldier =
     else None
   in
   let (red, green, blue) = shirt in
-  { name; color = Playground.rgb red green blue; shirt; trousers; skin; human; body; health; dead; kills; primary; hit_by = -1; secondary; bonus = Option.map (fun b -> (b, ticks)) bonus; vest }
+  { name; color = Playground.rgb red green blue; shirt; trousers; skin; human; body; health; dead; kills; deaths; primary; hit_by = -1; secondary; bonus = Option.map (fun b -> (b, ticks)) bonus; vest }
 
 let put_bullet (w : w) (b : bullet) : unit =
   List.iter (put_float w) [ b.x; b.y; b.vx; b.vy ];
@@ -378,6 +380,7 @@ let encode_world (p : play) (events : (int * Soldat_event.t) list) : string =
       | None -> put_bool w false);
       Wire.put_varint w p.time_left;
       Wire.put_varint w p.frame;
+      put_list w (fun (killer, weapon, killed, ticks) -> Wire.put_string w killer; put_one w (None :: List.map Option.some weapons) weapon; Wire.put_string w killed; Wire.put_varint w ticks) p.log;
       put_list w (put_soldier w) (Array.to_list p.soldiers);
       put_list w (put_bullet w) p.bullets;
       put_list w (put_thing w) p.things;
@@ -399,6 +402,13 @@ let decode_world (map : Soldat_map.t) (bytes : string) : (play, string) result =
       in
       let time_left = Wire.get_varint r in
       let frame = Wire.get_varint r in
+      let log =
+        get_list r (fun () ->
+            let killer = Wire.get_string r in
+            let weapon = get_one r (None :: List.map Option.some weapons) "a weapon" in
+            let killed = Wire.get_string r in
+            (killer, weapon, killed, Wire.get_varint r))
+      in
       let soldiers = Array.of_list (get_list r (fun () -> get_soldier r)) in
       if Array.length soldiers = 0 then Wire.fail r "a round without a soldier";
       let bullets = get_list r (fun () -> get_bullet r) in
@@ -410,6 +420,6 @@ let decode_world (map : Soldat_map.t) (bytes : string) : (play, string) result =
         Wire.fail r "a soldier that is not there";
       {
         map; mode; captures = (alpha, bravo); news; camera = (0., 0.); soldiers; brains = Array.make n None; minds = Array.make n None; bullets; things;
-        sparks = []; spark_seed = Lehmer.of_int 1; sounds = []; events; time_left; seed = Lehmer.of_int 1; frame; bonuses = 0;
+        sparks = []; spark_seed = Lehmer.of_int 1; sounds = []; events; time_left; seed = Lehmer.of_int 1; frame; log; bonuses = 0;
       })
     bytes

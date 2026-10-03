@@ -5,6 +5,14 @@
 # (with direction from me)
 
 ** Features
+- Soldat's three other modes: a Pointmatch and hold the flag (the
+  yellow flag), Infiltration (mode=pm, htf, inf)
+- over the network: a room of any mode (its name, Arena2.rm; left and
+  right in the lobby), the second weapon (a message, Secondary), bonus
+  kits (the server's bonus=N)
+- an interface: who killed whom and with what (the kill console),
+  the scores as a table (Tab or b), kills and deaths, the weapons'
+  pictures in the menu and beside the ammunition
 - the other weapons: the knife (a blow, or thrown: it lies where it
   fell), the chainsaw, the LAW (crouched or lying only), chosen as
   the second weapon (the key c, secondary=); empty hands punch

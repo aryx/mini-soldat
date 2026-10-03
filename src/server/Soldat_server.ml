@@ -20,12 +20,14 @@ type t = {
   (* a room's map, by the room's name *)
   map_of : string -> Soldat_map.t;
   room_seats : int;
+  (* how often bonus kits appear in the rooms' rounds (0: never) *)
+  bonuses : int;
   mutable ticks : int;
 }
 
-let listen (caps : < Cap.network ; .. >) ?(bind = "127.0.0.1") ?(port = 23073) ?capacity ?(seats = 6) ?(map_of = fun _ -> Lazy.force Soldat_map.arena2) () : t * int =
+let listen (caps : < Cap.network ; .. >) ?(bind = "127.0.0.1") ?(port = 23073) ?capacity ?(seats = 6) ?(bonuses = 0) ?(map_of = fun _ -> Lazy.force Soldat_map.arena2) () : t * int =
   let (server, port) = Server.listen caps ~bind ~port () in
-  ({ server; lobby = Soldat_lobby.create ?capacity (); games = Hashtbl.create 8; seats = Hashtbl.create 32; map_of; room_seats = seats; ticks = 0 }, port)
+  ({ server; lobby = Soldat_lobby.create ?capacity (); games = Hashtbl.create 8; seats = Hashtbl.create 32; map_of; room_seats = seats; bonuses; ticks = 0 }, port)
 
 let send (t : t) (id : int) (message : Soldat_protocol.to_client) : unit = Server.send t.server id (Soldat_protocol.encode_to_client message)
 
@@ -46,12 +48,15 @@ let sit_down (t : t) (id : int) (room : string) : unit =
     match Soldat_lobby.who id t.lobby with
     | None -> ()
     | Some (nick, _) -> (
-        let game = match Hashtbl.find_opt t.games room with Some game -> game | None -> Soldat_room.create ~seats:t.room_seats ~seed:(Hashtbl.hash room) ~name:room (t.map_of room) in
+        let game = match Hashtbl.find_opt t.games room with Some game -> game | None -> (* its name says its map and, after a dot, its mode *)
+          Soldat_room.create ~seats:t.room_seats ~seed:(Hashtbl.hash room) ?mode:(Soldat_protocol.room_mode room) ~bonuses:t.bonuses ~name:room
+            (t.map_of (Soldat_protocol.room_map room))
+        in
         match Soldat_room.join nick game with
         | Some (game, seat) ->
             Hashtbl.replace t.games room game;
             Hashtbl.replace t.seats id (room, seat);
-            send t id (Seat { seat; map = room })
+            send t id (Seat { seat; map = Soldat_protocol.room_map room })
         | None ->
             Hashtbl.replace t.games room game;
             send t id (Refused "every soldier of this game is somebody's: you may watch the room talk"))
@@ -82,13 +87,15 @@ let step (t : t) : unit =
                      stand_up t id;
                      answer (Soldat_lobby.left id t.lobby);
                      Server.close t.server id)
-             | Ok (Weapon key) -> (
-                 (* the weapon its soldier comes back with *)
+             | Ok ((Weapon n | Secondary n) as message) -> (
+                 (* the weapons its soldier comes back with *)
+                 let (primary, secondary) =
+                   match message with
+                   | Weapon _ -> (Some (List.nth Soldat_weapons.primaries ((n + 9) mod 10)), None)
+                   | _ -> (None, Some (List.nth Soldat_weapons.secondaries n))
+                 in
                  match Hashtbl.find_opt t.seats id with
-                 | Some (room, seat) ->
-                     Option.iter
-                       (fun game -> Hashtbl.replace t.games room (Soldat_room.weapon seat (List.nth Soldat_weapons.primaries ((key + 9) mod 10)) game))
-                       (Hashtbl.find_opt t.games room)
+                 | Some (room, seat) -> Option.iter (fun game -> Hashtbl.replace t.games room (Soldat_room.weapon ?secondary seat primary game)) (Hashtbl.find_opt t.games room)
                  | None -> ())
              | Ok message -> answer (Soldat_lobby.receive id message t.lobby)
              | Error _ ->

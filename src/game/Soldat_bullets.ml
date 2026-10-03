@@ -152,6 +152,8 @@ type world = {
    * and where thrown knives fell *)
   mutable born : bullet list;
   mutable knives : (float * float) list;
+  (* who killed whom, and with what *)
+  mutable killed : (int * int * Soldat_weapons.id option) list;
 }
 
 let emit (w : world) (e : Soldat_event.t) : unit = w.events <- e :: w.events
@@ -200,8 +202,9 @@ let hurt ?(weapon : Soldat_weapons.id option) (w : world) (i : int) ~(by : int) 
       emit w (Sound ((if health <= Soldat_ragdoll.brutal_health then Bryzg else if cuts <> [] then Headchop else Death), (hx, hy)));
       if cuts <> [] then List.iter (fun k -> emit w (Blood ((hx, hy), (k, -1.5)))) [ -2.; 0.; 2. ];
       (* its weapon falls from its hands *)
+      w.killed <- (by, i, weapon) :: w.killed;
       w.soldiers.(i) <-
-        { s with health; body = Soldat_soldier.let_go s.body; dead = Some (0, Soldat_ragdoll.cut cuts (Soldat_ragdoll.of_soldier s.body ~push:w.pushes.(i))) };
+        { s with health; deaths = s.deaths + 1; body = Soldat_soldier.let_go s.body; dead = Some (0, Soldat_ragdoll.cut cuts (Soldat_ragdoll.of_soldier s.body ~push:w.pushes.(i))) };
       let killer = w.soldiers.(by) in
       let kills =
         if by = i then max 0 (killer.kills - 1)
@@ -264,7 +267,7 @@ let rec explode (w : world) (b : bullet) ~(at : float * float) ~(direct : (int *
           let k = 1. /. (d +. 1.) in
           emit w (Sound (Explosion_erg, place s));
           push w i (-.ax *. k *. impact, -.ay *. k *. impact *. 2.);
-          if s.body.ceasefire = 0 then hurt w i ~by:b.owner ~where:1 (k *. gun.damage *. Soldat_weapons.modifier gun where)
+          if s.body.ceasefire = 0 then hurt ~weapon:b.weapon w i ~by:b.owner ~where:1 (k *. gun.damage *. Soldat_weapons.modifier gun where)
         end
     | Some (ticks, ragdoll) -> (
         let (ragdoll, last) = Soldat_ragdoll.blast ragdoll ~at ~radius in
@@ -464,7 +467,7 @@ let update (w : world) (k : int) (b : bullet) : unit =
                     emit w (Blood (hit, (vx, vy)));
                     emit w (Sound ((if was_dead then Dead_hit else Hit_arg), hit));
                     let speed = Float.hypot vx vy in
-                    hurt w j ~by:b.owner ~where (speed *. b.damage *. Soldat_weapons.modifier gun where);
+                    hurt ~weapon:b.weapon w j ~by:b.owner ~where (speed *. b.damage *. Soldat_weapons.modifier gun where);
                     through := j;
                     let on k =
                       v := (vx *. k, vy *. k);
@@ -499,7 +502,7 @@ let update (w : world) (k : int) (b : bullet) : unit =
                     if not was_dead then begin
                       blown := true;
                       explode w b ~at:!pos ~direct:(Some (j, where));
-                      hurt w j ~by:b.owner ~where (Float.hypot vx vy *. b.damage)
+                      hurt ~weapon:b.weapon w j ~by:b.owner ~where (Float.hypot vx vy *. b.damage)
                     end))
       in
       each targets;
@@ -529,7 +532,7 @@ let update (w : world) (k : int) (b : bullet) : unit =
   end
 
 let world ?(rambo = false) (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : world =
-  { rambo; born = []; knives = []; map; soldiers = Array.copy soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = Array.of_list (List.map Option.some bullets); explosions = []; events = [] }
+  { rambo; born = []; knives = []; killed = []; map; soldiers = Array.copy soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = Array.of_list (List.map Option.some bullets); explosions = []; events = [] }
 
 (* a tick of all the bullets, [fired] the ones that left this tick,
  * over these soldiers: the soldiers after, the bullets left, and the
@@ -542,9 +545,3 @@ let run ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet
 let tick ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * explosion list =
   let (w, left) = run ?rambo map soldiers bullets in
   (w.soldiers, left, List.rev w.explosions)
-
-(* the same, with what is to be heard and seen of it, in its order, and
- * where the knives thrown fell *)
-let tick_heard ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * Soldat_event.t list * (float * float) list =
-  let (w, left) = run ?rambo map soldiers bullets in
-  (w.soldiers, left, List.rev w.events, w.knives)

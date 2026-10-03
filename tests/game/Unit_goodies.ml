@@ -165,6 +165,15 @@ let tests =
           Alcotest.(check (pair int bool)) "three cluster grenades" (3, true) ((me p).body.grenades, (me p).body.cluster);
           let p = after 60 (with_kit Predator_kit) in
           Alcotest.(check bool) "a predator for 25 seconds" true (match (me p).bonus with Some (Predator, ticks) -> ticks > 1400 | _ -> false));
+      Testo.create "who killed whom" (fun () ->
+          let p = after 100 (Soldat_update.start ~bots:(Soldat_bots.cast 1 0) Testutil_map.rooms) in
+          let victim = p.soldiers.(1).name in
+          let (x, y) = Soldat_bullets.place p.soldiers.(1) in
+          let shot = Soldat_bullets.of_shot ~owner:0 { from = (x -. 30., y); velocity = (55., 0.); weapon = Barrett } in
+          let p = after 3 { p with bullets = [ shot ] } in
+          Alcotest.(check bool) "said: the killer, the weapon, the killed" true (match p.log with [ ("YOU", Some Barrett, name, ticks) ] -> name = victim && ticks > 400 | _ -> false);
+          Alcotest.(check (pair int int)) "a kill for the one, a death for the other" (1, 1) (p.soldiers.(0).kills, p.soldiers.(1).deaths);
+          Alcotest.(check int) "for 7 seconds" 0 (List.length (after 420 p).log));
       Testo.create "kits appear, when asked" (fun () ->
           let kits (p : Soldat_model.play) = List.length (List.filter (fun (t : Soldat_things.t) -> match t.kind with Bonus _ -> true | _ -> false) p.things) in
           let played bonuses =

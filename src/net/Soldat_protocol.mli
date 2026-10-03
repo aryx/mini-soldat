@@ -64,6 +64,7 @@ type to_server =
   | List (* which rooms are there? *)
   | Input of int * string (* my keys this tick, numbered from 0 (Soldat_wire's bytes) *)
   | Weapon of int (* the weapon to appear with from now on, by its key in Soldat's menu: 0 to 9 *)
+  | Secondary of int (* and the second one: 0 the USSOCOM, 1 the knife, 2 the chainsaw, 3 the LAW *)
 
 (* from the server to a player *)
 type to_client =
@@ -95,3 +96,9 @@ val valid_name : string -> bool
 (* a line said: 1 to 200 bytes, none a control character (bytes above
  * 127 pass: UTF-8, not checked) *)
 val valid_text : string -> bool
+
+(* A room's name is its map's, with, after a dot, the mode asked for
+ * (Soldat_model.mode_words): "Arena2.rm" is a Rambomatch on Arena2,
+ * "ctf_Ash" the map's own mode. A word that is no mode is none *)
+val room_map : string -> string
+val room_mode : string -> Soldat_model.mode option

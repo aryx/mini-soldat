@@ -323,8 +323,7 @@ be.
   somebody is Rambo the others cannot hurt each other; a kill counts
   when the bow made it or Rambo died of it; the bow gives health back;
   first to 30. Soldat's bots throw their weapon away near the bow, and
-  fire at Rambo alone. `tests/game/Unit_rambo.ml`. Not over the
-  network: a server's room plays its map's own mode.
+  fire at Rambo alone. `tests/game/Unit_rambo.ml`.
 
 - After the steps: **the other weapons and the bonus kits**. The
   second weapon chosen (the key `c`, `secondary=`): the knife (a blow,
@@ -335,6 +334,13 @@ be.
   a blow (it lives a tick, along the hand), a flame, the knife
   flying. `tests/game/Unit_goodies.ml`. Not there: a soldier burning
   after a flame; the bots choosing these weapons.
+
+- After the steps: **the three other modes** (`mode=pm`, `htf`,
+  `inf`), on the yellow flag (`Flag 0`) and the two teams' flags;
+  **any mode in a room** (its name: `Arena2.rm`; left and right in the
+  lobby), the second weapon and the bonus kits over the network; and
+  **an interface**: who killed whom (the kill console), the scores as
+  a table (Tab), the weapons' pictures in the menu.
 
 Nothing is the toy's any more but the bot of `ai=engine`, kept as an
 example.

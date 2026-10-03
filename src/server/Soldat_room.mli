@@ -46,7 +46,7 @@ type t
 
 (* a room for a map, named as the players ask for it; [seats] soldiers
  * (6), all bots' at first *)
-val create : ?seats:int -> ?seed:int -> name:string -> Soldat_map.t -> t
+val create : ?seats:int -> ?seed:int -> ?mode:Soldat_model.mode -> ?bonuses:int -> name:string -> Soldat_map.t -> t
 
 val name : t -> string
 val play : t -> Soldat_model.play
@@ -65,10 +65,10 @@ val leave : int -> t -> t
  * dropped *)
 val input : int -> seq:int -> Soldat_soldier.control -> t -> t
 
-(* the weapon a player's soldier appears with from now on: when it
+(* the weapon (and the second one) a player's soldier appears with from now on: when it
  * next comes back, as when one plays alone; of a seat no player has,
  * dropped *)
-val weapon : int -> Soldat_weapons.id -> t -> t
+val weapon : ?secondary:Soldat_weapons.id -> int -> Soldat_weapons.id option -> t -> t
 
 (* the number of the last keys played for a seat; none yet: -1 *)
 val acked : t -> int -> int

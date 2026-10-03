@@ -216,7 +216,7 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
       if !next = 0 then next := 1;
       let path = match waypoint map !next with Some w -> w.path | None -> 0 in
       (* capture the flag: its team's way out; with the flag, the other's, which leads home *)
-      let path = if p.mode = Capture_the_flag then (if holding then 3 - team me else team me) else path in
+      let path = if p.mode = Capture_the_flag || p.mode = Infiltration then (if holding then 3 - team me else team me) else path in
       (match waypoint map found with Some w when w.path = path || !current = 0 -> current := found | _ -> ());
       match waypoint map !current with
       | None -> ()
@@ -360,6 +360,10 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
             let mine_home = List.exists (fun (t : Soldat_things.t) -> t.kind = Flag (team me) && t.in_base) p.things in
             let goes =
               match thing.kind with
+              (* the yellow flag is anybody's; Alpha's, in an Infiltration,
+               * is only where Alpha brings the objective *)
+              | Flag 0 -> true
+              | Flag 1 when p.mode = Infiltration -> team me = 1 && holding
               | Flag t when t = team me -> if thing.in_base then holding else true
               | Flag _ -> mine_home && not (thing.in_base && d > 95.)
               | _ -> true

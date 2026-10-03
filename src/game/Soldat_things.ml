@@ -161,7 +161,7 @@ let kit_at (kind : kind) ((x, y) : float * float) (place : int) : t =
   { kind; points = Array.map (fun (bx, by) -> Particles.particle (x +. bx, y +. by)) box; ttl = flag_timeout; interest = default_interest; still = false; facing = 1; place; hits = 0; holder = -1; in_base = false }
 
 (* where a team's flag stands *)
-let base (map : Soldat_map.t) (team : int) : (float * float) option = if team = 1 then map.alpha_flag else map.bravo_flag
+let base (map : Soldat_map.t) (team : int) : (float * float) option = match team with 1 -> map.alpha_flag | 2 -> map.bravo_flag | _ -> None
 
 (* a team's flag, standing where the map says: none on a map without *)
 let flag (map : Soldat_map.t) (team : int) : t option =
@@ -172,6 +172,14 @@ let flag (map : Soldat_map.t) (team : int) : t option =
     (base map team)
 
 let flags (map : Soldat_map.t) : t list = List.filter_map (flag map) [ 1; 2 ]
+
+(* the yellow flag (OBJECT_POINTMATCH_FLAG), anybody's and at home
+ * nowhere: at one of the map's places for it, or for a soldier *)
+let yellow (map : Soldat_map.t) ~(random : unit -> float) : t =
+  let places = match List.filter_map (fun (t, at) -> if t = 14 then Some at else None) map.bonus_spawns with [] -> map.spawns | places -> places in
+  let (x, y) = List.nth places (min (List.length places - 1) (int_of_float (random () *. float_of_int (List.length places)))) in
+  { kind = Flag 0; points = Array.map (fun (fx, fy) -> Particles.particle (x +. fx, y +. fy)) (flag_shape 0);
+    ttl = flag_timeout; interest = flag_interest; still = false; facing = 1; place = -1; hits = 0; holder = -1; in_base = false }
 
 let places (map : Soldat_map.t) (kind : kind) : (float * float) list =
   match kind with
@@ -221,6 +229,7 @@ let bonus (map : Soldat_map.t) ~(random : unit -> float) (b : bonus) : t option 
 
 let again (map : Soldat_map.t) ~(random : unit -> float) (thing : t) : t =
   match thing.kind with
+  | Flag 0 -> yellow map ~random
   | Flag team -> Option.value (flag map team) ~default:thing
   | _ ->
   match somewhere map ~random thing.kind ~but:thing.place with Some (place, at) -> kit_at thing.kind at place | None -> thing

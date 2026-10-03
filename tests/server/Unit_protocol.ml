@@ -12,7 +12,7 @@
 
 let hex (s : string) : string = String.concat " " (List.map (fun c -> Printf.sprintf "%02x" (Char.code c)) (List.of_seq (String.to_seq s)))
 
-let to_server : Soldat_protocol.to_server list = [ Hello "pad"; Join "ctf_Ash"; Leave; Say "anyone?"; List; Input (300, "keys"); Weapon 0; Weapon 9 ]
+let to_server : Soldat_protocol.to_server list = [ Hello "pad"; Join "ctf_Ash"; Leave; Say "anyone?"; List; Input (300, "keys"); Weapon 0; Weapon 9; Secondary 3 ]
 
 let to_client : Soldat_protocol.to_client list =
   [ Welcome "pad"; Refused "this nick is taken"; Rooms []; Rooms [ ("ctf_Ash", 3); ("lobby", 200) ];
@@ -38,6 +38,7 @@ let tests =
           refused "nothing" "";
           refused "an unknown first byte" "\x7f";
           refused "a weapon's key that is none" "\x16\x0a";
+          refused "a second weapon that is none" "\x17\x04";
           refused "the relay's welcome" "\x02\x00";
           refused "a server's message" (Soldat_protocol.encode_to_client (Welcome "pad"));
           refused "bytes missing" "\x10\x03pa";

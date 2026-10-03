@@ -45,6 +45,7 @@ let help =
          f      throw the weapon away: empty hands pick another up
          1-9, 0 the weapon to appear with (weapon=N)
          c      the second weapon: USSOCOM, knife, chainsaw, LAW
+         Tab, b the scores as a table
          g      the graphics: as each step of the game's making drew it
          m      on the title: the next map (Arena2, ctf_Ash)
          down and a side, running: a roll; up and a side: a jump sideways
@@ -64,7 +65,9 @@ let help =
          bonus=N   bonus kits appear (flame god, predator, berserker,
                    a vest, cluster grenades): 1 seldom to 5 often
          mode=M    dm a deathmatch, tdm two teams, ctf capture the flag,
-                   rm a Rambomatch: the bow, for empty hands
+                   rm a Rambomatch: the bow, for empty hands; pm a
+                   Pointmatch, htf hold the flag: the yellow flag;
+                   inf infiltration: Alpha after Bravo's flag
                    (the map's own without it: ctf where it has flags)
          bots=N    how many bots to play with and against (3)
          server=HOST[:PORT]  play on a mini-soldat-server (port 23073),
@@ -135,7 +138,7 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
   Option.iter (fun n -> Soldat_sparks.most := max 0 n) (Option.bind (List.assoc_opt "sparks" flags) int_of_string_opt);
   (* mode=dm, tdm, ctf or rm: not the map's own *)
   let mode : Soldat_model.mode option =
-    match List.assoc_opt "mode" flags with Some "dm" -> Some Deathmatch | Some "tdm" -> Some Team_match | Some "ctf" -> Some Capture_the_flag | Some "rm" -> Some Rambomatch | _ -> None
+    Option.bind (List.assoc_opt "mode" flags) (fun word -> List.assoc_opt word Soldat_model.mode_words)
   in
   let bots = match Option.bind (List.assoc_opt "bots" flags) int_of_string_opt with Some n when n >= 0 && n <= 15 -> n | _ -> first.bots in
   (* secondary=knife, saw or law: the second weapon, not the USSOCOM;

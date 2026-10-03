@@ -174,6 +174,43 @@ let tests =
           let with_kills = { tm with soldiers = Array.mapi (fun j (s : Soldat_model.soldier) -> { s with kills = (if j = 0 then 25 else if j = 2 then 35 else 10) }) tm.soldiers } in
           Alcotest.(check (pair int int)) "a team's points are its soldiers' kills" (60, 20) (Soldat_model.score with_kills 1, Soldat_model.score with_kills 2);
           Alcotest.(check (option string)) "60: the match is Alpha's" (Some "ALPHA TEAM") (Soldat_update.winner with_kills));
+      Testo.create "a Pointmatch: the yellow flag" (fun () ->
+          let p = round ~mode:Pointmatch () in
+          Alcotest.(check bool) "nobody's team, one flag, yellow" true (Array.for_all (fun s -> Soldat_model.team s = 0) p.soldiers && List.map (fun (t : Soldat_things.t) -> t.kind) p.things = [ Soldat_things.Flag 0 ]);
+          (* the bot far away, the flag free, the player on it *)
+          let free = { p with things = [ Soldat_things.yellow p.map ~random:(fun () -> 0.5) ] } in
+          let mine = after 5 (put 0 (0., -5.) (put 1 (1500., -5.) free)) in
+          Alcotest.(check (pair int string)) "taken by who touches it" (0, "YOU got the Yellow Flag") ((flag mine 0).holder, words mine);
+          (* a kill: two with the flag, one without *)
+          let kill (p : Soldat_model.play) =
+            let (x, y) = Soldat_bullets.place p.soldiers.(1) in
+            let shot = Soldat_bullets.of_shot ~owner:0 { from = (x -. 30., y); velocity = (55., 0.); weapon = Barrett } in
+            (after 3 { p with bullets = [ shot ] }).soldiers.(0).kills
+          in
+          Alcotest.(check (pair int int)) "a kill is two points with the flag, one without" (2, 1) (kill mine, kill (put 1 (1500., -5.) free));
+          Alcotest.(check (option string)) "first to 30" (Some "YOU") (Soldat_update.winner { mine with soldiers = Array.mapi (fun j (s : Soldat_model.soldier) -> if j = 0 then { s with kills = 30 } else s) mine.soldiers }));
+      Testo.create "hold the flag: a point every 5 seconds" (fun () ->
+          let p = round ~mode:Hold_the_flag () in
+          Alcotest.(check (list int)) "two teams" [ 1; 2 ] (Array.to_list (Array.map Soldat_model.team p.soldiers));
+          let mine = after 5 (put 0 (0., -5.) (put 1 (1500., -5.) { p with things = [ Soldat_things.yellow p.map ~random:(fun () -> 0.5) ]; frame = 1 })) in
+          Alcotest.(check int) "Alpha's soldier has it" 0 (flag mine 0).holder;
+          (* 600 ticks: the 300th and the 600th *)
+          Alcotest.(check (pair int int)) "ten seconds: two points for Alpha" (2, 0) (after 595 mine).captures;
+          Alcotest.(check (option string)) "first team to 80" (Some "ALPHA TEAM") (Soldat_update.winner { mine with captures = (80, 12) }));
+      Testo.create "infiltration" (fun () ->
+          let p = { (round ~mode:Infiltration ()) with captures = (0, 0); frame = 1 } in
+          (* Bravo's flag at home: a point every 5 seconds *)
+          Alcotest.(check (pair int int)) "ten seconds at home: two for Bravo" (0, 2) (after 600 (put 0 (-1500., -5.) (put 1 (1500., -5.) p))).captures;
+          (* Alpha's flag is nobody's to take *)
+          let bravo_there = after 10 (put 1 (-300., -5.) (put 0 (-1500., -5.) p)) in
+          Alcotest.(check int) "Alpha's flag is not taken" (-1) (flag bravo_there 1).holder;
+          (* the objective brought home: 30 *)
+          let far = put 1 (1500., -5.) p in
+          let carrying = tick (put 0 (300., -5.) far) in
+          Alcotest.(check int) "Alpha takes the objective" 0 (flag carrying 2).holder;
+          let home = after 3 (put 0 (-298., -5.) carrying) in
+          Alcotest.(check (pair int int)) "brought home: 30 for Alpha" (30, 0) home.captures;
+          Alcotest.(check (option string)) "first team to 90" (Some "BRAVO TEAM") (Soldat_update.winner { home with captures = (30, 90) }));
       Testo.create "the bots, in teams" (fun () ->
           let keys (p : Soldat_model.play) i = let (c, brain, _) = Soldat_bots.control p i (Option.get p.brains.(i)) ~random:(fun () -> 0.5) in (c, brain) in
           (* soldier 1 Bravo's, soldier 2 Alpha's; the player Alpha's *)

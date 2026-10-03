@@ -45,6 +45,7 @@ type soldier = {
   (* None while alive; Some (ticks since, its ragdoll) when dead *)
   dead : (int * Soldat_ragdoll.t) option;
   kills : int;
+  deaths : int;
   (* the weapon it will appear with next *)
   primary : Soldat_weapons.id;
   (* who hit it last, for a bot to turn on (Brain.PissedOff is set by
@@ -159,7 +160,14 @@ type explosion = { at : float * float; radius : float; age : int }
 
 (* what a round is played for: everyone for itself; two teams, a kill
  * a point; two teams, each flag brought home a point *)
-type mode = Deathmatch | Team_match | Capture_the_flag | Rambomatch
+type mode = Deathmatch | Team_match | Capture_the_flag | Rambomatch | Pointmatch | Hold_the_flag | Infiltration
+
+(* a mode by the word that asks for it (the flag mode=, a room's name) *)
+let mode_words : (string * mode) list =
+  [ ("dm", Deathmatch); ("pm", Pointmatch); ("tdm", Team_match); ("ctf", Capture_the_flag); ("rm", Rambomatch); ("inf", Infiltration); ("htf", Hold_the_flag) ]
+
+(* the modes of two teams; the others are everyone for oneself *)
+let teams (mode : mode) : bool = match mode with Team_match | Capture_the_flag | Hold_the_flag | Infiltration -> true | Deathmatch | Rambomatch | Pointmatch -> false
 
 type play = {
   map : Soldat_map.t;
@@ -194,6 +202,9 @@ type play = {
   (* the game's chance: the next number comes from it (Lehmer) *)
   seed : Lehmer.t;
   frame : int;
+  (* who killed whom of late, the last first: the killer, what with
+   * (none: a wall, a fall), the killed, and the ticks it is still said *)
+  log : (string * Soldat_weapons.id option * string * int) list;
   (* how often bonus kits appear, 1 to 5; never: 0 *)
   bonuses : int;
 }
@@ -211,7 +222,7 @@ type scene =
   | Online of play * int
   (* a server's lobby: the rooms one may enter, each with how many
    * players are in it, the one the cursor is on, and who waits here *)
-  | Lobby of { rooms : (string * int) list; chosen : int; here : string list }
+  | Lobby of { rooms : (string * int) list; chosen : int; here : string list; mode : string }
   | Connecting of string
 
 (* how much of Soldat's look is drawn, the steps this game was made
@@ -284,13 +295,20 @@ let team_name (t : int) : string = match t with 1 -> "Alpha" | 2 -> "Bravo" | _ 
 (* a team's points: its flags brought home, or its soldiers' kills *)
 let score (p : play) (t : int) : int =
   match p.mode with
-  | Capture_the_flag -> if t = 1 then fst p.captures else snd p.captures
-  | Team_match | Deathmatch | Rambomatch -> Array.fold_left (fun n (s : soldier) -> if team s = t then n + s.kills else n) 0 p.soldiers
+  | Capture_the_flag | Hold_the_flag | Infiltration -> if t = 1 then fst p.captures else snd p.captures
+  | Team_match | Deathmatch | Rambomatch | Pointmatch -> Array.fold_left (fun n (s : soldier) -> if team s = t then n + s.kills else n) 0 p.soldiers
 
 (* the points a round is played to *)
 (* sv_rm_limit *)
 let rambo_limit = 30
-let limit (p : play) : int = match p.mode with Deathmatch -> kill_limit | Team_match -> team_limit | Capture_the_flag -> capture_limit | Rambomatch -> rambo_limit
+let limit (p : play) : int =
+  match p.mode with
+  | Deathmatch -> kill_limit
+  | Team_match -> team_limit
+  | Capture_the_flag -> capture_limit
+  | Rambomatch | Pointmatch -> rambo_limit (* sv_pm_limit: 30 too *)
+  | Hold_the_flag -> 80 (* sv_htf_limit *)
+  | Infiltration -> 90 (* sv_inf_limit *)
 
 (* Rambo: who is alive with the bow in its hands *)
 let rambo (s : soldier) : bool = s.dead = None && Soldat_weapons.is_bow s.body.weapon.kind.id

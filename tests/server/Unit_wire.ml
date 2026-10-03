@@ -82,6 +82,10 @@ let tests =
               Alcotest.(check (pair int int)) "its bullets, its things" (List.length p.bullets, List.length p.things) (List.length back.bullets, List.length back.things);
               Alcotest.(check bool) "its time, its tick, its mode" true (back.time_left = p.time_left && back.frame = p.frame && back.mode = p.mode);
               Alcotest.(check bool) "what happened, as it was said" true (back.events = events);
+              (* somebody is dead: who killed whom came too, and the deaths, the bonuses, the second weapons *)
+              Alcotest.(check bool) "who killed whom" true (p.log <> [] && back.log = p.log);
+              Alcotest.(check bool) "deaths, second weapons, bonuses, vests" true
+                (Array.for_all2 (fun (a : Soldat_model.soldier) (b : Soldat_model.soldier) -> a.deaths = b.deaths && a.secondary = b.secondary && a.bonus = b.bonus && a.vest = b.vest) p.soldiers back.soldiers);
               Alcotest.(check bool) "no bot's mind travels" true (Array.for_all (( = ) None) back.brains);
               (* a dead body's points *)
               Array.iteri

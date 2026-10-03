@@ -42,7 +42,7 @@ type t = {
   bow_spawns : (float * float) list;
   (* where the bonus kits appear, each with its "team": 9 the cluster
    * grenades, 10 the vest, 11 the flamer, 12 the berserker, 13 the
-   * predator *)
+   * predator; and 14, where the yellow flag stands *)
   bonus_spawns : (int * (float * float)) list;
   alpha_spawns : (float * float) list;
   bravo_spawns : (float * float) list;
@@ -216,7 +216,7 @@ let of_pms (pms : Pms.t) : t =
     bow_spawns = spawns_of (fun team -> team = 15);
     bonus_spawns =
       Array.to_list pms.spawnpoints
-      |> List.filter_map (fun (s : Pms.spawnpoint) -> if s.active && s.team >= 9 && s.team <= 13 then Some (s.team, (float_of_int s.x, float_of_int s.y)) else None);
+      |> List.filter_map (fun (s : Pms.spawnpoint) -> if s.active && s.team >= 9 && s.team <= 14 then Some (s.team, (float_of_int s.x, float_of_int s.y)) else None);
     (* the two teams' own places, and their flags' (5 and 6) *)
     alpha_spawns = spawns_of (fun team -> team = 1);
     bravo_spawns = spawns_of (fun team -> team = 2);

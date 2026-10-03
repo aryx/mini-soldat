@@ -11,9 +11,9 @@ judged. Keep it true when a part is ported.
 | | lines |
 |---|---|
 | OpenSoldat's own Pascal (`shared/`, `client/`, `server/`; not `3rdparty/`) | 109,196 |
-| mini-soldat's `src/` (`.ml` and `.mli`, comments and blank lines included) | 10,170 |
-| of which its files' opening comments, not counted in the budget | 1,733 |
-| **the budget's count** (`make loc`) | **8,437 of 10,000** |
+| mini-soldat's `src/` (`.ml` and `.mli`, comments and blank lines included) | 10,374 |
+| of which its files' opening comments, not counted in the budget | 1,737 |
+| **the budget's count** (`make loc`) | **8,637 of 10,000** |
 
 But 109,196 is not all Soldat. More than half of it is not the game:
 
@@ -21,10 +21,10 @@ But 109,196 is not all Soldat. More than half of it is not the game:
 |---|---|---|
 | bindings to libraries: Steam (15,462), OpenGL (20,772), FreeType, OpenAL, PhysFS, stb, an anti-cheat's client | 39,004 | none: elm-playground is the window, the drawing and the sound (it is not counted here either) |
 | the server's scripting engine (`server/scriptcore/`: a Pascal interpreter and its API, for server owners' scripts) | 16,440 | none |
-| **the game itself** | **53,752** | **10,170** |
+| **the game itself** | **53,752** | **10,374** |
 
-So the honest comparison is 10,170 lines against 53,752, about a
-fifth, not a tenth; or 8,437 against 53,752, 16%, with the budget's
+So the honest comparison is 10,374 lines against 53,752, about a
+fifth, not a tenth; or 8,637 against 53,752, 16%, with the budget's
 count. And those lines do not do all that the 53,752 do: below.
 
 ## The game itself, part by part
@@ -33,18 +33,18 @@ count. And those lines do not do all that the 53,752 do: below.
 |---|---|---|---|---|---|
 | the mechanics: the soldier, bullets, things, weapons, animations, the map, the bots, a round's rules | `shared/mechanics/` (Sprites, Bullets, Things, Control, Sparks), `Weapons`, `Anims`, `AI`, `Waypoints`, `Game`, `PolyMap`, `MapFile`, `Parts`, `Calc`, `Vector`, `Constants` | 19,782 | `src/map`, `src/anim`, `src/game` (without its sound) | 5,987 | see the list below |
 | the picture | `client/Gfx` (the OpenGL layer: 3,191), `GameRendering`, `MapGraphics`, `GostekGraphics`, `BinPack`, `WeatherEffects`, `gfx.inc` | 7,441 | `src/render` | 1,403 | the weather; the map's smoothed edges; the other team's own soldier pictures; hair, chains, headgear and the cigar; shredded clothes; a texture atlas (the Playground keeps the pictures) |
-| the interface and the menus | `client/InterfaceGraphics`, `GameMenus`, `GameStrings` | 3,821 | a part of `Soldat_view` | about 100 | nearly all of it: Soldat's interface pictures and its styles, the kill console, the minimap, the scoreboard's tables, the team and weapon menus, the escape menu, the vote and kick menus, the cursor and the sniper line, translations |
+| the interface and the menus | `client/InterfaceGraphics`, `GameMenus`, `GameStrings` | 3,821 | a part of `Soldat_view` | about 200 | most of it. Here: the kill console, the scores as a table (Tab), the weapons' pictures in the menu. Not here: Soldat's own gauges' pictures and its interface styles, the minimap, the team menu, the escape menu, the vote and kick menus, the cursor and the sniper line, translations |
 | the sound | `client/Sound` | 615 | `Soldat_sound`, `Soldat_sfx` | 516 | 55 of Soldat's 163 sounds are named (100 files); the music; a bullet's whizz; the muffling after an explosion |
-| the network | `shared/network/` | 8,681 | `src/net`, `src/online`, `src/server` | 1,743 | another design altogether (the server plays, WebSocket): no UDP, no deltas, no lag compensation, no spectators, no anti-cheat; a team match and a Rambomatch cannot be asked of a room |
+| the network | `shared/network/` | 8,681 | `src/net`, `src/online`, `src/server` | 1,743 | another design altogether (the server plays, WebSocket): no UDP, no deltas, no lag compensation, no spectators, no anti-cheat |
 | the client's program | `client/Client`, `ControlGame`, `ClientGame`, `UpdateFrame`, `ClientCommands`, `Input`, `FileClient` | 3,983 | `src/main`, a part of `Soldat_update` | about 250 | key bindings and a config file, the console and its commands, screenshots, downloading a server's maps, the launcher |
 | the server's program | `server/` without its scripting | 5,411 | a part of `src/server` | about 300 | admin over the network (rcon), bans, votes, the server's commands, a map list and its rotation, the lobby server it reports to, a file server |
 | settings, commands, demos, logs | `shared/Cvar`, `Command`, `Demo`, `SharedConfig`, `LogFile`, `Console`, `Util`... | 4,018 | flags (`name=value`) | a few lines | every setting but a dozen flags; demos (a game recorded and played back); logs |
 
 ## Of the mechanics, what is not here
 
-- **Modes**: Pointmatch, Infiltration, Hold the Flag (here: deathmatch,
-  team match, capture the flag, Rambomatch). Survival, realistic and
-  advance modes; bullet time.
+- **Modes**: Soldat's seven are here. Not here: a Pointmatch's points
+  for several kills in a row; survival, realistic and advance modes;
+  bullet time.
 - **Weapons**: the stationary gun; the flame bow's fire; realistic
   mode's table of numbers. Bink and recoil (they move the cursor).
 - **A soldier on fire** (what a flame or a flaming arrow does after
@@ -71,19 +71,18 @@ less where the Playground already does the work.
 
 | omitted | estimate, lines of OCaml |
 |---|---|
-| the three other modes (Pointmatch, Hold the Flag, Infiltration): variations on the flags' rules | 150 |
 | the stationary gun, a soldier on fire, the flame bow's fire | 200 |
 | the soldier's idle animations, the helmet shot off, the parachute, the mercy kill, the rifle's stock, throwing a flag | 200 |
 | a thing hit by a bullet or an explosion; the bots' hiding, difficulty and chat; waves, the next map voted | 250 |
 | the picture's rest: weather, smoothed edges, the other team's pictures, headgear and cigar, shredded clothes | 250 |
-| the interface and the menus (3,821 lines of Pascal) | 900 |
+| the interface's rest and the menus (3,821 lines of Pascal; the kill console, the scores' table and the weapons' pictures are here) | 750 |
 | the sound's rest: the 108 other sounds, a bullet's whizz, the muffling | 80 |
 | the network's rest: only what changed, lag compensation, spectators, a connection found again | 500 |
 | the client's program: key bindings, a config file, a console and its commands | 400 |
 | the server's administration: rcon, bans, votes, commands, a map list | 600 |
 | settings as named values, logs, demos (a round replays from its inputs: little) | 400 |
 | the server's scripting engine | not estimated: 16,440 lines of Pascal for an interpreter; an OCaml server would be extended in OCaml |
-| **all but the scripting** | **about 3,900** |
+| **all but the scripting** | **about 3,600** |
 
 So the whole game, without the scripting and on elm-playground, would
 be about 14,000 lines: a quarter of the 53,752 that are the game in

@@ -10,7 +10,7 @@
 
 (* See Soldat_protocol.mli *)
 
-type to_server = Hello of string | Join of string | Leave | Say of string | List | Input of int * string | Weapon of int
+type to_server = Hello of string | Join of string | Leave | Say of string | List | Input of int * string | Weapon of int | Secondary of int
 
 type to_client =
   | Welcome of string
@@ -50,7 +50,8 @@ let encode_to_server (m : to_server) : string =
       | Say text -> Wire.put_u8 w 0x13; Wire.put_string w text
       | List -> Wire.put_u8 w 0x14
       | Input (seq, keys) -> Wire.put_u8 w 0x15; Wire.put_varint w seq; Wire.put_string w keys
-      | Weapon key -> Wire.put_u8 w 0x16; Wire.put_u8 w key)
+      | Weapon key -> Wire.put_u8 w 0x16; Wire.put_u8 w key
+      | Secondary n -> Wire.put_u8 w 0x17; Wire.put_u8 w n)
 
 let encode_to_client (m : to_client) : string =
   Wire.to_bytes (fun w ->
@@ -99,6 +100,9 @@ let decode_to_server (bytes : string) : (to_server, string) result =
       | 0x16 ->
           let key = Wire.get_u8 r in
           if key > 9 then Wire.fail r "a weapon's key is 0 to 9" else Weapon key
+      | 0x17 ->
+          let n = Wire.get_u8 r in
+          if n > 3 then Wire.fail r "a second weapon is 0 to 3" else Secondary n
       | _ -> Wire.fail r "not a player's message")
     bytes
 
@@ -135,3 +139,9 @@ let decode_to_client (bytes : string) : (to_client, string) result =
           World { acked; world }
       | _ -> Wire.fail r "not a server's message")
     bytes
+
+(* "Arena2.rm": the map, and the mode asked for after the dot *)
+let room_map (room : string) : string = match String.index_opt room '.' with Some i -> String.sub room 0 i | None -> room
+
+let room_mode (room : string) : Soldat_model.mode option =
+  Option.bind (String.index_opt room '.') (fun i -> List.assoc_opt (String.sub room (i + 1) (String.length room - i - 1)) Soldat_model.mode_words)

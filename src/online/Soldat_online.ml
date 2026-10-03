@@ -25,7 +25,7 @@ type game = {
   rounds : play Interpolation.t;
   mutable latest : play option;
   (* the weapon last asked for: none yet *)
-  mutable asked : Soldat_weapons.id option;
+  mutable asked : (Soldat_weapons.id * Soldat_weapons.id) option;
   mutable frames : int;
   mutable camera : float * float;
   mutable sparks : Soldat_sparks.t list;
@@ -50,6 +50,9 @@ type session = {
   (* the lobby's screen: the server's rooms, the cursor, frames since it came *)
   mutable rooms : (string * int) list;
   mutable chosen : int;
+  (* the mode a room entered will be asked with: none (the map's own),
+   * or one of Soldat_model.mode_words, by its place there from 1 *)
+  mutable mode : int;
   mutable waited : int;
 }
 
@@ -76,7 +79,7 @@ let send (s : session) (message : Soldat_protocol.to_server) : unit = s.transpor
 let connected (transport : Transport.t) ~(nick : string) ~(room : string) : unit =
   let s =
     { transport; nick; room; game = None; status = "saying hello to the server..."; welcomed = false; current = Soldat_protocol.lobby; here = [];
-      entering = None; rooms = []; chosen = 0; waited = 0 }
+      entering = None; rooms = []; chosen = 0; mode = 0; waited = 0 }
   in
   send s (Hello nick);
   session := Some s
@@ -304,8 +307,16 @@ let update (computer : computer) (model : model) : model =
             let n = List.length rooms in
             let up = (not typing) && Scene2d.pressed (fun k -> k.kup || k.kw) scenes and down = (not typing) && Scene2d.pressed (fun k -> k.kdown || k.ks) scenes in
             s.chosen <- (s.chosen + (if down then 1 else 0) + (if up then n - 1 else 0)) mod n;
-            if (not typing) && Scene2d.pressed (fun k -> k.kenter) scenes then enter s (fst (List.nth rooms s.chosen));
-            Lobby { rooms; chosen = s.chosen; here = s.here }
+            (* left and right: the mode to ask a new room with *)
+            let words = "" :: List.map fst mode_words in
+            let left = (not typing) && Scene2d.pressed (fun k -> k.kleft || k.ka) scenes and right = (not typing) && Scene2d.pressed (fun k -> k.kright || k.kd) scenes in
+            s.mode <- (s.mode + (if right then 1 else 0) + (if left then List.length words - 1 else 0)) mod List.length words;
+            let word = List.nth words s.mode in
+            let room = fst (List.nth rooms s.chosen) in
+            (* a room that is there has its mode; a map's name with a mode makes one *)
+            let asked = if word = "" || not (List.mem room maps) then room else room ^ "." ^ word in
+            if (not typing) && Scene2d.pressed (fun k -> k.kenter) scenes then enter s asked;
+            Lobby { rooms; chosen = s.chosen; here = s.here; mode = word }
         | None -> Connecting (s.status ^ "  (" ^ s.transport.status () ^ ")")
         | Some g -> (
             if g.map = None then g.map <- map_of g.map_name;
@@ -319,9 +330,10 @@ let update (computer : computer) (model : model) : model =
                 let bytes = Soldat_wire.encode_control keys in
                 send s (Input (g.seq, bytes));
                 (* the weapon to come back with (the keys 1 to 9, 0): said when it changes *)
-                if g.asked <> Some model.primary then begin
-                  g.asked <- Some model.primary;
-                  List.iteri (fun i id -> if id = model.primary then send s (Weapon ((i + 1) mod 10))) Soldat_weapons.primaries
+                if g.asked <> Some (model.primary, model.secondary) then begin
+                  g.asked <- Some (model.primary, model.secondary);
+                  List.iteri (fun i id -> if id = model.primary then send s (Weapon ((i + 1) mod 10))) Soldat_weapons.primaries;
+                  List.iteri (fun i id -> if id = model.secondary then send s (Secondary i)) Soldat_weapons.secondaries
                 end;
                 Option.iter (fun ahead -> Prediction.step ahead ~seq:g.seq bytes) g.ahead;
                 g.seq <- g.seq + 1;

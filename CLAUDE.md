@@ -180,7 +180,7 @@ keys each says to hold), and, read by the main before the game starts:
 `room=`, the lobby's screen),
 `secondary=knife|saw|law`, `bonus=N` (bonus kits appear, 1 seldom
 to 5 often; none without it, as in Soldat),
-`mode=dm|tdm|ctf|rm` (the map's own without it: capture the flag where
+`mode=dm|pm|tdm|ctf|rm|inf|htf` (`Soldat_model.mode_words`; the map's own without it: capture the flag where
 the map has the two flags' places), `bots=N` (how many to play with
 and against: 3), `ai=engine` (the last of
 them the bot on `Sense` and `Bot`), `mute` (no sound), `sparks=N` (at
@@ -210,7 +210,8 @@ by `Gen_assets` at `make website`), never as PNG: elm-playground's
 
 The keys are Soldat's: a/d, w (jump), s (crouch), x (prone), the left
 button (fire), the right one or shift (jets), r, q, e, f, 1 to 0, and
-c (the second weapon: USSOCOM, knife, chainsaw, LAW);
+c (the second weapon: USSOCOM, knife, chainsaw, LAW), Tab or b (the
+scores as a table);
 space starts a round, m on the title asks for the next map
 (`Soldat_model.maps`: those whose content is in `data/`). In
 a `-script`, `d:10-70` holds d, `at(300;120):3-200` puts the mouse

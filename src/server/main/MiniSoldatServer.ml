@@ -15,7 +15,9 @@
  * name=value: port (23073, Soldat's), bind (127.0.0.1: this computer
  * only; 0.0.0.0 for every network it is on), capacity (32 players a
  * room), seats (6 soldiers a game), maps (data/maps: a room named
- * ctf_Ash plays on maps/ctf_Ash.pms if there is one, else on Arena2).
+ * ctf_Ash plays on maps/ctf_Ash.pms if there is one, else on Arena2;
+ * named Arena2.rm, a Rambomatch on Arena2), bonus (0: how often bonus
+ * kits appear, 1 to 5).
  * It prints the rooms whenever someone comes, goes or moves.
  *
  * In Soldat: server/Main.pas and server/ServerLoop.pas,
@@ -56,7 +58,7 @@ let () =
       (* nobody looks or listens here *)
       Soldat_sparks.most := 0;
       Soldat_sound.mute := true;
-      let (server, port) = Soldat_server.listen caps ~bind ~port:(int_of_string (flag "port" "23073")) ~capacity ~seats ~map_of:(map_of caps maps) () in
+      let (server, port) = Soldat_server.listen caps ~bind ~port:(int_of_string (flag "port" "23073")) ~capacity ~seats ~bonuses:(int_of_string (flag "bonus" "0")) ~map_of:(map_of caps maps) () in
       Printf.printf "mini-soldat-server on %s:%d, %d players a room, %d soldiers a game, maps in %s\n%!" bind port capacity seats maps;
       let seen = ref (Soldat_lobby.rooms (Soldat_server.lobby server)) in
       (* the games' clock: a tick every 60th of a second, caught up when

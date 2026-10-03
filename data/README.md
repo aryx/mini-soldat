@@ -21,6 +21,7 @@ unchanged.
 | `weapons-gfx/*-shell.png` (11) | `shared/weapons-gfx/` | each weapon's spent shell |
 | `weapons-gfx/*.png` (72) | `shared/weapons-gfx/` | the knife, the chainsaw, the LAW and its rocket (`missile`), the flamer, a cluster grenade and its bits (`knife-2` and `chainsaw-2` are Soldat's `knife2` and `chainsaw2`, named as the other mirrors are); Rambo's bow (`bow`, its string `bow-s`, the arrow on it `bow-a`, its flash, the bow on the ground `n-bow`, the arrow flying `arrow`); the eleven weapons in a soldier's hands, each with its mirror (`-2`), its clip (`-clip`, `-clip2`) and its muzzle's fire (`-fire`); a grenade and the M79's shell. Read when the game runs; the USSOCOM's two (`colt1911`, `colt1911-2`) are packed into the program too |
 | `textures/objects/*kit.png` (5 more) | `shared/textures/objects/` | the five bonus kits |
+| `interface-gfx/guns/*.png` (17) | `shared/interface-gfx/guns/` | the weapons' pictures in the interface: the menu, the kill console |
 | `maps/ctf_Ash.pms` | `shared/maps/ctf_Ash.pms` | a map for capture the flag: read when asked for (`map=ctf_Ash`, or the key m) |
 | `textures/poziomka.png`, `riverbed.png` | `shared/textures/` | Arena2's texture and ctf_Ash's: read when the game runs |
 | `scenery-gfx/*` (31) | `shared/scenery-gfx/` | Arena2's scenery and ctf_Ash's: barrels, crates, grass, roots, a net; three of them still `.bmp` |

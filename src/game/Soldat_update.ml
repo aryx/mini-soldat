@@ -134,13 +134,13 @@ let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_wea
     seed := Lehmer.next !seed;
     Lehmer.to_unit !seed
   in
-  let teams = mode = Team_match || mode = Capture_the_flag in
+  let teams = Soldat_model.teams mode in
   let soldier (place : float * float) (name : string) ~(team : int) ~(shirt : int * int * int) ~(trousers : int * int * int) ~(skin : int * int * int) ~(human : bool) (primary : Soldat_weapons.id) : soldier =
     let secondary = if human then secondary else Soldat_weapons.Socom in
     (* a team's soldiers wear its colour *)
     let shirt = if team = 0 then shirt else team_shirt team in
     let (r, g, b) = shirt in
-    { name; color = Playground.rgb r g b; shirt; trousers; skin; human; body = Soldat_soldier.create ~primary ~secondary ~human ~team place map.jet; health = full_health; dead = None; kills = 0; primary; hit_by = -1;
+    { name; color = Playground.rgb r g b; shirt; trousers; skin; human; body = Soldat_soldier.create ~primary ~secondary ~human ~team place map.jet; health = full_health; dead = None; kills = 0; deaths = 0; primary; hit_by = -1;
       secondary; bonus = None; vest = 0. }
   in
   let first = if teams then place map ~random 1 else spawn map 0 in
@@ -156,12 +156,15 @@ let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_wea
       bots
   in
   let kits = Soldat_things.kits map ~random in
-  let things = kits @ (if mode = Capture_the_flag then Soldat_things.flags map else []) @ if mode = Rambomatch then [ bow map ~random ] else [] in
+  let things = kits @ (match mode with
+      | Capture_the_flag | Infiltration -> Soldat_things.flags map
+      | Pointmatch | Hold_the_flag -> [ Soldat_things.yellow map ~random ]
+      | _ -> []) @ if mode = Rambomatch then [ bow map ~random ] else [] in
   {
     map; mode; captures = (0, 0); news = None; camera = first; soldiers = Array.of_list (List.rev soldiers);
     brains = Array.of_list (None :: List.mapi (fun i c -> if i + 1 = engine_at then None else Some (Soldat_bots.brain c)) bots);
     minds = Array.of_list (None :: List.mapi (fun i _ -> if i + 1 = engine_at then Some (Bot.start still) else None) bots);
-    bullets = []; things; events = []; sparks = []; spark_seed = Lehmer.scramble (seed' + 1000); sounds = []; time_left = time_limit; seed = !seed; frame = 0; bonuses;
+    bullets = []; things; events = []; sparks = []; spark_seed = Lehmer.scramble (seed' + 1000); sounds = []; time_left = time_limit; seed = !seed; frame = 0; log = []; bonuses;
   }
 
 (* a tick: [player] is what the human soldier wants, [look] where its
@@ -211,8 +214,19 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
            soldiers.(i) <- { s with body; hit_by = -1 }
          end);
   (* 2. the bullets: tested along their way, then moved *)
-  let (soldiers, bullets, of_bullets, knives) = Soldat_bullets.tick_heard ~rambo:(p.mode = Rambomatch) p.map soldiers (p.bullets @ !shots) in
-  say (-1) of_bullets;
+  let (flown, bullets) = Soldat_bullets.run ~rambo:(p.mode = Rambomatch) p.map soldiers (p.bullets @ !shots) in
+  let soldiers = flown.soldiers and knives = flown.knives in
+  say (-1) (List.rev flown.events);
+  (* a Pointmatch: a kill is worth two to who holds the yellow flag
+   * (S:1705; Soldat's points for several kills in a row are not here) *)
+  if p.mode = Pointmatch then
+    List.iter
+      (fun (t : Soldat_things.t) ->
+        if t.kind = Flag 0 && t.holder >= 0 then begin
+          let s = soldiers.(t.holder) in
+          soldiers.(t.holder) <- { s with kills = s.kills + max 0 (s.kills - p.soldiers.(t.holder).kills) }
+        end)
+      p.things;
   (* 3. the walls (by one's own hand, as Soldat counts it) *)
   let world : Soldat_bullets.world = { (Soldat_bullets.world ~rambo:(p.mode = Rambomatch) p.map soldiers []) with soldiers } in
   soldiers
@@ -222,11 +236,18 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
            if damage <> 0. then Soldat_bullets.hurt world i ~by:i ~where:1 damage
          end);
   say (-1) (List.rev world.events);
+  (* who killed whom, said for 7 seconds, the last 6 of them *)
+  let log =
+    List.map (fun (by, i, weapon) -> (soldiers.(by).name, (if by = i then None else weapon), soldiers.(i).name, 420)) (world.killed @ flown.killed)
+    @ List.filter_map (fun (a, w, b, ticks) -> if ticks > 1 then Some (a, w, b, ticks - 1) else None) p.log
+    |> List.filteri (fun n _ -> n < 6)
+  in
   (* 4. the things: they fall; a living soldier in reach takes one, the
    * nearest first; a kit taken or lost appears again elsewhere *)
   let captures = ref p.captures and news = ref (match p.news with Some (words, ticks) when ticks > 1 -> Some (words, ticks - 1) | _ -> None) in
   let tell words = news := Some (words, 180) in
   let colour t = if t = 1 then "Red" else "Blue" in
+  let members t = Array.fold_left (fun n (s : soldier) -> if Soldat_model.team s = t then n + 1 else n) 0 soldiers in
   (* a flag (the round's rules for it: TThing.Update and
    * CheckSpriteCollision): carried, its foot at its carrier's waist; *)
   let flag (team : int) (thing : Soldat_things.t) : Soldat_things.t =
@@ -235,14 +256,17 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
     let thing = Option.get (Soldat_things.tick ~heard ?carried p.map { thing with holder = carrier }) in
     let foot = thing.points.(0).pos in
     (* the other team's flag, as the tick found it *)
-    let other = List.find_opt (fun (t : Soldat_things.t) -> t.kind = Flag (3 - team)) p.things in
+    let other = if team = 0 then None else List.find_opt (fun (t : Soldat_things.t) -> t.kind = Flag (3 - team)) p.things in
     if Soldat_things.lost p.map thing || (carrier < 0 && thing.ttl = 0) then Soldat_things.again p.map ~random thing
     else if carrier >= 0 then begin
       (* brought to its carrier's own flag, standing at home: a point *)
       match other with
       | Some home when home.in_base && home.holder < 0 && Float.hypot (fst foot -. fst home.points.(0).pos) (snd foot -. snd home.points.(0).pos) < Soldat_things.touchdown_radius ->
           let (a, b) = !captures in
-          captures := if team = 2 then (a + 1, b) else (a, b + 1);
+          (* Infiltration: Alpha's 30 for the objective brought home (sv_inf_redaward),
+           * less 5 for each soldier it has more than Bravo (T:879) *)
+          let award = if p.mode = Infiltration then max 0 (30 - (5 * max 0 (members 1 - members 2))) else 1 in
+          captures := if team = 2 then (a + award, b) else (a, b + award);
           tell (Printf.sprintf "%s Team scores! (%s)" (team_name (3 - team)) soldiers.(carrier).name);
           heard := Sound (Ctf_score, foot) :: !heard;
           Soldat_things.again p.map ~random thing
@@ -259,6 +283,12 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
         |> List.sort compare
       in
       match near with
+      (* Infiltration: Alpha's flag is only where the objective is brought (T:1763) *)
+      | _ when p.mode = Infiltration && team = 1 -> thing
+      | (_, i) :: _ when team = 0 ->
+          tell (soldiers.(i).name ^ " got the Yellow Flag");
+          heard := Sound (Capture, foot) :: !heard;
+          { thing with holder = i; still = false }
       | (_, i) :: _ when Soldat_model.team soldiers.(i) = team && not thing.in_base ->
           tell (Printf.sprintf "%s returned the %s Flag" soldiers.(i).name (colour team));
           heard := Sound (Capture, foot) :: !heard;
@@ -357,6 +387,22 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
              if g.kind.id <> Flamer then dropped := Soldat_things.weapon s.body ~alive:(s.dead = None) g :: !dropped;
              soldiers.(i) <- { s with body = { s.body with dropped = None } }
          | None -> ());
+  (* the points time gives (ServerLoop:598): in Hold the Flag, one to
+   * the team that has the yellow flag, every 5 seconds, and 2 seconds
+   * more for each soldier it has more than the other; in Infiltration,
+   * one to Bravo every 5 seconds its flag is at home, and 2 seconds
+   * more for each soldier it has more than Alpha *)
+  let every team = 300 + (120 * max 0 (members team - members (3 - team))) in
+  let point team = let (a, b) = !captures in captures := if team = 1 then (a + 1, b) else (a, b + 1) in
+  List.iter
+    (fun (t : Soldat_things.t) ->
+      match (p.mode, t.kind) with
+      | (Hold_the_flag, Flag 0) when t.holder >= 0 ->
+          let team = Soldat_model.team soldiers.(t.holder) in
+          if p.frame mod every team = 0 then point team
+      | (Infiltration, Flag 2) when t.in_base && p.frame mod every 2 = 0 -> point 2
+      | _ -> ())
+    things;
   (* a knife thrown lies where it fell (B:1395) *)
   let things = things @ List.rev !dropped @ List.map (Soldat_things.lying Knife) knives in
   (* a bonus's time (S:1250); the dead have none, nor a vest (S:2353);
@@ -428,7 +474,7 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
   (* the camera, shaken by an explosion's fire *)
   let (cx, cy) = follow p soldiers.(me) look in
   let (wx, wy) = Soldat_sparks.wobble ~random sparks in
-  { p with captures = !captures; news = !news; camera = (cx +. wx, cy +. wy); soldiers; brains; minds; bullets; things; events = List.rev !events; sparks; spark_seed = !spark_seed; sounds; seed = !seed }
+  { p with log; captures = !captures; news = !news; camera = (cx +. wx, cy +. wy); soldiers; brains; minds; bullets; things; events = List.rev !events; sparks; spark_seed = !spark_seed; sounds; seed = !seed }
 
 (*****************************************************************************)
 (* The rounds *)
@@ -440,11 +486,11 @@ let winner (p : play) : string option =
   let all = Array.to_list p.soldiers in
   let over = p.time_left = 0 in
   match p.mode with
-  | Deathmatch | Rambomatch -> (
+  | Deathmatch | Rambomatch | Pointmatch -> (
       match List.find_opt (fun s -> s.kills >= limit p) all with
       | Some s -> Some s.name
       | None -> if over then Some (List.fold_left (fun best s -> if s.kills > best.kills then s else best) (List.hd all) all).name else None)
-  | Team_match | Capture_the_flag ->
+  | Team_match | Capture_the_flag | Hold_the_flag | Infiltration ->
       let (a, b) = (score p 1, score p 2) in
       if a >= limit p || (over && a > b) then Some "ALPHA TEAM"
       else if b >= limit p || (over && b > a) then Some "BRAVO TEAM"

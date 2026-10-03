@@ -81,7 +81,8 @@ let named (p : Soldat_model.play) (name : string) : Soldat_model.soldier =
   | None -> Alcotest.failf "no soldier named %s" name
 
 let seen (w : world) (name : string) : Soldat_model.soldier = named (Option.get (shown w)) name
-let truth (w : world) (name : string) : Soldat_model.soldier = named (Soldat_room.play (Option.get (Soldat_server.game w.server "test"))) name
+let truth_in (w : world) (room : string) (name : string) : Soldat_model.soldier = named (Soldat_room.play (Option.get (Soldat_server.game w.server room))) name
+let truth (w : world) : string -> Soldat_model.soldier = truth_in w "test"
 
 (* pad's program in the room "test" of a new server, a floor with
  * [seats] soldiers, [lag] frames away; its soldier on the ground *)
@@ -102,6 +103,7 @@ let press (w : world) (c : Playground.computer) : unit =
   frames 20 w
 
 let lobby (w : world) = match w.model.scenes.scene with Lobby l -> Some (l.rooms, l.chosen, l.here) | _ -> None
+let lobby_mode (w : world) = match w.model.scenes.scene with Lobby l -> l.mode | _ -> "?"
 
 let start (caps : < Cap.network ; .. >) ~(seats : int) ~(lag : int) : world =
   let w = connect caps ~seats ~lag ~room:"test" in
@@ -160,10 +162,22 @@ let tests (caps : < Cap.network ; .. >) =
           frames 80 w;
           Alcotest.(check bool) "escape: the lobby again" true (lobby w <> None);
           Alcotest.(check bool) "its game, nobody's, is dropped" true (Soldat_server.game w.server room = None);
-          (* and in again *)
+          (* right: a mode for the room to make; enter: that room, its round in that mode *)
+          let right = { (holding []) with keyboard = { (holding []).keyboard with kright = true } } in
+          press w right;
+          press w right;
+          Alcotest.(check string) "right, twice: the second mode" (fst (List.nth Soldat_model.mode_words 1)) (lobby_mode w);
           press w enter;
           frames 60 w;
-          Alcotest.(check bool) "and in again" true (shown w <> None));
+          let asked = room ^ "." ^ fst (List.nth Soldat_model.mode_words 1) in
+          Alcotest.(check bool) "and in again, a round of that mode" true
+            (match (shown w, Soldat_server.game w.server asked) with
+            | (Some p, Some game) -> p.mode = snd (List.nth Soldat_model.mode_words 1) && (Soldat_room.play game).mode = p.mode
+            | _ -> false);
+          (* the second weapon: the key c, said to the server *)
+          press w (holding [ "c" ]);
+          frames 20 w;
+          Alcotest.(check bool) "c: the knife as the second weapon, there too" true ((truth_in w asked "pad").secondary = Knife));
       Testo.create "a weapon chosen" (fun () ->
           let w = start caps ~seats:1 ~lag:6 in
           (* the key 8 of Soldat's menu: the Barrett *)

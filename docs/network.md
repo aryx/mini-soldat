@@ -43,7 +43,7 @@ server says happened.
 
 | Module | What |
 |---|---|
-| `src/net/Soldat_protocol` | the messages as bytes: `Hello`, `Join`, `Leave`, `Say`, `List`, `Input`, `Weapon` up; `Welcome`, `Refused`, `Rooms`, `Entered`, `Came`, `Went`, `Said`, `Seat`, `World` down |
+| `src/net/Soldat_protocol` | the messages as bytes: `Hello`, `Join`, `Leave`, `Say`, `List`, `Input`, `Weapon`, `Secondary` up; `Welcome`, `Refused`, `Rooms`, `Entered`, `Came`, `Went`, `Said`, `Seat`, `World` down |
 | `src/net/Soldat_wire` | the game as bytes, inside `Input` and `World`: a player's keys, a soldier's body, a round, its events |
 | `src/server/Soldat_lobby` | who is in which room and who is told what: a value, no socket |
 | `src/server/Soldat_room` | a room's game: its seats, each player's queue of keys, its tick, what is sent: a value too |
@@ -79,9 +79,14 @@ WebSocket and not UDP, which Soldat uses, because a browser gives a
 page nothing else; a native program speaks it too, so both kinds of
 players meet on the same server.
 
-A room plays its map's own mode (a deathmatch, or capture the flag
-where the map has flags): a team match or a Rambomatch cannot be
-asked for yet.
+A room's name is its map's and, after a dot, the mode asked for
+(`Soldat_model.mode_words`): `Arena2.rm` is a Rambomatch on Arena2,
+`ctf_Ash.inf` an Infiltration, `Arena2` the map's own mode. In the
+lobby, left and right choose the mode a new room is made with. The
+second weapon is said as the first is (`Secondary`); the server's flag
+`bonus=N` makes bonus kits appear in every room's rounds. Who killed
+whom travels with the round, as do the deaths, the bonuses and the
+vests.
 
 ## The lobby's screen
 

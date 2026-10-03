@@ -19,9 +19,12 @@ type t
 (* a server listening on [bind]:[port] (127.0.0.1:23073; 0: a free
  * port), and the port it got; [capacity] is Soldat_lobby.create's. A
  * room's game has [seats] soldiers (6), on the map [map_of] gives for
- * the room's name (Arena2, whatever the name, if none is given) *)
+ * the room's map's name (Arena2, whatever the name, if none is given).
+ * A room named "MAP.MODE" plays that mode (Soldat_protocol.room_mode);
+ * [bonuses]: how often bonus kits appear in the rounds, 1 to 5 (0:
+ * never) *)
 val listen :
-  < Cap.network ; .. > -> ?bind:string -> ?port:int -> ?capacity:int -> ?seats:int -> ?map_of:(string -> Soldat_map.t) -> unit -> t * int
+  < Cap.network ; .. > -> ?bind:string -> ?port:int -> ?capacity:int -> ?seats:int -> ?bonuses:int -> ?map_of:(string -> Soldat_map.t) -> unit -> t * int
 
 (* everything that can be done without waiting: what arrived answered *)
 val step : t -> unit

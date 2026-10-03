@@ -151,6 +151,10 @@ val tick : ?heard:Soldat_event.t list ref -> ?carried:float * float -> Soldat_ma
 val flag : Soldat_map.t -> int -> t option
 val flags : Soldat_map.t -> t list
 
+(* the yellow flag ([Flag 0]) of a Pointmatch and of Hold the Flag:
+ * anybody's, at home nowhere, at one of the map's places for it *)
+val yellow : Soldat_map.t -> random:(unit -> float) -> t
+
 (* TOUCHDOWN_RADIUS: a flag carried within this of the other at home
  * is a capture *)
 val touchdown_radius : float

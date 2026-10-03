@@ -75,11 +75,18 @@ let tests =
           let room = Soldat_room.create ~seats:2 ~name:"test" Testutil_map.rooms in
           let (room, seat) = Option.get (Soldat_room.join "pad" room) in
           let held = (soldier room seat).body.weapon.kind.id in
-          let room = Soldat_room.weapon seat Barrett room in
-          Alcotest.(check bool) "the one to come back with" true ((soldier room seat).primary = Barrett);
+          let room = Soldat_room.weapon ~secondary:Law seat (Some Barrett) room in
+          Alcotest.(check bool) "the ones to come back with" true ((soldier room seat).primary = Barrett && (soldier room seat).secondary = Law);
+          Alcotest.(check bool) "the second alone" true ((soldier (Soldat_room.weapon ~secondary:Knife seat None room) seat).primary = Barrett);
+          (* a room's mode, kept from a round to the next *)
+          let rm = Soldat_room.create ~seats:2 ~mode:Rambomatch ~bonuses:3 ~name:"test.rm" Testutil_map.rooms in
+          Alcotest.(check bool) "a room asked as a Rambomatch, with bonus kits" true ((Soldat_room.play rm).mode = Rambomatch && (Soldat_room.play rm).bonuses = 3);
+          Alcotest.(check bool) "a room's name: its map, its mode" true
+            (Soldat_protocol.room_map "Arena2.rm" = "Arena2" && Soldat_protocol.room_mode "Arena2.rm" = Some Rambomatch
+           && Soldat_protocol.room_map "ctf_Ash" = "ctf_Ash" && Soldat_protocol.room_mode "ctf_Ash" = None && Soldat_protocol.room_mode "Arena2.zz" = None);
           Alcotest.(check bool) "not the one in its hands" true ((soldier (ticks 10 room) seat).body.weapon.kind.id = held);
           let theirs = (soldier room 1).primary in
-          Alcotest.(check bool) "a bot's seat keeps its bot's" true ((soldier (Soldat_room.weapon 1 Minigun room) 1).primary = theirs));
+          Alcotest.(check bool) "a bot's seat keeps its bot's" true ((soldier (Soldat_room.weapon 1 (Some Minigun) room) 1).primary = theirs));
       Testo.create "what is sent" (fun () ->
           let room = Soldat_room.create ~seats:4 ~name:"test" floor in
           let (room, _) = Option.get (Soldat_room.join "pad" room) in
