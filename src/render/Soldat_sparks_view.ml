@@ -52,7 +52,7 @@ let shell (id : Soldat_weapons.id) : string =
   | Barrett -> "barretm82-shell"
   | Minimi -> "m249-shell"
   | Minigun -> "minigun-shell"
-  | Socom | Grenade | Hands -> "colt-shell"
+  | Socom | Grenade | Hands | Bow | Bow2 -> "colt-shell"
 
 (* GfxDrawSprite: a picture whose top left corner is at a place of the
  * game, [w] by [h] units, turned by [turn] radians, faded to [alpha]

@@ -5,6 +5,19 @@
 # (with direction from me)
 
 ** Features
+- a Rambomatch (mode=rm), from Soldat's GAMESTYLE_RAMBO: the bow on
+  the map, for empty hands; its arrow, which kills at once and stays
+  in a wall; Rambo's rules (who may hurt whom, which kills count, its
+  health coming back, first to 30); Soldat's bots after the bow; the
+  bow's pictures and sounds
+- the lobby's screen: on a server without room=, the rooms to choose
+  from (one for each map, and the server's others, with their
+  players' number), the arrows and enter; escape, in a game, comes
+  back to it
+- over the network, the weapon to come back with is the player's (the
+  keys 1 to 9 and 0, a new message, Weapon), and the interface
+  (health, ammo, jets, the menu when dead) is its own soldier's: it
+  was the first seat's
 - the player's side of a round on a server is tested
   (tests/server/Unit_online.ml: Soldat_online against Soldat_server
   over localhost, 100 ms each way): a seat, its own soldier moved at

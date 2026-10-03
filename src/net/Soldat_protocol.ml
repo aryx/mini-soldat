@@ -10,7 +10,7 @@
 
 (* See Soldat_protocol.mli *)
 
-type to_server = Hello of string | Join of string | Leave | Say of string | List | Input of int * string
+type to_server = Hello of string | Join of string | Leave | Say of string | List | Input of int * string | Weapon of int
 
 type to_client =
   | Welcome of string
@@ -49,7 +49,8 @@ let encode_to_server (m : to_server) : string =
       | Leave -> Wire.put_u8 w 0x12
       | Say text -> Wire.put_u8 w 0x13; Wire.put_string w text
       | List -> Wire.put_u8 w 0x14
-      | Input (seq, keys) -> Wire.put_u8 w 0x15; Wire.put_varint w seq; Wire.put_string w keys)
+      | Input (seq, keys) -> Wire.put_u8 w 0x15; Wire.put_varint w seq; Wire.put_string w keys
+      | Weapon key -> Wire.put_u8 w 0x16; Wire.put_u8 w key)
 
 let encode_to_client (m : to_client) : string =
   Wire.to_bytes (fun w ->
@@ -95,6 +96,9 @@ let decode_to_server (bytes : string) : (to_server, string) result =
           let seq = Wire.get_varint r in
           let keys = get_string r in
           Input (seq, keys)
+      | 0x16 ->
+          let key = Wire.get_u8 r in
+          if key > 9 then Wire.fail r "a weapon's key is 0 to 9" else Weapon key
       | _ -> Wire.fail r "not a player's message")
     bytes
 

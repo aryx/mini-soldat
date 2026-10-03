@@ -35,6 +35,9 @@ let flag_timeout = 1500
 let default_interest = 350
 let gun_radius = 10.
 let kit_radius = 12.
+let bow_radius = 20.
+(* BOW_INTEREST_TIME *)
+let bow_interest = (60 * 41) + 40
 let flag_radius = 19.
 let flag_interest = 1500
 let base_radius = 75.
@@ -67,6 +70,8 @@ let rifle (id : Soldat_weapons.id) : float * float * float =
   | Barrett -> (4.3, 0.993, 1.18)
   | Minimi -> (3.9, 0.993, 1.2)
   | Minigun -> (5.5, 0.991, 1.4)
+  (* OBJECT_RAMBO_BOW: RifleSkeleton50, light *)
+  | Bow | Bow2 -> (5.0, 0.996, 0.65)
 
 (* objects/kit.po at its scale of 2.15: a box, its first point at the
  * bottom right (a .po's x is turned over and divided by 1.2) *)
@@ -108,7 +113,7 @@ let physics (kind : kind) : float * float =
   | Grenade_kit -> (0.989, 1.07)
   | Flag _ -> (0.991, 1.0)
 
-let radius (kind : kind) : float = match kind with Weapon _ -> gun_radius | Medikit | Grenade_kit -> kit_radius | Flag _ -> flag_radius
+let radius (kind : kind) : float = match kind with Weapon g when Soldat_weapons.is_bow g.kind.id -> bow_radius | Weapon _ -> gun_radius | Medikit | Grenade_kit -> kit_radius | Flag _ -> flag_radius
 
 (*****************************************************************************)
 (* Made *)
@@ -129,7 +134,19 @@ let weapon (s : Soldat_soldier.t) ~(alive : bool) (g : Soldat_soldier.gun) : t =
     let old = (hx, hy +. dy) in
     { (Particles.particle (fst old +. s.vx +. (ax *. throw), snd old +. s.vy +. (ay *. throw))) with old }
   in
-  { kind = Weapon g; points = [| point (2. *. scale) first; point (-2. *. scale) second |]; ttl = gun_time; interest = 0; still = false; facing = s.direction; place = -1; hits = 0; holder = -1; in_base = false }
+  (* the bow let go of is the bow again, whichever arrows were on it *)
+  let bow = Soldat_weapons.is_bow g.kind.id in
+  let g = if bow then Soldat_soldier.gun Bow else g in
+  { kind = Weapon g; points = [| point (2. *. scale) first; point (-2. *. scale) second |]; ttl = gun_time; interest = (if bow then bow_interest else 0); still = false; facing = s.direction; place = -1; hits = 0; holder = -1; in_base = false }
+
+(* OBJECT_RAMBO_BOW, as the map gets it: lying at a place, its arrow in *)
+let bow ((x, y) : float * float) : t =
+  let g = Soldat_soldier.gun Bow in
+  let (scale, _, _) = rifle Bow in
+  { kind = Weapon g; points = [| Particles.particle (x, y +. (2. *. scale)); Particles.particle (x, y -. (2. *. scale)) |]; ttl = gun_time;
+    interest = bow_interest; still = false; facing = 1; place = -1; hits = 0; holder = -1; in_base = false }
+
+let is_bow (thing : t) : bool = match thing.kind with Weapon g -> Soldat_weapons.is_bow g.kind.id | _ -> false
 
 let kit_at (kind : kind) ((x, y) : float * float) (place : int) : t =
   { kind; points = Array.map (fun (bx, by) -> Particles.particle (x +. bx, y +. by)) box; ttl = flag_timeout; interest = default_interest; still = false; facing = 1; place; hits = 0; holder = -1; in_base = false }

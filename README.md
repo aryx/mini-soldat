@@ -174,13 +174,18 @@ them the map is in flat colours). With a checkout of
 (`base=` where the content is, `map=` a map's name, or a `.pms` file).
 `graphics=N` starts at that way of drawing, `weapon=N` with that
 weapon (its key in the menu: 1 the Desert Eagles ... 0 the minigun).
-`mode=dm`, `tdm` or `ctf` asks for a deathmatch, a team match or
-capture the flag, whatever the map (its own without it: capture the
+`mode=dm`, `tdm`, `ctf` or `rm` asks for a deathmatch, a team match,
+capture the flag or a Rambomatch (a bow lies on the map; empty hands
+take it, so throw your weapon away first, `f`; who has it is Rambo,
+kills with one arrow and gets its health back, and only Rambo's kills
+and Rambo's death count), whatever the map (its own without it: capture the
 flag on a map that has the two flags' places, as `map=ctf_Ash`). The
 key `m`, on the title, goes to the next of the game's own maps.
 `server=HOST[:PORT]` plays on a `mini-soldat-server` instead (with
-`nick=NAME`, in `room=NAME`, a room's name being its map's; there `t`
-starts a line to say, enter says it).
+`nick=NAME`): the lobby's screen, where the arrows choose a room and
+enter enters it (`room=NAME` goes straight into one, a room's name
+being its map's); there `t` starts a line to say, enter says it, and
+escape comes back to the lobby).
 `mute` plays no sound; `sparks=N` keeps at most N sparks (558, or 150
 in a browser; 0: none).
 `bots=N` is how many bots one plays against (3; up to 15).

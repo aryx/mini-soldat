@@ -12,6 +12,7 @@ val map :
   ?waypoints:Pms.waypoint list ->
   ?medikit_spawns:(float * float) list ->
   ?grenade_spawns:(float * float) list ->
+  ?bow_spawns:(float * float) list ->
   ?alpha_spawns:(float * float) list ->
   ?bravo_spawns:(float * float) list ->
   ?alpha_flag:float * float ->

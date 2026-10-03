@@ -81,7 +81,8 @@ Ported so far (`docs/plan.md`'s "Done"): the maps (`Pms`,
 guns in `Soldat_soldier`, `Soldat_bullets`, the cuts of
 `Soldat_ragdoll`), the things (`Soldat_things`), Soldat's bots
 (`Soldat_bots`), a round's rules (`Soldat_update`: a deathmatch, a
-team match, capture the flag, with the flags of `Soldat_things`), the sparks
+team match, capture the flag, with the flags of `Soldat_things`, a
+Rambomatch, with the bow), the sparks
 (`Soldat_sparks`, `Soldat_sparks_view`) and the sounds (`Soldat_sfx`,
 `Soldat_sound`). Of
 TinySoldat one thing is kept, on purpose: `Soldat_engine_bot`, a bot on
@@ -174,8 +175,9 @@ Program flags are words, `name` or `name=value`
 over the soldiers), `waypoints` (the map's, the bots' paths, with the
 keys each says to hold), and, read by the main before the game starts:
 `server=HOST[:PORT]`, `nick=NAME`, `room=NAME` (the round is a
-`mini-soldat-server`'s: `Soldat_online`, `docs/network.md`),
-`mode=dm|tdm|ctf` (the map's own without it: capture the flag where
+`mini-soldat-server`'s: `Soldat_online`, `docs/network.md`; without
+`room=`, the lobby's screen),
+`mode=dm|tdm|ctf|rm` (the map's own without it: capture the flag where
 the map has the two flags' places), `bots=N` (how many to play with
 and against: 3), `ai=engine` (the last of
 them the bot on `Sense` and `Bot`), `mute` (no sound), `sparks=N` (at

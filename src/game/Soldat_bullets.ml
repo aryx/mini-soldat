@@ -142,6 +142,8 @@ type world = {
   mutable explosions : explosion list;
   (* what is to be heard and seen of it all, the last first *)
   mutable events : Soldat_event.t list;
+  (* a Rambomatch: its rules of who is hurt and what a kill is worth *)
+  rambo : bool;
 }
 
 let emit (w : world) (e : Soldat_event.t) : unit = w.events <- e :: w.events
@@ -162,8 +164,13 @@ let push (w : world) (i : int) ((px, py) : float * float) : unit =
 (* HealthHit and Die: [amount] taken from soldier [i] by soldier [by]'s
  * hand, at the point [where] of its skeleton. Under 1 it dies, and its
  * killer has a kill more -- or one less, if it killed itself *)
-let hurt (w : world) (i : int) ~(by : int) ~(where : int) (amount : float) : unit =
+let hurt ?(weapon : Soldat_weapons.id option) (w : world) (i : int) ~(by : int) ~(where : int) (amount : float) : unit =
   let s = w.soldiers.(i) in
+  (* a Rambomatch: while somebody else is Rambo, these two do nothing
+   * to each other (HealthHit, S:3326) *)
+  let third = ref false in
+  if w.rambo && by <> i then Array.iteri (fun j o -> if j <> i && j <> by && rambo o then third := true) w.soldiers;
+  if !third then () else
   (* its own team's bullets do nothing to it (sv_friendlyfire is off);
    * its own do *)
   if by <> i && by >= 0 && team s <> 0 && team w.soldiers.(by) = team s then ()
@@ -181,14 +188,27 @@ let hurt (w : world) (i : int) ~(by : int) ~(where : int) (amount : float) : uni
       w.soldiers.(i) <-
         { s with health; body = Soldat_soldier.let_go s.body; dead = Some (0, Soldat_ragdoll.cut cuts (Soldat_ragdoll.of_soldier s.body ~push:w.pushes.(i))) };
       let killer = w.soldiers.(by) in
-      w.soldiers.(by) <- { killer with kills = (if by = i then max 0 (killer.kills - 1) else killer.kills + 1) }
+      let kills =
+        if by = i then max 0 (killer.kills - 1)
+        else if not w.rambo then killer.kills + 1
+        else if (match weapon with Some id -> Soldat_weapons.is_bow id | None -> false) || Soldat_weapons.is_bow s.body.weapon.kind.id then
+          (* a Rambomatch (TSprite.Die, S:1785): Rambo's kill, or Rambo killed *)
+          killer.kills + 1
+        else if Array.exists rambo w.soldiers then max 0 (killer.kills - 1) (* another killed while somebody is Rambo *)
+        else killer.kills
+      in
+      w.soldiers.(by) <- { killer with kills }
   | None -> w.soldiers.(i) <- { s with health; hit_by = (if by <> i then by else s.hit_by) }
 
 (*****************************************************************************)
 (* An explosion *)
 (*****************************************************************************)
 
-let explosive (b : bullet) : bool = match (Soldat_weapons.get b.weapon).style with Thrown | Explosive -> true | Plain | Pellets -> false
+(* ARROW_RESIST: the ticks an arrow stays in a wall; with that much
+ * left or less, it hits nobody *)
+let arrow_resist = 280
+
+let explosive (b : bullet) : bool = match (Soldat_weapons.get b.weapon).style with Thrown | Explosive -> true | Plain | Pellets | Arrow -> false
 
 (* ExplosionHit: [b] goes off at a place. [direct]: the soldier it
  * struck and where, if it struck one: that point is the one measured
@@ -265,6 +285,8 @@ let against_map ?(team = 0) (map : Soldat_map.t) (b : bullet) ~(lift : float) : 
                 let (perp, depth, _) = Soldat_map.closest_perp wall (b.x, b.y) in
                 let (nx, ny) = normalize perp in
                 Bounced { b with x = fst pos; y = snd pos; vx = (b.vx -. (nx *. depth)) *. grenade_bounce; vy = (b.vy -. (ny *. depth)) *. grenade_bounce }
+            (* an arrow goes into what it meets, and stays *)
+            | Arrow -> Stopped pos
             | Plain | Pellets | Explosive ->
                 let back = (fst pos -. b.vx, snd pos -. b.vy) in
                 if distance back b.bounced_at > 50. then begin
@@ -323,6 +345,8 @@ let update (w : world) (k : int) (b : bullet) : unit =
     (* 1. the map. [ended]: where the bullet ended, if it did; [limit]:
      * how far from where it was a tick before: nothing farther is hit *)
     let ended = ref None and limit = ref None and lost = ref false in
+    (* an arrow in a wall, from this tick or an earlier one *)
+    let stuck = ref false in
     let b =
       match style with
       | Thrown -> (
@@ -332,6 +356,17 @@ let update (w : world) (k : int) (b : bullet) : unit =
           in
           let lifted = match against_map ~team w.map b ~lift:2. with Bounced b' -> bounce b b' | Lost -> lost := true; b | Free | Stopped _ -> b in
           match against_map ~team w.map lifted ~lift:0. with Bounced b' -> bounce lifted b' | Lost -> lost := true; lifted | Free | Stopped _ -> lifted)
+      | Arrow -> (
+          (* B:1268: in a wall it stays where it is, for ARROW_RESIST
+           * ticks at most; one that has lived that long harms nobody,
+           * and falls again if the wall is no longer there *)
+          match against_map ~team w.map b ~lift:0. with
+          | Free -> b
+          | Lost -> lost := true; b
+          | Bounced _ | Stopped _ ->
+              stuck := true;
+              if b.ttl > arrow_resist then emit w (Wall ((b.x, b.y), (b.vx, b.vy)));
+              b)
       | Plain | Pellets | Explosive -> (
           match against_map ~team w.map b ~lift:0. with
           | Free -> b
@@ -350,7 +385,7 @@ let update (w : world) (k : int) (b : bullet) : unit =
       let within (hit : float * float) : bool = match !limit with Some l -> distance hit b.old <= l | None -> true in
       (* 2. the colliders *)
       (match List.find_map (fun (c, r) -> line_circle (b.x, b.y) (b.x +. b.vx, b.y +. b.vy) c r) w.map.colliders with
-      | Some hit when within hit && (style <> Thrown || b.ttl < gun.timeout - 2) ->
+      | Some hit when within hit && (not !stuck) && (style <> Thrown || b.ttl < gun.timeout - 2) ->
           ended := Some (b.x, b.y);
           limit := Some (distance hit b.old)
       | _ -> ());
@@ -362,6 +397,8 @@ let update (w : world) (k : int) (b : bullet) : unit =
       let targets =
         List.init (Array.length w.soldiers) Fun.id
         |> List.filter (fun i -> (i <> b.owner || b.ttl < vulnerable) && i <> b.through)
+        (* B:1453: an arrow that has stopped, or flown too long, hits nobody *)
+        |> List.filter (fun _ -> not (style = Arrow && (!stuck || b.ttl <= arrow_resist)))
         |> List.map (fun i -> (distance (b.x, b.y) (place w.soldiers.(i)), i))
         |> List.sort compare |> List.map snd
       in
@@ -406,6 +443,13 @@ let update (w : world) (k : int) (b : bullet) : unit =
                     else if w.soldiers.(j).dead <> None || speed > 23. then on 0.75
                     else if speed > 5. && speed /. gun.speed >= 0.9 then on 0.66
                     else ended := Some hit
+                | Arrow ->
+                    (* B:1749: it stops in who it hits *)
+                    pos := hit;
+                    emit w (Blood (hit, (vx, vy)));
+                    emit w (Sound ((if was_dead then Dead_hit else Hit_arg), hit));
+                    hurt ~weapon:b.weapon w j ~by:b.owner ~where (Float.hypot vx vy *. b.damage *. Soldat_weapons.modifier gun where);
+                    ended := Some hit
                 | Thrown ->
                     if not was_dead then begin
                       blown := true;
@@ -422,6 +466,10 @@ let update (w : world) (k : int) (b : bullet) : unit =
       (* 4. its time *)
       let ttl = b.ttl - 1 in
       if !blown then ()
+      else if !stuck then begin
+        let ttl = min ttl arrow_resist in
+        if ttl > 0 then w.bullets.(k) <- Some { b with ttl }
+      end
       else if !ended <> None || ttl = 0 then begin
         (* what explodes does, where it ended *)
         if explosive b then explode w b ~at:(Option.value !ended ~default:(b.x, b.y)) ~direct:None
@@ -439,19 +487,19 @@ let update (w : world) (k : int) (b : bullet) : unit =
     end
   end
 
-let world (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : world =
-  { map; soldiers = Array.copy soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = Array.of_list (List.map Option.some bullets); explosions = []; events = [] }
+let world ?(rambo = false) (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : world =
+  { rambo; map; soldiers = Array.copy soldiers; pushes = Array.make (Array.length soldiers) (0., 0.); bullets = Array.of_list (List.map Option.some bullets); explosions = []; events = [] }
 
 (* a tick of all the bullets, [fired] the ones that left this tick,
  * over these soldiers: the soldiers after, the bullets left, and the
  * explosions there were *)
-let tick (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * explosion list =
-  let w = world map soldiers bullets in
+let tick ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * explosion list =
+  let w = world ?rambo map soldiers bullets in
   Array.iteri (fun k b -> match w.bullets.(k) with Some _ -> update w k (Option.get b) | None -> ()) (Array.copy w.bullets);
   (w.soldiers, List.filter_map Fun.id (Array.to_list w.bullets), List.rev w.explosions)
 
 (* the same, with what is to be heard and seen of it, in its order *)
-let tick_heard (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * Soldat_event.t list =
-  let w = world map soldiers bullets in
+let tick_heard ?rambo (map : Soldat_map.t) (soldiers : soldier array) (bullets : bullet list) : soldier array * bullet list * Soldat_event.t list =
+  let w = world ?rambo map soldiers bullets in
   Array.iteri (fun k b -> match w.bullets.(k) with Some _ -> update w k (Option.get b) | None -> ()) (Array.copy w.bullets);
   (w.soldiers, List.filter_map Fun.id (Array.to_list w.bullets), List.rev w.events)

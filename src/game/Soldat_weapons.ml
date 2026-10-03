@@ -14,8 +14,8 @@
 
 (* See Soldat_weapons.mli *)
 
-type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade | Hands
-type style = Plain | Pellets | Explosive | Thrown
+type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade | Hands | Bow | Bow2
+type style = Plain | Pellets | Explosive | Thrown | Arrow
 
 type t = {
   id : id;
@@ -56,7 +56,9 @@ let known : (id * string * string * bool * bool) list =
     (Minigun, "XM214 Minigun", "XM214 Minigun", false, false);
     (Socom, "USSOCOM", "USSOCOM", true, true);
     (Grenade, "Grenade", "Grenade", false, false);
-    (Hands, "Hands", "Punch", false, false) ]
+    (Hands, "Hands", "Punch", false, false);
+    (Bow, "Bow", "Rambo Bow", false, false);
+    (Bow2, "Flame Bow", "Flamed Arrows", false, false) ]
 
 let primaries : id list = [ Eagles; Mp5; Ak74; Steyr; Spas; Ruger; M79; Barrett; Minimi; Minigun ]
 
@@ -91,7 +93,7 @@ let of_ini (sections : (string * (string * float) list) list) : (id -> t, string
         let missing = ref None in
         let number key = match List.assoc_opt key numbers with Some v -> v | None -> missing := Some key; 0. in
         let int key = int_of_float (number key) in
-        let style = match int "BulletStyle" with 2 -> Thrown | 3 -> Pellets | 4 -> Explosive | _ -> Plain in
+        let style = match int "BulletStyle" with 2 -> Thrown | 3 -> Pellets | 4 -> Explosive | 7 | 8 -> Arrow | _ -> Plain in
         let reload_time = int "ReloadTime" in
         let w =
           {
@@ -116,5 +118,7 @@ let table : (id -> t) Lazy.t =
   lazy (match of_ini (parse (Base64.decode Weapons_ini.base64)) with Ok get -> get | Error e -> failwith e)
 
 let get (id : id) : t = (Lazy.force table) id
+
+let is_bow (id : id) : bool = id = Bow || id = Bow2
 
 let modifier (w : t) (point : int) : float = if point <= 4 then w.legs else if point <= 11 then w.chest else w.head

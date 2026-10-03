@@ -72,7 +72,7 @@ let frames (n : int) (w : world) : unit =
   done
 
 (* the round shown, once there is one *)
-let shown (w : world) : Soldat_model.play option = match w.model.scenes.scene with Online p -> Some p | _ -> None
+let shown (w : world) : Soldat_model.play option = match w.model.scenes.scene with Online (p, _) -> Some p | _ -> None
 
 (* a soldier by its name, in the round shown and in the server's *)
 let named (p : Soldat_model.play) (name : string) : Soldat_model.soldier =
@@ -85,14 +85,26 @@ let truth (w : world) (name : string) : Soldat_model.soldier = named (Soldat_roo
 
 (* pad's program in the room "test" of a new server, a floor with
  * [seats] soldiers, [lag] frames away; its soldier on the ground *)
-let start (caps : < Cap.network ; .. >) ~(seats : int) ~(lag : int) : world =
+let connect (caps : < Cap.network ; .. >) ~(seats : int) ~(lag : int) ~(room : string) : world =
   Soldat_sound.mute := true;
   Soldat_online.reset ();
-  Soldat_online.know "test" floor;
+  List.iter (fun name -> Soldat_online.know name floor) ("test" :: Soldat_model.maps);
   let (server, port) = Soldat_server.listen caps ~port:0 ~seats ~map_of:(fun _ -> floor) () in
   let (transport, clock) = lagged lag (Relay_client.connect caps ~host:"127.0.0.1" ~port) in
-  Soldat_online.connected transport ~nick:"pad" ~room:"test";
-  let w = { server; port; clock; model = Soldat_model.initial_model floor; computer = holding []; other = None } in
+  Soldat_online.connected transport ~nick:"pad" ~room;
+  { server; port; clock; model = Soldat_model.initial_model floor; computer = holding []; other = None }
+
+(* a key pressed and let go *)
+let press (w : world) (c : Playground.computer) : unit =
+  w.computer <- c;
+  frames 2 w;
+  w.computer <- holding [];
+  frames 20 w
+
+let lobby (w : world) = match w.model.scenes.scene with Lobby l -> Some (l.rooms, l.chosen, l.here) | _ -> None
+
+let start (caps : < Cap.network ; .. >) ~(seats : int) ~(lag : int) : world =
+  let w = connect caps ~seats ~lag ~room:"test" in
   let rec wait n =
     if n > 0 && shown w = None then begin
       frame w;
@@ -126,6 +138,41 @@ let tests (caps : < Cap.network ; .. >) =
           Alcotest.(check int) "the room's three soldiers" 3 (Array.length p.soldiers);
           Alcotest.(check bool) "one of them pad's, a player's" true (seen w "pad").human;
           Alcotest.(check int) "and two bots'" 2 (List.length (List.filter (fun (s : Soldat_model.soldier) -> not s.human) (Array.to_list p.soldiers))));
+      Testo.create "the lobby, a room, and back" (fun () ->
+          let w = connect caps ~seats:2 ~lag:3 ~room:Soldat_protocol.lobby in
+          frames 80 w;
+          Alcotest.(check bool) "the lobby's screen: a room for each map, nobody in any, pad here" true
+            (lobby w = Some (List.map (fun map -> (map, 0)) Soldat_model.maps, 0, [ "pad" ]));
+          (* down: the second; down again: round to the first; up: the last *)
+          let down = { (holding []) with keyboard = { (holding []).keyboard with kdown = true } } in
+          let enter = { (holding []) with keyboard = { (holding []).keyboard with kenter = true } } in
+          press w down;
+          Alcotest.(check bool) "down: the next" true (Option.map (fun (_, chosen, _) -> chosen) (lobby w) = Some 1);
+          (* enter: its room, a soldier in its round *)
+          press w enter;
+          frames 60 w;
+          let room = List.nth Soldat_model.maps 1 in
+          Alcotest.(check bool) "enter: a round shown" true (shown w <> None);
+          Alcotest.(check bool) "the server's room of that name, pad in it" true
+            (match Soldat_server.game w.server room with Some game -> Soldat_room.players game = 1 | None -> false);
+          (* escape: the lobby again, the seat given back *)
+          press w (holding [ "Escape" ]);
+          frames 80 w;
+          Alcotest.(check bool) "escape: the lobby again" true (lobby w <> None);
+          Alcotest.(check bool) "its game, nobody's, is dropped" true (Soldat_server.game w.server room = None);
+          (* and in again *)
+          press w enter;
+          frames 60 w;
+          Alcotest.(check bool) "and in again" true (shown w <> None));
+      Testo.create "a weapon chosen" (fun () ->
+          let w = start caps ~seats:1 ~lag:6 in
+          (* the key 8 of Soldat's menu: the Barrett *)
+          w.computer <- holding [ "8" ];
+          frames 3 w;
+          w.computer <- holding [];
+          frames 30 w;
+          Alcotest.(check bool) "the server has it" true ((truth w "pad").primary = Barrett);
+          Alcotest.(check bool) "and shows it back" true ((seen w "pad").primary = Barrett));
       Testo.create "its own soldier, at once" (fun () ->
           (* 6 frames each way: a key is answered 200 ms later *)
           let w = start caps ~seats:1 ~lag:6 in

@@ -175,11 +175,18 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
         let (hx, hy) = head o in
         let at = if Soldat_map.in_bullet_wall map (hx, hy) then (hx, hy +. 6.) else (hx, hy) in
         match sees map look at with
+        | Some _ when p.mode = Rambomatch && rambo o && !nearest >= 0. ->
+            (* a Rambomatch (AI:587): Rambo, seen, is the target, whoever is nearer *)
+            target := j;
+            seen := true;
+            nearest := -1.
         | Some d when !nearest > d ->
             target := j;
             (* its own team's is no target, and hides who is behind *)
             seen := not (team me <> 0 && team o = team me);
-            if o.dead = None then nearest := d else k.grenade <- false
+            (* nor, in a Rambomatch, is anybody for who has not the bow (AI:613) *)
+            if p.mode = Rambomatch && not (rambo me) then seen := false
+            else if o.dead = None then nearest := d else k.grenade <- false
         | _ -> ()
       end)
     p.soldiers;
@@ -187,6 +194,8 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
   let pissed_off = ref (if me.hit_by >= 0 then me.hit_by else brain.pissed_off) in
   if !pissed_off = i then pissed_off := -1;
   if !pissed_off >= 0 && team me <> 0 && team p.soldiers.(!pissed_off) = team me then pissed_off := -1;
+  (* Rambo in sight: nobody else matters (AI:631) *)
+  if !seen && rambo p.soldiers.(!target) then pissed_off := -1;
   (* with the enemy's flag, and seeing one of them who has not ours: it
    * runs on, along its way home *)
   let holding = List.exists (fun (t : Soldat_things.t) -> t.holder = i) p.things in
@@ -328,14 +337,15 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
   end;
   (* 4. a kit it wants, seen within 350: it goes (GoToThing) *)
   let look = (fst (head me), snd (head me) -. 4.) in
-  let looked = ref [] and see_thing = ref false in
+  let looked = ref [] and see_thing = ref false and drop = ref false in
   List.iteri
     (fun n (thing : Soldat_things.t) ->
       let wanted =
         match thing.kind with
         | Medikit -> me.health < full_health && not run_away
         | Grenade_kit -> b.grenades < Soldat_things.max_grenades && not run_away
-        | Weapon _ -> false
+        (* the bow, for who has it not *)
+        | Weapon _ -> p.mode = Rambomatch && Soldat_things.is_bow thing && not (rambo me)
         | Flag _ -> thing.holder <> i
       in
       if (not !see_thing) && wanted then begin
@@ -352,6 +362,8 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
               | Flag _ -> mine_home && not (thing.in_base && d > 95.)
               | _ -> true
             in
+            (* near the bow: its weapon thrown away, for empty hands take it (AI:992) *)
+            if d < 30. && Soldat_things.is_bow thing then drop := true;
             if goes then begin
               see_thing := true;
               if thing.holder < 0 then looked := n :: !looked;
@@ -402,7 +414,7 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
   if whole 190 = 0 then pissed_off := -1;
   let keys : Soldat_soldier.control =
     { left = k.left; right = k.right; up = k.up; down = k.down; jetpack = k.jetpack; prone = k.prone; fire = k.fire; reload = k.reload; change = k.change;
-      grenade = k.grenade; drop = false; aim = k.aim }
+      grenade = k.grenade; drop = !drop; aim = k.aim }
   in
   ( keys,
     { brain with target = !target; pissed_off = !pissed_off; current = !current; next = !next; old = !old; last = !last; waypoint_time = !waypoint_time;

@@ -58,13 +58,15 @@ let help =
          weapon=N  the weapon to appear with, by its key: 1 Desert Eagles,
                    2 HK MP5, 3 Ak-74, 4 Steyr AUG, 5 Spas-12, 6 Ruger 77,
                    7 M79, 8 Barrett, 9 FN Minimi, 0 Minigun
-         mode=M    dm a deathmatch, tdm two teams, ctf capture the flag
+         mode=M    dm a deathmatch, tdm two teams, ctf capture the flag,
+                   rm a Rambomatch: the bow, for empty hands
                    (the map's own without it: ctf where it has flags)
          bots=N    how many bots to play with and against (3)
          server=HOST[:PORT]  play on a mini-soldat-server (port 23073),
-                   with nick=NAME (player), in room=NAME (Arena2; a
-                   room's name is its map's: room=ctf_Ash). There: t,
-                   a line, enter, to talk
+                   with nick=NAME (player): its lobby, the rooms to
+                   choose from (room=NAME: straight into one; a
+                   room's name is its map's). There: t, a line,
+                   enter, to talk; escape, back to the lobby
          ai=engine the last of them not Soldat's but one on
                    elm-playground's Sense and Bot: it knows only what
                    it has seen, and reacts as late as a hand does
@@ -126,14 +128,15 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
   if List.mem_assoc "mute" flags then Soldat_sound.mute := true;
   (* sparks=N: at most that many are kept (Soldat's r_maxsparks) *)
   Option.iter (fun n -> Soldat_sparks.most := max 0 n) (Option.bind (List.assoc_opt "sparks" flags) int_of_string_opt);
-  (* mode=dm, tdm or ctf: not the map's own *)
+  (* mode=dm, tdm, ctf or rm: not the map's own *)
   let mode : Soldat_model.mode option =
-    match List.assoc_opt "mode" flags with Some "dm" -> Some Deathmatch | Some "tdm" -> Some Team_match | Some "ctf" -> Some Capture_the_flag | _ -> None
+    match List.assoc_opt "mode" flags with Some "dm" -> Some Deathmatch | Some "tdm" -> Some Team_match | Some "ctf" -> Some Capture_the_flag | Some "rm" -> Some Rambomatch | _ -> None
   in
   let bots = match Option.bind (List.assoc_opt "bots" flags) int_of_string_opt with Some n when n >= 0 && n <= 15 -> n | _ -> first.bots in
   let first = { first with primary; bots; mode } in
   (* server=HOST[:PORT]: the round is a server's (mini-soldat-server),
-   * in the room room= (Arena2: a room's name is its map's), as nick= *)
+   * in the room room= (a room's name is its map's; none: the lobby's
+   * screen), as nick= *)
   let first =
     match List.assoc_opt "server" flags with
     | None -> first
@@ -144,7 +147,7 @@ let main = Program.main __MODULE__ (fun () -> Cap.main (fun caps ->
           | None -> ((if server = "" then "127.0.0.1" else server), 23073)
         in
         let nick = Option.value (List.assoc_opt "nick" flags) ~default:"player" in
-        let room = Option.value (List.assoc_opt "room" flags) ~default:"Arena2" in
+        let room = Option.value (List.assoc_opt "room" flags) ~default:Soldat_protocol.lobby in
         Soldat_online.connect caps ~host ~port ~nick ~room;
         { first with scenes = Scene2d.start (Soldat_model.Connecting ("connecting to " ^ host ^ "...")) })
   in

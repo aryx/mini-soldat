@@ -144,6 +144,7 @@ let view_bullet ~(graphics : int) (b : bullet) : shape list =
   | Pellets -> [ segment (rgb 250 240 180) 0.6 (b.x, b.y) (b.x - (b.vx * 0.3), b.y - (b.vy * 0.3)) ]
   | Thrown -> or_dot "frag-grenade" (float_of_int b.ttl * -0.2 * if b.vx >= 0. then 1. else -1.)
   | Explosive -> or_dot "m79-bullet" (Float.atan2 b.vy b.vx)
+  | Arrow -> or_dot "arrow" (Float.atan2 b.vy b.vx)
 
 (* a thing on the ground (TThing.Render): a weapon its picture from
  * its first point along to its second, blinking in its last 5 seconds;
@@ -167,7 +168,8 @@ let view_thing ~(graphics : int) (thing : Soldat_things.t) : shape list =
       if thing.ttl < 300 && thing.ttl mod 6 < 3 then []
       else if graphics < 2 then plain (rgb 40 40 40)
       else (
-        let name = (Soldat_gostek.look g.kind.id).image ^ if thing.facing = 1 then "" else "-2" in
+        (* the bow on the ground has pictures of its own *)
+        let name = (if Soldat_weapons.is_bow g.kind.id then "n-bow" else (Soldat_gostek.look g.kind.id).image) ^ if thing.facing = 1 then "" else "-2" in
         match Soldat_gostek.lying name (ax, ay) angle with [] -> plain (rgb 40 40 40) | shapes -> shapes)
   | Medikit | Grenade_kit -> (
       let name = if thing.kind = Medikit then "medikit" else "grenadekit" in
@@ -237,27 +239,27 @@ let view_scores (computer : computer) (p : play) : shape list =
   let ranked = List.stable_sort (fun (a : soldier) (b : soldier) -> compare b.kills a.kills) (Array.to_list p.soldiers) in
   let seconds = p.time_left /.. 60 in
   let teams =
-    if p.mode = Deathmatch then []
+    if p.mode = Deathmatch || p.mode = Rambomatch then []
     else
       let colour t = let (r, g, b) = team_shirt t in rgb r g b in
       [ text (colour 1) 3. (Printf.sprintf "Alpha %d" (score p 1)) |> move (-170.) (screen.top - 70.);
         text (colour 2) 3. (Printf.sprintf "%d Bravo" (score p 2)) |> move 170. (screen.top - 70.) ]
-      @ match p.news with Some (words, ticks) -> [ text white 2.5 words |> move_y (screen.top - 110.) |> fade (Float.min 1. (float_of_int ticks / 40.)) ] | None -> []
   in
-  teams
+  let news = match p.news with Some (words, ticks) -> [ text white 2.5 words |> move_y (screen.top - 110.) |> fade (Float.min 1. (float_of_int ticks / 40.)) ] | None -> [] in
+  teams @ news
   @ (text white 2. (Printf.sprintf "%d:%02d    first to %d" (seconds /.. 60) (seconds mod 60) (limit p)) |> move_y (screen.top - 30.))
   :: List.mapi
        (fun i (s : soldier) ->
          (* its shirt's colour, half way to white: a dark blue is not read on the sky *)
          let (r, g, b) = s.shirt in
          let light c = (c +.. 255) /.. 2 in
-         text (rgb (light r) (light g) (light b)) 1.8 (Printf.sprintf "%-12s %2d" s.name s.kills) |> move (screen.right - 110.) (screen.top - 30. - (24. * float_of_int i)))
+         text (rgb (light r) (light g) (light b)) 1.8 (Printf.sprintf "%-12s %2d" (if p.mode = Rambomatch && rambo s then s.name ^ " *" else s.name) s.kills) |> move (screen.right - 110.) (screen.top - 30. - (24. * float_of_int i)))
        ranked
 
 (* through the camera, in Soldat's order: what is behind, the bullets,
  * the soldiers, then the map's polygons over them; over it all and
  * not moving with the map, the score *)
-let view_play (computer : computer) ~(graphics : int) ~(primary : Soldat_weapons.id) (p : play) : shape list =
+let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(primary : Soldat_weapons.id) (p : play) : shape list =
   let top = computer.screen.top in
   let (x, y) = at p.camera in
   let soldiers = Array.to_list p.soldiers in
@@ -273,8 +275,8 @@ let view_play (computer : computer) ~(graphics : int) ~(primary : Soldat_weapons
     @ (if List.mem_assoc "waypoints" computer.flags then view_waypoints p.map else [])
     @ if List.mem_assoc "hitboxes" computer.flags then List.concat_map view_tested soldiers else [])
   :: view_scores computer p
-  @ view_interface computer p.map p.soldiers.(0)
-  @ (if p.soldiers.(0).dead <> None then (text white 3. "respawning..." |> move_y (top - 150.)) :: view_menu primary (0., top - 200.) else [])
+  @ view_interface computer p.map p.soldiers.(me)
+  @ (if p.soldiers.(me).dead <> None then (text white 3. "respawning..." |> move_y (top - 150.)) :: view_menu primary (0., top - 200.) else [])
 
 let view (computer : computer) (model : model) : shape list =
   let graphics = model.graphics in
@@ -294,17 +296,32 @@ let view (computer : computer) (model : model) : shape list =
           (match Option.value model.mode ~default:(mode_of map) with
           | Deathmatch -> Printf.sprintf "a deathmatch: you against %d of Soldat's bots, first to %d kills" model.bots kill_limit
           | Team_match -> Printf.sprintf "a team match: you and Alpha against Bravo, %d bots, first team to %d kills" model.bots team_limit
-          | Capture_the_flag -> Printf.sprintf "capture the flag: you and Alpha against Bravo, %d bots, first team to %d flags" model.bots capture_limit)
+          | Capture_the_flag -> Printf.sprintf "capture the flag: you and Alpha against Bravo, %d bots, first team to %d flags" model.bots capture_limit
+          | Rambomatch -> Printf.sprintf "a Rambomatch: empty hands (f) take the bow; Rambo's kills count, first to %d" rambo_limit)
         |> move_y 150.;
         text white 2. (map.name ^ "      g: the graphics   m: the next map") |> move_y 110. ]
       @ view_menu model.primary (0., 50.)
       @ Scene2d.blink 1. model.scenes [ text white 3. "PRESS SPACE" |> move_y (-230.) ]
   | Playing p -> view_play computer ~graphics ~primary:model.primary p
+  | Lobby { rooms; chosen; here } ->
+      let screen = computer.screen in
+      [ rectangle (rgb 40 60 80) screen.width screen.height;
+        text white 5. "MINI SOLDAT" |> move_y 320.;
+        text white 2. "the server's rooms: a round each, bots in the seats nobody has" |> move_y 250. ]
+      @ List.mapi
+          (fun i (room, players) ->
+            let line = Printf.sprintf "%s %-16s %s" (if i = chosen then ">" else " ") room (match players with 0 -> "nobody yet" | 1 -> "1 player" | n -> Printf.sprintf "%d players" n) in
+            text (if i = chosen then rgb 255 220 80 else white) 2.5 line |> move_y (180. - (40. * float_of_int i)))
+          rooms
+      @ [ text white 1.8 ("here: " ^ String.concat " " here) |> move_y (-120.);
+          text white 1.8 "up, down: choose   enter: play there   t: say a line   in a game, escape: back here" |> move_y (-160.) ]
+      @ List.mapi (fun i line -> text white 1.6 line |> move 0. (screen.bottom + 150. - (22. * float_of_int i))) model.lines
+      @ (match model.typing with Some line -> [ text (rgb 255 220 80) 1.8 ("say: " ^ line ^ "_") |> move 0. (screen.bottom + 20.) ] | None -> [])
   | Connecting why -> [ rectangle (rgb 40 60 80) computer.screen.width computer.screen.height; text white 3. why ]
-  | Online p ->
+  | Online (p, me) ->
       (* a server's round: the same picture, and what is said in the room *)
       let screen = computer.screen in
-      view_play computer ~graphics ~primary:model.primary p
+      view_play ~me computer ~graphics ~primary:model.primary p
       @ List.mapi (fun i line -> text white 1.6 line |> move 0. (screen.bottom + 150. - (22. * float_of_int i))) model.lines
       @ (match model.typing with Some line -> [ text (rgb 255 220 80) 1.8 ("say: " ^ line ^ "_") |> move 0. (screen.bottom + 20.) ] | None -> [])
   | Over (name, map) ->

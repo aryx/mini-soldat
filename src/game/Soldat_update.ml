@@ -109,6 +109,12 @@ let place (map : Soldat_map.t) ~(random : unit -> float) (team : int) : float * 
   let places = match team with 1 when map.alpha_spawns <> [] -> map.alpha_spawns | 2 when map.bravo_spawns <> [] -> map.bravo_spawns | _ -> map.spawns in
   List.nth places (min (List.length places - 1) (int_of_float (random () *. float_of_int (List.length places))))
 
+(* Rambo's bow, at one of the map's places for it, or for a soldier if
+ * it has none (RandomizeStart(a, 15)) *)
+let bow (map : Soldat_map.t) ~(random : unit -> float) : Soldat_things.t =
+  let places = if map.bow_spawns <> [] then map.bow_spawns else map.spawns in
+  Soldat_things.bow (List.nth places (min (List.length places - 1) (int_of_float (random () *. float_of_int (List.length places)))))
+
 (* a round on a map: the player with [primary], against [bots].
  * [mode]: the map's own if none is said (capture the flag where it has
  * the two flags' places). In a deathmatch each appears as far as can
@@ -128,7 +134,7 @@ let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_wea
     seed := Lehmer.next !seed;
     Lehmer.to_unit !seed
   in
-  let teams = mode <> Deathmatch in
+  let teams = mode = Team_match || mode = Capture_the_flag in
   let soldier (place : float * float) (name : string) ~(team : int) ~(shirt : int * int * int) ~(trousers : int * int * int) ~(skin : int * int * int) ~(human : bool) (primary : Soldat_weapons.id) : soldier =
     (* a team's soldiers wear its colour *)
     let shirt = if team = 0 then shirt else team_shirt team in
@@ -148,7 +154,7 @@ let start ?(bots : character list = []) ?(engine = false) ?(primary : Soldat_wea
       bots
   in
   let kits = Soldat_things.kits map ~random in
-  let things = kits @ if mode = Capture_the_flag then Soldat_things.flags map else [] in
+  let things = kits @ (if mode = Capture_the_flag then Soldat_things.flags map else []) @ if mode = Rambomatch then [ bow map ~random ] else [] in
   {
     map; mode; captures = (0, 0); news = None; camera = first; soldiers = Array.of_list (List.rev soldiers);
     brains = Array.of_list (None :: List.mapi (fun i c -> if i + 1 = engine_at then None else Some (Soldat_bots.brain c)) bots);
@@ -203,10 +209,10 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
            soldiers.(i) <- { s with body; hit_by = -1 }
          end);
   (* 2. the bullets: tested along their way, then moved *)
-  let (soldiers, bullets, of_bullets) = Soldat_bullets.tick_heard p.map soldiers (p.bullets @ !shots) in
+  let (soldiers, bullets, of_bullets) = Soldat_bullets.tick_heard ~rambo:(p.mode = Rambomatch) p.map soldiers (p.bullets @ !shots) in
   say (-1) of_bullets;
   (* 3. the walls (by one's own hand, as Soldat counts it) *)
-  let world : Soldat_bullets.world = { (Soldat_bullets.world p.map soldiers []) with soldiers } in
+  let world : Soldat_bullets.world = { (Soldat_bullets.world ~rambo:(p.mode = Rambomatch) p.map soldiers []) with soldiers } in
   soldiers
   |> Array.iteri (fun i s ->
          if s.dead = None then begin
@@ -288,9 +294,19 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
                match (nearest, thing.kind) with
                | ((_, i) :: _, Weapon g) ->
                    let s = soldiers.(i) in
-                   if s.body.weapon.kind.id = Hands && s.body.body.id <> Change && thing.ttl < Soldat_things.gun_time - 30 then begin
-                     soldiers.(i) <- { s with body = Soldat_soldier.take s.body g };
-                     heard := Sound (Take_gun, (s.body.x, s.body.y)) :: !heard;
+                   let bow = Soldat_things.is_bow thing in
+                   if s.body.weapon.kind.id = Hands && s.body.body.id <> Change && thing.ttl < Soldat_things.gun_time - (if bow then 100 else 30) then begin
+                     if bow then begin
+                       (* the bow: an arrow on it, its other arrows as the
+                        * second weapon; who has it is Rambo (T:1963) *)
+                       soldiers.(i) <- { s with body = { (Soldat_soldier.take s.body { g with ammo = 1 }) with secondary = Soldat_soldier.gun Bow2 } };
+                       heard := Sound (Take_bow, (s.body.x, s.body.y)) :: !heard;
+                       tell (if s.human && i = me then "You got the Bow!" else s.name ^ " is Rambo")
+                     end
+                     else begin
+                       soldiers.(i) <- { s with body = Soldat_soldier.take s.body g };
+                       heard := Sound (Take_gun, (s.body.x, s.body.y)) :: !heard
+                     end;
                      None
                    end
                    else Some thing
@@ -315,6 +331,18 @@ let tick ?(controls : (int -> intent) option) ?(me = 0) (p : play) (player : int
              soldiers.(i) <- { s with body = { s.body with dropped = None } }
          | None -> ());
   let things = things @ List.rev !dropped in
+  (* a Rambomatch: the bow gives health back to who holds it, one every
+   * 3 ticks (S:1276); and, looked at every second, if it is neither on
+   * the map nor in anybody's hands, another appears (ServerLoop:642) *)
+  if p.mode = Rambomatch && p.frame mod 3 = 0 then
+    Array.iteri (fun i (s : soldier) -> if rambo s && s.health < full_health then soldiers.(i) <- { s with health = s.health +. 1. }) soldiers;
+  let things =
+    if p.mode = Rambomatch && p.frame mod 60 = 0
+       && (not (List.exists Soldat_things.is_bow things))
+       && not (Array.exists (fun (s : soldier) -> s.dead = None && (Soldat_weapons.is_bow s.body.weapon.kind.id || Soldat_weapons.is_bow s.body.secondary.kind.id)) soldiers)
+    then things @ [ bow p.map ~random ]
+    else things
+  in
   (* 5. the dead tumble, and come back after 3 s *)
   soldiers
   |> Array.iteri (fun i s ->
@@ -361,8 +389,8 @@ let winner (p : play) : string option =
   let all = Array.to_list p.soldiers in
   let over = p.time_left = 0 in
   match p.mode with
-  | Deathmatch -> (
-      match List.find_opt (fun s -> s.kills >= kill_limit) all with
+  | Deathmatch | Rambomatch -> (
+      match List.find_opt (fun s -> s.kills >= limit p) all with
       | Some s -> Some s.name
       | None -> if over then Some (List.fold_left (fun best s -> if s.kills > best.kills then s else best) (List.hd all) all).name else None)
   | Team_match | Capture_the_flag ->
@@ -413,7 +441,7 @@ let update (computer : computer) (model : model) : model =
         (* m: the next of the game's maps, got as any content *)
         if Scene2d.pressed (fun k -> Set_.mem "m" k.keys) scenes then Scene2d.go (Loading (List.nth maps (model.next_map mod List.length maps))) scenes
         else if space then Scene2d.go (Playing (start ~bots:(Soldat_bots.cast model.bots model.rounds) ~engine ~primary:model.primary ~seed:model.rounds ?mode:model.mode map)) scenes else scenes
-    | Online _ | Connecting _ -> scenes (* Soldat_online's *)
+    | Online _ | Lobby _ | Connecting _ -> scenes (* Soldat_online's *)
     | Playing p -> (
         let z = zoom computer.screen in
         let p = if p.soldiers.(0).primary <> model.primary then { p with soldiers = Array.mapi (fun i (s : soldier) -> if i = 0 then { s with primary = model.primary } else s) p.soldiers } else p in

@@ -104,6 +104,14 @@ let input (i : int) ~(seq : int) (c : Soldat_soldier.control) (t : t) : t =
     { t with seats }
   end
 
+let weapon (i : int) (primary : Soldat_weapons.id) (t : t) : t =
+  if i < 0 || i >= Array.length t.seats || t.seats.(i).nick = None then t
+  else begin
+    let soldiers = Array.copy t.play.soldiers in
+    soldiers.(i) <- { (soldiers.(i)) with primary };
+    { t with play = { t.play with soldiers } }
+  end
+
 let acked (t : t) (i : int) : int = if i >= 0 && i < Array.length t.seats then t.seats.(i).acked else -1
 
 let tick (t : t) : t =

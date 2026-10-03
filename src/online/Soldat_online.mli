@@ -53,9 +53,16 @@
    Also here: the room's talk (the key t, a line typed, enter), shown
    over the game with who came and who went.
 
-   Not here: choosing a room in the game (it is the flag room=), a
-   weapon chosen (everyone has the Ak-74), a connection lost and found
-   again.
+   The weapon to come back with (the keys 1 to 9 and 0, as alone) is
+   said to the server when it changes (Soldat_protocol's Weapon).
+
+   **The lobby's screen.** Given no room (the flag room=), one is in
+   the lobby, and the scene is [Soldat_model.Lobby]: a room for each
+   of the game's maps, then the server's others, each with its
+   players' number, asked each second (List); the arrows choose,
+   enter enters (Join). In a game, escape comes back here (Leave).
+
+   Not here: a connection lost and found again.
 
    In Soldat: shared/network/NetworkClient*.pas, where a client says
    where its own soldier is and the server believes it

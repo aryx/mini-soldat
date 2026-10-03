@@ -69,10 +69,10 @@ let get_one (r : r) (all : 'a list) (what : string) : 'a =
 (* The game's own *)
 (*****************************************************************************)
 
-let weapons : Soldat_weapons.id list = [ Eagles; Mp5; Ak74; Steyr; Spas; Ruger; M79; Barrett; Minimi; Minigun; Socom; Grenade; Hands ]
+let weapons : Soldat_weapons.id list = [ Eagles; Mp5; Ak74; Steyr; Spas; Ruger; M79; Barrett; Minimi; Minigun; Socom; Grenade; Hands; Bow; Bow2 ]
 let animations : Soldat_anims.id list = List.map (fun (id, _, _, _) -> id) Soldat_anims.all
 let stances : Soldat_soldier.stance list = [ Standing; Crouching; Lying ]
-let modes : mode list = [ Deathmatch; Team_match; Capture_the_flag ]
+let modes : mode list = [ Deathmatch; Team_match; Capture_the_flag; Rambomatch ]
 
 (* the sounds, a weapon's by its weapon *)
 let sounds : Soldat_sfx.t list =

@@ -65,6 +65,11 @@ val leave : int -> t -> t
  * dropped *)
 val input : int -> seq:int -> Soldat_soldier.control -> t -> t
 
+(* the weapon a player's soldier appears with from now on: when it
+ * next comes back, as when one plays alone; of a seat no player has,
+ * dropped *)
+val weapon : int -> Soldat_weapons.id -> t -> t
+
 (* the number of the last keys played for a seat; none yet: -1 *)
 val acked : t -> int -> int
 

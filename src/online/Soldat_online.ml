@@ -24,6 +24,8 @@ type game = {
   (* the server's rounds, for the others' places between two of them *)
   rounds : play Interpolation.t;
   mutable latest : play option;
+  (* the weapon last asked for: none yet *)
+  mutable asked : Soldat_weapons.id option;
   mutable frames : int;
   mutable camera : float * float;
   mutable sparks : Soldat_sparks.t list;
@@ -32,7 +34,24 @@ type game = {
   mutable heard : (Soldat_sfx.t * (float * float)) list;
 }
 
-type session = { transport : Transport.t; nick : string; room : string; mutable game : game option; mutable status : string }
+type session = {
+  transport : Transport.t;
+  nick : string;
+  (* the room to enter once welcomed (the flag room=); the lobby: none *)
+  room : string;
+  mutable game : game option;
+  mutable status : string;
+  mutable welcomed : bool;
+  (* the room it is in, and with whom *)
+  mutable current : string;
+  mutable here : string list;
+  (* a room asked for, its seat not given yet *)
+  mutable entering : string option;
+  (* the lobby's screen: the server's rooms, the cursor, frames since it came *)
+  mutable rooms : (string * int) list;
+  mutable chosen : int;
+  mutable waited : int;
+}
 
 let session : session option ref = ref None
 
@@ -55,7 +74,10 @@ let delay = 2. /. 30.
 let send (s : session) (message : Soldat_protocol.to_server) : unit = s.transport.send (Soldat_protocol.encode_to_server message)
 
 let connected (transport : Transport.t) ~(nick : string) ~(room : string) : unit =
-  let s = { transport; nick; room; game = None; status = "saying hello to the server..." } in
+  let s =
+    { transport; nick; room; game = None; status = "saying hello to the server..."; welcomed = false; current = Soldat_protocol.lobby; here = [];
+      entering = None; rooms = []; chosen = 0; waited = 0 }
+  in
   send s (Hello nick);
   session := Some s
 
@@ -141,24 +163,58 @@ let map_of (name : string) : Soldat_map.t option =
   | Missing -> Some (Lazy.force Soldat_map.arena2)
   | Here bytes -> ( match Pms.parse bytes with Ok pms -> Some (Soldat_map.of_pms pms) | Error _ -> Some (Lazy.force Soldat_map.arena2))
 
+(* a room asked for *)
+let enter (s : session) (room : string) : unit =
+  s.entering <- Some room;
+  s.status <- "entering " ^ room ^ "...";
+  send s (Join room)
+
+(* what the lobby's screen offers: a room for each of the game's maps,
+ * there or not yet (a room is made by entering it), then the others
+ * the server has; each with how many players are in it *)
+let offered (s : session) : (string * int) list =
+  let players room = Option.value (List.assoc_opt room s.rooms) ~default:0 in
+  List.map (fun map -> (map, players map)) maps
+  @ List.filter (fun (room, _) -> room <> Soldat_protocol.lobby && not (List.mem room maps)) s.rooms
+
 (* a server's message *)
 let received (s : session) (model : model) (message : Soldat_protocol.to_client) : model =
   match message with
   | Welcome nick ->
-      s.status <- "entering " ^ s.room ^ "...";
-      if s.room <> Soldat_protocol.lobby then send s (Join s.room);
+      s.welcomed <- true;
+      if s.room <> Soldat_protocol.lobby then enter s s.room;
       said model ("you are " ^ nick)
-  | Refused why -> said model ("refused: " ^ why)
-  | Rooms rooms -> said model (String.concat "  " (List.map (fun (room, n) -> Printf.sprintf "%s (%d)" room n) rooms))
-  | Entered (room, nicks) -> said model (Printf.sprintf "in %s: %s" room (String.concat " " nicks))
-  | Came nick -> said model (nick ^ " came")
-  | Went nick -> said model (nick ^ " went")
+  | Refused why ->
+      (* a room entered whose game has no soldier left: back to the lobby *)
+      if s.current <> Soldat_protocol.lobby && s.game = None then send s Leave;
+      s.entering <- None;
+      if not s.welcomed then s.status <- "refused: " ^ why;
+      said model ("refused: " ^ why)
+  | Rooms rooms ->
+      s.rooms <- rooms;
+      model
+  | Entered (room, nicks) ->
+      s.current <- room;
+      s.here <- nicks;
+      if room = Soldat_protocol.lobby then begin
+        s.game <- None;
+        s.entering <- None;
+        s.waited <- 0
+      end;
+      said model (Printf.sprintf "in %s: %s" room (String.concat " " nicks))
+  | Came nick ->
+      s.here <- s.here @ [ nick ];
+      said model (nick ^ " came")
+  | Went nick ->
+      s.here <- List.filter (( <> ) nick) s.here;
+      said model (nick ^ " went")
   | Said (nick, text) -> said model (nick ^ ": " ^ text)
   | Seat { seat; map } ->
       s.status <- "loading " ^ map ^ "...";
+      s.entering <- None;
       s.game <-
         Some
-          { seat; map_name = map; map = None; seq = 0; ahead = None; rounds = Interpolation.create ~delay; latest = None; frames = 0; camera = (0., 0.);
+          { seat; map_name = map; map = None; seq = 0; ahead = None; rounds = Interpolation.create ~delay; latest = None; asked = None; frames = 0; camera = (0., 0.);
             sparks = []; spark_seed = Lehmer.scramble (seat + 7); heard = [] };
       model
   | World { acked; world } -> (
@@ -231,9 +287,25 @@ let update (computer : computer) (model : model) : model =
           (fun model bytes -> match Soldat_protocol.decode_to_client bytes with Ok message -> received s model message | Error _ -> model)
           model (s.transport.receive ())
       in
+      let typing = model.typing <> None in
       let model = typed s computer scenes model in
+      let key name = (not typing) && Scene2d.pressed (fun k -> Set_.mem name k.keys) scenes in
+      (* escape, in a game: back to the lobby *)
+      if s.game <> None && key "Escape" then send s Leave;
       let scene =
         match s.game with
+        | None when s.welcomed && s.entering = None && s.current = Soldat_protocol.lobby ->
+            (* the lobby's screen: its rooms asked for each second, the
+             * arrows (or w and s) to choose one, enter to enter it *)
+            if s.waited = 0 then Soldat_sound.jets ~listener:(0., 0.) ~soldiers:32 [] (* a game left: its jets heard no more *);
+            if s.waited mod 60 = 0 then send s List;
+            s.waited <- s.waited + 1;
+            let rooms = offered s in
+            let n = List.length rooms in
+            let up = (not typing) && Scene2d.pressed (fun k -> k.kup || k.kw) scenes and down = (not typing) && Scene2d.pressed (fun k -> k.kdown || k.ks) scenes in
+            s.chosen <- (s.chosen + (if down then 1 else 0) + (if up then n - 1 else 0)) mod n;
+            if (not typing) && Scene2d.pressed (fun k -> k.kenter) scenes then enter s (fst (List.nth rooms s.chosen));
+            Lobby { rooms; chosen = s.chosen; here = s.here }
         | None -> Connecting (s.status ^ "  (" ^ s.transport.status () ^ ")")
         | Some g -> (
             if g.map = None then g.map <- map_of g.map_name;
@@ -246,6 +318,11 @@ let update (computer : computer) (model : model) : model =
                 let keys = if model.typing <> None then { Soldat_soldier.no_control with aim = keys.aim } else keys in
                 let bytes = Soldat_wire.encode_control keys in
                 send s (Input (g.seq, bytes));
+                (* the weapon to come back with (the keys 1 to 9, 0): said when it changes *)
+                if g.asked <> Some model.primary then begin
+                  g.asked <- Some model.primary;
+                  List.iteri (fun i id -> if id = model.primary then send s (Weapon ((i + 1) mod 10))) Soldat_weapons.primaries
+                end;
                 Option.iter (fun ahead -> Prediction.step ahead ~seq:g.seq bytes) g.ahead;
                 g.seq <- g.seq + 1;
                 (* the sparks' own tick, and what was heard *)
@@ -267,7 +344,7 @@ let update (computer : computer) (model : model) : model =
                 let (cx, cy) = Soldat_update.follow p me (computer.mouse.mx /. z, -.computer.mouse.my /. z) in
                 let (wx, wy) = Soldat_sparks.wobble ~random g.sparks in
                 g.camera <- (cx +. wx, cy +. wy);
-                Online { p with camera = g.camera }
+                Online ({ p with camera = g.camera }, g.seat)
             | (None, _) -> Connecting ("loading " ^ g.map_name ^ "...")
             | (Some _, None) -> Connecting "waiting for the server's first word...")
       in

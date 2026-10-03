@@ -12,7 +12,7 @@
 
 let hex (s : string) : string = String.concat " " (List.map (fun c -> Printf.sprintf "%02x" (Char.code c)) (List.of_seq (String.to_seq s)))
 
-let to_server : Soldat_protocol.to_server list = [ Hello "pad"; Join "ctf_Ash"; Leave; Say "anyone?"; List ]
+let to_server : Soldat_protocol.to_server list = [ Hello "pad"; Join "ctf_Ash"; Leave; Say "anyone?"; List; Input (300, "keys"); Weapon 0; Weapon 9 ]
 
 let to_client : Soldat_protocol.to_client list =
   [ Welcome "pad"; Refused "this nick is taken"; Rooms []; Rooms [ ("ctf_Ash", 3); ("lobby", 200) ];
@@ -23,6 +23,7 @@ let tests =
     [
       Testo.create "the worked example" (fun () ->
           Alcotest.(check string) "Hello" "10 03 70 61 64" (hex (Soldat_protocol.encode_to_server (Hello "pad")));
+          Alcotest.(check string) "Weapon" "16 08" (hex (Soldat_protocol.encode_to_server (Weapon 8)));
           Alcotest.(check string) "Said" "26 03 70 61 64 02 68 69" (hex (Soldat_protocol.encode_to_client (Said ("pad", "hi"))));
           Alcotest.(check string) "Rooms" "22 01 05 6c 6f 62 62 79 02" (hex (Soldat_protocol.encode_to_client (Rooms [ ("lobby", 2) ]))));
       Testo.create "every message, written and read back" (fun () ->
@@ -36,6 +37,7 @@ let tests =
           let refused name bytes = Alcotest.(check bool) name true (Result.is_error (Soldat_protocol.decode_to_server bytes)) in
           refused "nothing" "";
           refused "an unknown first byte" "\x7f";
+          refused "a weapon's key that is none" "\x16\x0a";
           refused "the relay's welcome" "\x02\x00";
           refused "a server's message" (Soldat_protocol.encode_to_client (Welcome "pad"));
           refused "bytes missing" "\x10\x03pa";

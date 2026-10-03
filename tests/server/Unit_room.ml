@@ -71,6 +71,15 @@ let tests =
           (* a program faster than the server: its last two only *)
           let flood = List.fold_left (fun room seq -> Soldat_room.input seat ~seq right room) room (List.init 20 (fun i -> 10 + i)) in
           Alcotest.(check bool) "twenty at once: the oldest are dropped" true (Soldat_room.acked (Soldat_room.tick flood) seat >= 24));
+      Testo.create "a weapon chosen" (fun () ->
+          let room = Soldat_room.create ~seats:2 ~name:"test" Testutil_map.rooms in
+          let (room, seat) = Option.get (Soldat_room.join "pad" room) in
+          let held = (soldier room seat).body.weapon.kind.id in
+          let room = Soldat_room.weapon seat Barrett room in
+          Alcotest.(check bool) "the one to come back with" true ((soldier room seat).primary = Barrett);
+          Alcotest.(check bool) "not the one in its hands" true ((soldier (ticks 10 room) seat).body.weapon.kind.id = held);
+          let theirs = (soldier room 1).primary in
+          Alcotest.(check bool) "a bot's seat keeps its bot's" true ((soldier (Soldat_room.weapon 1 Minigun room) 1).primary = theirs));
       Testo.create "what is sent" (fun () ->
           let room = Soldat_room.create ~seats:4 ~name:"test" floor in
           let (room, _) = Option.get (Soldat_room.join "pad" room) in

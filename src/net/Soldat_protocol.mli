@@ -32,6 +32,7 @@
      Hello "pad"                        10  03 70 61 64
      Said ("pad", "hi")                 26  03 70 61 64  02 68 69
      Rooms [("lobby", 2)]               22  01  05 6c 6f 62 62 79  02
+     Weapon 8  (the Barrett)            16  08
 
    The player's messages start at 10, the server's at 20; none starts
    with 02, the byte elm-playground's relay opens its welcome with
@@ -62,6 +63,7 @@ type to_server =
   | Say of string (* a line, to everyone in my room *)
   | List (* which rooms are there? *)
   | Input of int * string (* my keys this tick, numbered from 0 (Soldat_wire's bytes) *)
+  | Weapon of int (* the weapon to appear with from now on, by its key in Soldat's menu: 0 to 9 *)
 
 (* from the server to a player *)
 type to_client =

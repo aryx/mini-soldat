@@ -28,6 +28,7 @@ type t =
   | Throw_gun
   | Take_gun
   | Take_medikit
+  | Take_bow
   | Pickup (* a kit of grenades *)
   (* grenades and explosions *)
   | Grenade_pullout

@@ -39,7 +39,7 @@
    USSOCOM), and how long its bullet lives (7 seconds; a grenade 3).
 
    Left out: the knife, the chainsaw and the LAW (the other three
-   secondaries), the flamer, the bow, the stationary gun, and realistic
+   secondaries), the flamer, the stationary gun, and realistic
    mode's own table (weapons_realistic.ini).
 
    In Soldat: shared/Weapons.pas (TGun, CreateWeapons, the defaults
@@ -47,11 +47,15 @@
 *)
 
 (* [Hands]: no weapon, after throwing one's own away (the file's
- * [Punch]; the punch itself is not here) *)
-type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade | Hands
+ * [Punch]; the punch itself is not here). [Bow] and [Bow2]: Rambo's
+ * bow and its other arrows (the file's [Rambo Bow] and [Flamed
+ * Arrows], whose flames are not here), which nobody chooses: the bow
+ * is found on the map, in a Rambomatch *)
+type id = Eagles | Mp5 | Ak74 | Steyr | Spas | Ruger | M79 | Barrett | Minimi | Minigun | Socom | Grenade | Hands | Bow | Bow2
 
 (* what its bullet is: BulletStyle 1, 3, 4 and 2 *)
-type style = Plain | Pellets | Explosive | Thrown
+(* [Arrow]: 7, the bow's, and 8, its flaming one *)
+type style = Plain | Pellets | Explosive | Thrown | Arrow
 
 type t = {
   id : id;
@@ -90,6 +94,9 @@ val primaries : id list
 (* what a hit at this point of the skeleton is worth: the legs (1 to
  * 4), the chest (to 11), the head *)
 val modifier : t -> int -> float
+
+(* the bow, with either of its arrows: who holds it is Rambo *)
+val is_bow : id -> bool
 
 (* a weapons.ini read: each section's name and its numbers; a line
  * that is not one is passed over *)

@@ -60,7 +60,12 @@
    takes it and what a capture is are the round's rules
    (Soldat_update): this module only makes it fall and follow.
 
-   Left out: the bow, the bonus kits (flamer, predator,
+   **Rambo's bow** is a weapon on the ground as the others, with two
+   differences: it is reached from 20 units and not 10, and it may be
+   taken only 100 ticks after it appeared. Whoever lets it go, with
+   whichever arrows on it, lets go of the bow.
+
+   Left out: the bonus kits (flamer, predator,
    vest, berserker, cluster), the parachute, the knife, the stationary
    gun; a thing hit by a bullet or thrown by an explosion.
 
@@ -103,6 +108,12 @@ val max_grenades : int
 
 (* the weapon a soldier let go of: [alive], thrown; else dropped dying *)
 val weapon : Soldat_soldier.t -> alive:bool -> Soldat_soldier.gun -> t
+
+(* Rambo's bow lying at a place (OBJECT_RAMBO_BOW): a weapon as any
+ * other on the ground, but wider to reach (20) and one the bots walk
+ * to; and whether a thing is it *)
+val bow : float * float -> t
+val is_bow : t -> bool
 
 (* the map's kits at a round's start (SpawnThings): as many as the map
  * says, each at one of its places for that kind, moved by chance up

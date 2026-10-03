@@ -38,6 +38,8 @@ type t = {
   grenade_kits : int;
   medikit_spawns : (float * float) list;
   grenade_spawns : (float * float) list;
+  (* where Rambo's bow lies (the file's spawn points of "team" 15) *)
+  bow_spawns : (float * float) list;
   alpha_spawns : (float * float) list;
   bravo_spawns : (float * float) list;
   alpha_flag : (float * float) option;
@@ -207,6 +209,7 @@ let of_pms (pms : Pms.t) : t =
     (* the spawn points of "teams" 8 and 7 (SpawnThings) *)
     medikit_spawns = spawns_of (fun team -> team = 8);
     grenade_spawns = spawns_of (fun team -> team = 7);
+    bow_spawns = spawns_of (fun team -> team = 15);
     (* the two teams' own places, and their flags' (5 and 6) *)
     alpha_spawns = spawns_of (fun team -> team = 1);
     bravo_spawns = spawns_of (fun team -> team = 2);

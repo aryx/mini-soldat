@@ -73,6 +73,7 @@ let look (id : Soldat_weapons.id) : look =
   | Minimi -> l "m249" 0.15 0.6 true "m249-fire" (-0.2) 0.9 (Some 0.35)
   | Minigun -> l "minigun" 0.05 0.5 true "minigun-fire" (-0.2) 0.45 (Some 0.5)
   | Socom | Grenade | Hands -> l "colt1911" 0.2 0.55 true "colt1911-fire" (-0.24) 0.85 None
+  | Bow | Bow2 -> l "bow" (-0.4) 0.55 false "bow-fire" 0. 0. None
 
 (* what is drawn of the weapon in the hands: [clip], its clip is in;
  * [fire], it fired this tick. Under the right arm, which holds it *)
@@ -82,7 +83,10 @@ let in_hands (id : Soldat_weapons.id) ~(clip : bool) ~(fire : bool) : part list 
   let mirrored name image cx cy = { (part name image 16 15 cx cy true 0. Plain) with left = Some (image ^ "-2") } in
   let gun = mirrored "Primary" k.image k.cx k.cy in
   let flash = if fire then [ part "Primary_Fire" k.fire 16 15 k.fire_cx k.fire_cy false 0. Plain ] else [] in
-  if id = Minigun then
+  if Soldat_weapons.is_bow id then
+    (* the bow, its string, and its arrow while it has one *)
+    [ gun; part "Primary_Bow_String" "bow-s" 16 15 (-0.4) 0.55 false 0. Plain ] @ (if clip then [ part "Primary_Bow_Arrow" "bow-a" 16 15 0. 0.55 false 0. Plain ] else []) @ flash
+  else if id = Minigun then
     (* its belt of bullets hangs from the waist, behind the gun *)
     (if clip then [ part "Primary_Clip" "minigun-clip" 8 7 0.5 0.1 false 0. Plain ] else []) @ [ gun ] @ flash
   else [ gun ] @ (if clip && k.clip then [ { (part "Primary_Clip" (k.image ^ "-clip") 16 15 k.cx k.cy true 0. Plain) with left = Some (k.image ^ "-clip2") } ] else []) @ flash

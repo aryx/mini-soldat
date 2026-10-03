@@ -309,10 +309,22 @@ be.
     did;
   - a platform says how to connect only once it has started: the
     connection is made at the first frame.
-  Left out, and not small: a lobby's screen, the weapon chosen, deltas
+  Since: the weapon chosen (a message, Weapon), tests of the
+  player's side (tests/server/Unit_online.ml), the lobby's screen.
+  Left out, and not small: deltas
   (125 KB a second a player), lag compensation, reconnection, TLS for
-  the public website, and tests of the player's side (it was tried by
-  hand).
+  the public website.
+
+- After the steps: a **Rambomatch** (`mode=rm`), Soldat's fourth mode.
+  The bow (`Bow`, and `Bow2` its other arrows, without their fire) is
+  a weapon found on the map (the map's place for it, a soldier's if it
+  has none), taken by empty hands and never thrown away; its arrow
+  takes 252 of a soldier's 150 and stays in the wall it meets. While
+  somebody is Rambo the others cannot hurt each other; a kill counts
+  when the bow made it or Rambo died of it; the bow gives health back;
+  first to 30. Soldat's bots throw their weapon away near the bow, and
+  fire at Rambo alone. `tests/game/Unit_rambo.ml`. Not over the
+  network: a server's room plays its map's own mode.
 
 Nothing is the toy's any more but the bot of `ai=engine`, kept as an
 example.

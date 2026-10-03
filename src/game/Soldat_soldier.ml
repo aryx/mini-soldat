@@ -316,7 +316,7 @@ let recoil (s : t) (w : Soldat_weapons.t) : unit =
   | M79 -> if free && s.stance <> Lying then body_apply s Small_recoil 1
   | Barrett -> if free then body_apply s Barret 1
   | Minigun -> if free && s.stance = Standing then body_apply s Small_recoil 2
-  | Grenade | Hands -> ()
+  | Grenade | Hands | Bow | Bow2 -> ()
 
 (* TSprite.Fire (S:4024). [random]: a number from 0 to 1, the next of
  * the game's *)
@@ -455,7 +455,9 @@ let weapons (map : Soldat_map.t) (s : t) (c : control) ~(random : unit -> float)
   if (not rolling) && c.change then body_apply s Change 1;
   (* the weapon thrown away: an animation, at whose 19th frame it
    * leaves the hands (C:604-618, C:726-733) *)
-  if c.drop && (not c.grenade) && (not rolling) && (s.body.id <> Change || s.body.frame > 25) && s.weapon.kind.id <> Hands then body_apply s Throw_weapon 1;
+  if c.drop && (not c.grenade) && (not rolling) && (s.body.id <> Change || s.body.frame > 25) && s.weapon.kind.id <> Hands
+     && not (Soldat_weapons.is_bow s.weapon.kind.id) (* Rambo keeps the bow (C:620) *)
+  then body_apply s Throw_weapon 1;
   (* the reload's key: the clip is let go, full or not; the shotgun is
    * loaded shell by shell instead *)
   let w = s.weapon.kind in
@@ -522,6 +524,7 @@ let weapon_timers (s : t) (c : control) : unit =
       if w.id = Spas then begin
         if s.weapon.fire_count = 0 && s.trigger_released then body_apply s Reload 1
       end
+      else if Soldat_weapons.is_bow w.id then body_apply s Reload_bow 1 (* S:965 *)
       else if s.body.id <> Clip_in && s.body.id <> Slide_back then body_apply s Clip_out 1;
       s.burst <- 0
     end;

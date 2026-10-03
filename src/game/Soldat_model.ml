@@ -140,7 +140,7 @@ type explosion = { at : float * float; radius : float; age : int }
 
 (* what a round is played for: everyone for itself; two teams, a kill
  * a point; two teams, each flag brought home a point *)
-type mode = Deathmatch | Team_match | Capture_the_flag
+type mode = Deathmatch | Team_match | Capture_the_flag | Rambomatch
 
 type play = {
   map : Soldat_map.t;
@@ -185,8 +185,12 @@ type scene =
   | Playing of play
   | Over of string * Soldat_map.t
   (* a round a server plays, as its last word and this program's own
-   * guesses show it (Soldat_online); or the wait for it, and why *)
-  | Online of play
+   * guesses show it (Soldat_online), and which of its soldiers is
+   * this program's; or the wait for it, and why *)
+  | Online of play * int
+  (* a server's lobby: the rooms one may enter, each with how many
+   * players are in it, the one the cursor is on, and who waits here *)
+  | Lobby of { rooms : (string * int) list; chosen : int; here : string list }
   | Connecting of string
 
 (* how much of Soldat's look is drawn, the steps this game was made
@@ -256,10 +260,15 @@ let team_name (t : int) : string = match t with 1 -> "Alpha" | 2 -> "Bravo" | _ 
 let score (p : play) (t : int) : int =
   match p.mode with
   | Capture_the_flag -> if t = 1 then fst p.captures else snd p.captures
-  | Team_match | Deathmatch -> Array.fold_left (fun n (s : soldier) -> if team s = t then n + s.kills else n) 0 p.soldiers
+  | Team_match | Deathmatch | Rambomatch -> Array.fold_left (fun n (s : soldier) -> if team s = t then n + s.kills else n) 0 p.soldiers
 
 (* the points a round is played to *)
-let limit (p : play) : int = match p.mode with Deathmatch -> kill_limit | Team_match -> team_limit | Capture_the_flag -> capture_limit
+(* sv_rm_limit *)
+let rambo_limit = 30
+let limit (p : play) : int = match p.mode with Deathmatch -> kill_limit | Team_match -> team_limit | Capture_the_flag -> capture_limit | Rambomatch -> rambo_limit
+
+(* Rambo: who is alive with the bow in its hands *)
+let rambo (s : soldier) : bool = s.dead = None && Soldat_weapons.is_bow s.body.weapon.kind.id
 
 (* a team's shirt: Soldat's red and blue *)
 let team_shirt (t : int) : int * int * int = if t = 1 then (210, 15, 5) else (21, 31, 217)

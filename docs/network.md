@@ -5,8 +5,8 @@ the browser alike, meeting on a server.
 
 ```
 ./bin/mini-soldat-server                       # on 127.0.0.1:23073
-./bin/mini-soldat server=127.0.0.1 nick=pad    # a player, in the room Arena2
-./bin/mini-soldat server=127.0.0.1 nick=mm room=ctf_Ash
+./bin/mini-soldat server=127.0.0.1 nick=pad    # a player, in the lobby: its rooms to choose from
+./bin/mini-soldat server=127.0.0.1 nick=mm room=ctf_Ash    # or straight into a room
 http://localhost:8000/play.html?server=127.0.0.1&nick=web
 ```
 
@@ -22,6 +22,7 @@ the player leaves: a game is never empty and nobody's number changes.
 | | |
 |---|---|
 | up, 60 a second | a player's keys and cursor, numbered: 10 bytes (`Input`) |
+| up, when it changes | the weapon to come back with, by its key in Soldat's menu (`Weapon`): the keys 1 to 9 and 0, as alone |
 | down, 30 a second | the round whole, what happened since the last (for the sounds and the sparks), and the number of the player's last keys played (`World`): about 4 KB |
 
 **A player's program plays no round.** It shows the server's, with two
@@ -42,7 +43,7 @@ server says happened.
 
 | Module | What |
 |---|---|
-| `src/net/Soldat_protocol` | the messages as bytes: `Hello`, `Join`, `Leave`, `Say`, `List`, `Input` up; `Welcome`, `Refused`, `Rooms`, `Entered`, `Came`, `Went`, `Said`, `Seat`, `World` down |
+| `src/net/Soldat_protocol` | the messages as bytes: `Hello`, `Join`, `Leave`, `Say`, `List`, `Input`, `Weapon` up; `Welcome`, `Refused`, `Rooms`, `Entered`, `Came`, `Went`, `Said`, `Seat`, `World` down |
 | `src/net/Soldat_wire` | the game as bytes, inside `Input` and `World`: a player's keys, a soldier's body, a round, its events |
 | `src/server/Soldat_lobby` | who is in which room and who is told what: a value, no socket |
 | `src/server/Soldat_room` | a room's game: its seats, each player's queue of keys, its tick, what is sent: a value too |
@@ -78,13 +79,24 @@ WebSocket and not UDP, which Soldat uses, because a browser gives a
 page nothing else; a native program speaks it too, so both kinds of
 players meet on the same server.
 
+A room plays its map's own mode (a deathmatch, or capture the flag
+where the map has flags): a team match or a Rambomatch cannot be
+asked for yet.
+
+## The lobby's screen
+
+Without `room=` a player is in the lobby and sees the rooms: one for
+each of the game's maps (a room's name is its map's, and a room is
+made by entering it), then any other the server has, each with how
+many players are in it (asked each second: `List`, `Rooms`). The
+arrows (or `w` and `s`) choose, enter enters (`Join`); in a game,
+escape comes back (`Leave`: the seat goes back to its bot, and a game
+nobody plays is dropped). `t` says a line there as in a room. The
+screen is a scene of the model (`Soldat_model.Lobby`), made each
+frame by `Soldat_online` from what the server said.
+
 ## What is not there
 
-- **Choosing a room in the game**: it is the flag `room=`. No screen
-  for the lobby (the rooms, the players): only the room's talk (`t`, a
-  line, enter).
-- **A weapon chosen**: everyone has the Ak-74 (the keys 1 to 0 are not
-  sent).
 - **Only what changed**: the round is sent whole, 125 KB a second for
   each player. Fine on a local network; a far server wants deltas, as
   Quake 3's.

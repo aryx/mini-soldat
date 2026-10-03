@@ -103,6 +103,8 @@ type t = {
   grenade_kits : int;
   medikit_spawns : (float * float) list;
   grenade_spawns : (float * float) list;
+  (* where Rambo's bow lies (the file's spawn points of "team" 15) *)
+  bow_spawns : (float * float) list;
   (* where each team's soldiers appear (the file's spawn points of
    * teams 1 and 2), and where its flag stands (5 and 6): a map for
    * capture the flag has them *)

@@ -10,12 +10,12 @@
 ; from Soldat's (Unit_soldier), its weapons and what their bullets do,
 ; the same way (Unit_weapons), what lies on the ground (Unit_things),
 ; Soldat's bots (Unit_bots), the sparks and the sounds (Unit_sparks),
-; the teams and the flags (Unit_teams),
+; the teams and the flags (Unit_teams), a Rambomatch (Unit_rambo),
 ; and rounds played without drawing them
 ; (Unit_soldat)
 (test
  (name Test)
- (modules Test Unit_soldat Unit_soldier Unit_weapons Unit_things Unit_bots Unit_sparks Unit_teams)
+ (modules Test Unit_soldat Unit_soldier Unit_weapons Unit_things Unit_bots Unit_sparks Unit_teams Unit_rambo)
  ; the sounds' files: a test says each one the game names is there
  (deps (glob_files %{project_root}/data/sfx/*.wav) %{project_root}/data/maps/ctf_Ash.pms)
  (libraries

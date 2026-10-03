@@ -82,6 +82,14 @@ let step (t : t) : unit =
                      stand_up t id;
                      answer (Soldat_lobby.left id t.lobby);
                      Server.close t.server id)
+             | Ok (Weapon key) -> (
+                 (* the weapon its soldier comes back with *)
+                 match Hashtbl.find_opt t.seats id with
+                 | Some (room, seat) ->
+                     Option.iter
+                       (fun game -> Hashtbl.replace t.games room (Soldat_room.weapon seat (List.nth Soldat_weapons.primaries ((key + 9) mod 10)) game))
+                       (Hashtbl.find_opt t.games room)
+                 | None -> ())
              | Ok message -> answer (Soldat_lobby.receive id message t.lobby)
              | Error _ ->
                  (* not a message: the connection closed, and the others

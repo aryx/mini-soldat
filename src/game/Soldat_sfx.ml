@@ -18,6 +18,7 @@ type t =
   | Throw_gun
   | Take_gun
   | Take_medikit
+  | Take_bow
   | Pickup
   | Grenade_pullout
   | Grenade_throw
@@ -73,6 +74,7 @@ let weapon (id : Soldat_weapons.id) : string =
   | Minimi -> "m249"
   | Minigun -> "minigun"
   | Socom | Grenade | Hands -> "colt1911"
+  | Bow | Bow2 -> "bow"
 
 (* its recordings: one, or several to take one of *)
 let names (s : t) : string list =
@@ -84,6 +86,7 @@ let names (s : t) : string list =
   | Throw_gun -> [ "throwgun" ]
   | Take_gun -> [ "takegun" ]
   | Take_medikit -> [ "takemedikit" ]
+  | Take_bow -> [ "takebow" ]
   | Pickup -> [ "pickupgun" ]
   | Grenade_pullout -> [ "grenade-pullout" ]
   | Grenade_throw -> [ "grenade-throw" ]
@@ -132,10 +135,10 @@ let file (s : t) (n : int) : string =
   List.nth all (((n mod List.length all) + List.length all) mod List.length all)
 
 let files : string list =
-  let weapons : Soldat_weapons.id list = Socom :: Soldat_weapons.primaries in
+  let weapons : Soldat_weapons.id list = Bow :: Socom :: Soldat_weapons.primaries in
   List.concat_map names
     (List.map (fun id -> Fire id) weapons
     @ List.map (fun id -> Reload id) weapons
-    @ [ Change_weapon; Change_spin; Throw_gun; Take_gun; Take_medikit; Pickup; Grenade_pullout; Grenade_throw; Grenade_bounce; Grenade_explosion; M79_explosion;
+    @ [ Change_weapon; Change_spin; Throw_gun; Take_gun; Take_medikit; Take_bow; Pickup; Grenade_pullout; Grenade_throw; Grenade_bounce; Grenade_explosion; M79_explosion;
         Explosion_erg; Ric; Ricochet; Hit_arg; Dead_hit; Death; Headchop; Bryzg; Bodyfall; Bonecrack; Step; Jump; Fall; Fall_hard; Crouch; Crouch_move; Prone_move;
         Go_prone; Stand_up; Roll; Stop; Rocketz; Spawn; Weapon_hit; Kit_fall; Shell; Gauge_shell; Clip_fall; Dist_gun; Dist_grenade; Dist_m79; Flag_fall; Capture; Ctf_score ])

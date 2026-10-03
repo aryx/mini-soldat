@@ -335,7 +335,7 @@ pixels, so distance counts.
 | `Random` (the scatter) | `random : unit -> float`, given to `Soldat_soldier.tick`: the game's seed (`play.seed`, `Lehmer.next`), so a round replays |
 | `TSprite.ThrowGrenade`: the `Throw` animation's frame is the throw's strength | `Soldat_soldier.throw_grenade` |
 | a bullet: `TBullet`, and its particle in `BulletParts` (Euler, gravity 2.25 times `Grav`, damping 0.99) | `Soldat_model.bullet`, stepped at the end of `Soldat_bullets.update` |
-| the bullet's styles (plain, grenade, shotgun, M79; and flame, punch, arrow, cluster, knife, LAW, thrown knife, M2) | `Soldat_weapons.style`: `Plain`, `Thrown`, `Pellets`, `Explosive`; the others *to come*, or never |
+| the bullet's styles (plain, grenade, shotgun, M79; and flame, punch, arrow, cluster, knife, LAW, thrown knife, M2) | `Soldat_weapons.style`: `Plain`, `Thrown`, `Pellets`, `Explosive`, `Arrow` (it stays in a wall for `ARROW_RESIST` ticks, harmless: `Soldat_bullets.arrow_resist`; the flaming one flies as it, without its fire); the others *to come*, or never |
 | `TBullet.Update`: against the map, the colliders, the soldiers, the things, in that order, on the segment from where it is to where it will be; then it moves | `Soldat_bullets.update`; what is nearest along the way counts (`limit`) |
 | against the map (`CheckMapCollision`): the segment sampled every 2.5 pixels, `PointInPolyEdges` in the sector's polygons; a ricochet (`V * 25/35 + Perp * 10/35`) or the end; a grenade bounces (0.88) | `against_map`, on `Soldat_map.sector`, `in_edges`, `closest_perp` |
 | against a soldier (`CheckSpriteCollision`): `LineCircleCollision` with circles of radius 7 (`PART_RADIUS`) at 7 points of its skeleton (head 12, shoulders 11 and 10, hips 6 and 5, knees 4 and 3): which one says head, chest or legs | `line_circle` (ours: Soldat's gives where the segment *enters*, `Collide.segment_circle` its nearest point to the centre) at the same 7 points |
@@ -345,7 +345,8 @@ pixels, so distance counts.
 | an explosion (`ExplosionHit`): within a radius (grenade 85, M79 64, cluster 35), damage `1 / (distance + 1)` times the weapon's, a push away, a kick to the ragdolls' points, and the other grenades near set off | `Soldat_bullets.explode`, `Soldat_ragdoll.blast` |
 | the reload: at 0 ammo, a count-down holding the gun; `ClipOut` then `ClipIn` and `SlideBack` animations at 80% and 30% of it | `weapon_timers`, and in `control` |
 | bink (being hit shakes one's aim) and recoil (0 for every weapon but in realistic mode) | *to come*: both move the cursor, which is the player's here |
-| the knife, the chainsaw, the LAW, the fist and the rifle's butt, the flamer, the bow, the stationary gun | *to come*, or never |
+| the bow and its flaming arrows (`Guns[BOW]`, `Guns[BOW2]`), nobody's choice: found on the map in a Rambomatch | `Soldat_weapons.id`'s `Bow` and `Bow2`, `is_bow`; `Reload_bow` its reload's animation; never thrown away |
+| the knife, the chainsaw, the LAW, the fist and the rifle's butt, the flamer, the stationary gun | *to come*, or never |
 
 ## The things
 
@@ -365,10 +366,11 @@ gravity, its radius, how long it stays.
 | `TThing.Update`, `CheckMapCollision`: a point in a wall back where it was less its depth; at rest (`StaticType`) when two points touched and it moves under 0.63 | `tick`, `out_of_walls`, `still` (Soldat's own rule, not `Particles.keep_out`, as for the ragdoll) |
 | `TSprite.DropWeapon`, the throw in `CreateThing` | `Soldat_soldier.t.dropped` (thrown at the 19th frame of `Throw_weapon`, or `let_go` dying), made a thing by `Soldat_things.weapon` |
 | picked up (`CheckSpriteCollision`, the server's): the nearest soldier within the thing's radius; a weapon only by one with empty hands | `Soldat_things.reach`, and the rule in `Soldat_update.tick` |
-| where things appear: the map's spawn points whose team is above 4 (5 and 6 the flags, 7 grenade kits, 8 medikits, 9 to 13 the bonus kits, 14 the yellow flag, 15 the bow, 16 the stationary gun) | `Soldat_map.t.medikit_spawns`, `grenade_spawns`; `Soldat_things.kits` (`SpawnThings`), `again` (`Respawn`, `SpawnBoxes`) |
+| where things appear: the map's spawn points whose team is above 4 (5 and 6 the flags, 7 grenade kits, 8 medikits, 9 to 13 the bonus kits, 14 the yellow flag, 15 the bow, 16 the stationary gun) | `Soldat_map.t.medikit_spawns`, `grenade_spawns`, `bow_spawns`; `Soldat_things.kits` (`SpawnThings`), `again` (`Respawn`, `SpawnBoxes`) |
 | a flag (`OBJECT_ALPHA_FLAG`, `OBJECT_BRAVO_FLAG`): `flag.po`, four points; standing, its foot stopped and its top pulled up (16 times gravity); held, its first point on its holder's waist (point 8), its top pulled up (14 times) | `Soldat_things.kind`'s `Flag team`, `flag_shape`, `tick_flag`; `holder`, `in_base` (within 75 of its place: `Soldat_map.t.alpha_flag`, `bravo_flag`, the file's spawn points 5 and 6) |
 | taken (`CheckSpriteCollision`): by the nearest living soldier within 19, past its first 90 ticks; its own team's sends it home at once unless it is there; left 25 seconds on the ground it goes home. A capture (`TThing.Update`): carried within 28 of its carrier's own flag standing at home | the rule in `Soldat_update.tick` (`flag`), `play.captures`, `play.news` (Soldat's big message), the sounds `Capture` and `Ctf_score` |
-| the bonus kits, the bow, the parachute, the knife, the stationary gun; a thing hit by a bullet or an explosion | *to come*, or never |
+| the bow on the map (`OBJECT_RAMBO_BOW`: taken by empty hands only, 100 ticks after it appeared; let go by the dead; made again each second if neither on the map nor in hands, `ServerLoop.pas:642`) | `Soldat_things.bow`, `is_bow`: a weapon on the ground as any other, wider to reach (20) and one the bots walk to; `Soldat_update.bow`, and its tick |
+| the bonus kits, the parachute, the knife, the stationary gun; a thing hit by a bullet or an explosion | *to come*, or never |
 
 ## The sparks
 
@@ -395,7 +397,9 @@ dirt, the jets' fire, the weather.
 
 | Soldat | Here |
 |---|---|
-| the modes (`GAMESTYLE_*`): deathmatch, pointmatch, teammatch, capture the flag (the default), rambo, infiltration, hold the flag | `Soldat_model.mode`: `Deathmatch`, `Team_match`, `Capture_the_flag`; the map's own (`mode_of`: capture the flag where it has the two flags' places) or the flag `mode=`. The four others *to come*, or never |
+| the modes (`GAMESTYLE_*`): deathmatch, pointmatch, teammatch, capture the flag (the default), rambo, infiltration, hold the flag | `Soldat_model.mode`: `Deathmatch`, `Team_match`, `Capture_the_flag`, `Rambomatch`; the map's own (`mode_of`: capture the flag where it has the two flags' places) or the flag `mode=`. The three others *to come*, or never |
+| a Rambomatch's rules: while somebody is Rambo the others do nothing to each other (`HealthHit`, `Sprites.pas:3326`); a kill counts if the bow made it or Rambo died of it (`Die`, `:1785`); the bow gives a health back every 3 ticks (`:1276`); first to 30 (`sv_rm_limit`) | `Soldat_bullets.hurt` (its world's `rambo`), `Soldat_model.rambo`, `rambo_limit`, `Soldat_update.tick` |
+| the bots in a Rambomatch (`AI.pas:587`, `:613`, `:992`): Rambo seen is the target; who has not the bow fires at nobody else; near the bow, the weapon is thrown away | `Soldat_bots.control` |
 | a team (`Player.Team`: Alpha 1, Bravo 2), its colour (`$D20F05`, `$151FD9`), its spawn points, its kills or its flags (`TeamScore`), the limits (`sv_tm_limit` 60, `sv_ctf_limit` 10) | `Soldat_soldier.t.team`, `Soldat_model.team_shirt`, `Soldat_map.t.alpha_spawns` and `bravo_spawns`, `Soldat_model.score`, `team_limit`, `capture_limit`; `Soldat_update.winner` |
 | friendly fire off (`HealthHit` leaves at once for one's own team's bullets) | `Soldat_bullets.hurt` |
 | a team's walls (`TeamCollides`: polygons 10 to 17, a team's bullets or a team's players) | `Soldat_map.stops_soldier ~team`, `stops_bullet ~team` |
@@ -467,7 +471,7 @@ the flamer); the rest play once.
 
 | Soldat | Here |
 |---|---|
-| `SFX_*`, 163 numbers, and their files (`LoadSounds`) | `Soldat_sfx.t`, the 47 the game plays (86 files: a step is one of four), `file` |
+| `SFX_*`, 163 numbers, and their files (`LoadSounds`) | `Soldat_sfx.t`, the 48 the game plays (89 files: a step is one of four), `file` |
 | a sample loaded | `Soldat_sound.sound`: its bytes from the content (`Soldat_assets`, `sfx/NAME.wav`), `Audio.wav`, frozen with `Audio.recorded`, kept. `Audio.wav` reads 16-bit only and 38 of the 82 are 8-bit: `Soldat_sound.to_16_bit` rewrites those first |
 | `PlaySound (sample, place)` in the rules | a `Sound` event; the tick's are `play.sounds`, played by `Soldat_update.update` |
 | `FPlaySound`: `1 - distance / 750` of its volume from the listener, nothing beyond; its side | `Soldat_sound.heard`, then `Audio.play (sound |> Audio.louder volume |> Audio.pan side)` |

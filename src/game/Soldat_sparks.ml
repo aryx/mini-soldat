@@ -82,7 +82,7 @@ let of_event (map : Soldat_map.t) ~(random : unit -> float) ~(owner : int) (even
             let first = (hx +. 3. -. (0.17 *. bx), hy -. 2. -. (0.15 *. by)) in
             let second = (hx -. 3. -. (0.25 *. bx), hy -. 3. -. (0.3 *. by)) in
             (second, [ (first, c); (second, across ()) ])
-        | Spas | M79 | Grenade | Hands -> (usual, [])
+        | Spas | M79 | Grenade | Hands | Bow | Bow2 -> (usual, [])
       in
       (* none out of a muzzle that is in a wall *)
       let shells = if Soldat_map.in_bullet_wall map usual then [] else List.map (fun (at, v) -> spark (Shell weapon) at v 255) shells in

@@ -55,6 +55,11 @@
    One bot of another making can play beside these: Soldat_engine_bot,
    on elm-playground's Sense and Bot.
 
+   In a Rambomatch (AI.pas:587, 613, 992): Rambo, seen, is the target
+   whoever is nearer; a bot without the bow fires at nobody else; it
+   walks to the bow it sees and, near it, throws its weapon away, for
+   only empty hands take it.
+
    Left out: the teams and the flags (which path a bot takes with a
    flag), hiding behind a collider, the fists, the difficulty (it is
    Soldat's "normal": 100), the chat.
