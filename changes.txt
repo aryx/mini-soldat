@@ -5,6 +5,15 @@
 # (with direction from me)
 
 ** Features
+- rollback (the flag rollback, with net=host and net=join): the
+  other's keys guessed, the round played again when the guess was
+  wrong (elm-playground's Rollback)
+- src/orig and src/twin: the parts made twice (the bots, the effects,
+  how a thing falls, the sound's place, the network) are out of the
+  shared code, Soldat's in the one folder and the twins in the other,
+  reached through Soldat_parts' slots; three programs of one shared
+  code: mini-soldat (both), mini-soldat-orig, mini-soldat-twin. make
+  loc counts src/twin apart from the budget
 - three more twins (docs/twins.md): things on the ground as rigid
   bodies of the Playground's Physics (Soldat_bodies; the physics'
   level 1); two players in lockstep, no server, only the keys sent

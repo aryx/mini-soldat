@@ -16,10 +16,10 @@ let left : Soldat_soldier.control = { Soldat_soldier.no_control with left = true
 
 (* [frames] frames of two peers on a network: the host holds right, the
  * other left; the two games after, and the bytes a packet was at most *)
-let played ?(frames = 600) (config : Sim_net.config) : Soldat_lockstep.t * Soldat_lockstep.t * int =
+let played ?(frames = 600) ?(rollback = false) ?(turning = false) (config : Sim_net.config) : Soldat_lockstep.t * Soldat_lockstep.t * int =
   let net = Sim_net.create ~seed:3 config in
   let round () = Soldat_update.start ~bots:(Soldat_bots.cast 3 1) floor in
-  let a = ref (Soldat_lockstep.start ~me:0 (round ())) and b = ref (Soldat_lockstep.start ~me:1 (round ())) in
+  let a = ref (Soldat_lockstep.start ~rollback ~me:0 (round ())) and b = ref (Soldat_lockstep.start ~rollback ~me:1 (round ())) in
   let most = ref 0 in
   for f = 1 to frames do
     let now = float_of_int f /. 60. in
@@ -30,8 +30,10 @@ let played ?(frames = 600) (config : Sim_net.config) : Soldat_lockstep.t * Solda
       most := max !most (String.length packet);
       Sim_net.send net ~now ~src:me ~dst:other packet
     in
-    turn a 0 1 right;
-    turn b 1 0 left
+    (* turning: each changes its mind every 40 frames *)
+    let other_way = turning && f / 40 mod 2 = 1 in
+    turn a 0 1 (if other_way then left else right);
+    turn b 1 0 (if other_way then right else left)
   done;
   (!a, !b, !most)
 
@@ -51,7 +53,7 @@ let tests =
           let x (g : Soldat_lockstep.t) i = (Soldat_lockstep.play g).soldiers.(i).body.x in
           let start = (Soldat_update.start ~bots:(Soldat_bots.cast 3 1) floor).soldiers.(0).body.x in
           Alcotest.(check bool) "the host's soldier went right, in the other's round too" true (x b 0 > start +. 50. || (Soldat_lockstep.play b).soldiers.(0).deaths > 0);
-          Alcotest.(check bool) "the other's is a player's, not a bot's" true ((Soldat_lockstep.play a).brains.(1) = None && (Soldat_lockstep.play a).soldiers.(1).human);
+          Alcotest.(check bool) "the other's is a player's, not a bot's" true ((Soldat_bots.brain_of (Soldat_lockstep.play a).minds.(1)) = None && (Soldat_lockstep.play a).soldiers.(1).human);
           Alcotest.(check bool) (Printf.sprintf "a packet: a few keys, not a round (%d bytes at most)" most) true (most < 200));
       Testo.create "a slow network: it waits, it does not differ" (fun () ->
           (* 100 ms one way, some lost: more than the 3 ticks of delay *)
@@ -59,4 +61,15 @@ let tests =
           Alcotest.(check bool) (Printf.sprintf "it stalled (%d frames), and played fewer ticks (%d of 600)" (Soldat_lockstep.stalls a) (ticks a)) true
             (Soldat_lockstep.stalls a > 50 && ticks a < 590 && ticks a > 100);
           Alcotest.(check (pair (option int) (option int))) "the two rounds never differed" (None, None) (Soldat_lockstep.desync a, Soldat_lockstep.desync b));
+      Testo.create "rollback: guessed, played again, never late" (fun () ->
+          (* the same slow network, the players turning round every 40 frames *)
+          let slow : Sim_net.config = { latency = 0.1; jitter = 0.02; loss = 0.1; duplication = 0.05 } in
+          let (a, b, _) = played ~rollback:true ~turning:true slow in
+          let (wrong, again) = Soldat_lockstep.rollbacks a in
+          Alcotest.(check bool) (Printf.sprintf "nearly every frame a tick (%d of 600), where lockstep waited" (ticks a)) true (ticks a > 560);
+          Alcotest.(check bool) (Printf.sprintf "guesses were wrong (%d), ticks played again (%d)" wrong again) true (wrong >= 5 && again > wrong);
+          Alcotest.(check (pair (option int) (option int))) "what is final never differed" (None, None) (Soldat_lockstep.desync a, Soldat_lockstep.desync b);
+          (* lockstep, the same network and keys: far fewer ticks *)
+          let (l, _, _) = played ~turning:true slow in
+          Alcotest.(check bool) (Printf.sprintf "lockstep there: %d ticks" (ticks l)) true (ticks l < ticks a - 100));
     ]

@@ -212,7 +212,7 @@ let tests =
           Alcotest.(check (pair int int)) "brought home: 30 for Alpha" (30, 0) home.captures;
           Alcotest.(check (option string)) "first team to 90" (Some "BRAVO TEAM") (Soldat_update.winner { home with captures = (30, 90) }));
       Testo.create "the bots, in teams" (fun () ->
-          let keys (p : Soldat_model.play) i = let (c, brain, _) = Soldat_bots.control p i (Option.get p.brains.(i)) ~random:(fun () -> 0.5) in (c, brain) in
+          let keys (p : Soldat_model.play) i = let (c, brain, _) = Soldat_bots.control p i (Option.get (Soldat_bots.brain_of p.minds.(i))) ~random:(fun () -> 0.5) in (c, brain) in
           (* soldier 1 Bravo's, soldier 2 Alpha's; the player Alpha's *)
           let p = round ~n:2 () |> put 1 (0., -20.) |> put 2 (1500., -20.) in
           let (c, _) = keys (put 0 (150., -20.) p) 1 in

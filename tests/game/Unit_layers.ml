@@ -59,9 +59,9 @@ let tests =
           (* a few units to come to a stop, no more *)
           Alcotest.(check (near 5.)) "0: they stand" (x p 1) (x stand 1);
           let twin = after 300 { p with ai = 1 } in
-          Alcotest.(check bool) "1: every bot has the twin's mind, and goes" true (twin.minds.(1) <> None && twin.minds.(2) <> None && Float.abs (x twin 1 -. x p 1) > 50.);
+          Alcotest.(check bool) "1: every bot has the twin's mind, and goes" true (Soldat_engine_bot.running twin.minds.(1) <> None && Soldat_engine_bot.running twin.minds.(2) <> None && Float.abs (x twin 1 -. x p 1) > 50.);
           let soldat = after 300 p in
-          Alcotest.(check bool) "2: Soldat's, without it" true (soldat.minds.(1) = None && soldat.brains.(1) <> None));
+          Alcotest.(check bool) "2: Soldat's, without it" true (Soldat_engine_bot.running soldat.minds.(1) = None && Soldat_bots.brain_of soldat.minds.(1) <> None));
       Testo.create "the twin's way: the cheapest path" (fun () ->
           let next from goal = Option.map (fun (w : Pms.waypoint) -> w.x) (Soldat_engine_bot.way road from goal) in
           Alcotest.(check (option int)) "at the first waypoint, to the last: the second" (Some (-200)) (next (-600., -10.) (600., -10.));
@@ -75,12 +75,12 @@ let tests =
           let grenade = { (Soldat_bullets.of_shot ~owner:0 { from = (300., -40.); velocity = (0., 1.); weapon = Grenade }) with ttl = 1 } in
           let blast effects = after 2 { p with effects; bullets = [ grenade ] } in
           let (none, juice, soldat) = (blast 0, blast 1, blast 2) in
-          let dots (p : Soldat_model.play) = List.length (Soldat_juice.dots p.juice) in
-          Alcotest.(check (pair int int)) "0: nothing" (0, 0) (List.length none.sparks, dots none);
-          Alcotest.(check bool) "1: the emitter's dots, no spark" true (juice.sparks = [] && dots juice >= 50);
-          Alcotest.(check bool) "and the screen shaken" true (Soldat_juice.shake juice.juice <> (0., 0.));
-          Alcotest.(check bool) "2: Soldat's sparks, no dot" true (soldat.sparks <> [] && dots soldat = 0);
-          Alcotest.(check bool) "three seconds later: the dots are gone, the screen still" true (dots (after 180 juice) = 0 && Soldat_juice.shake (after 180 juice).juice = (0., 0.));
+          let dots (p : Soldat_model.play) = List.length (Soldat_juice.dots (Soldat_juice.of_fx p.fx)) in
+          Alcotest.(check (pair int int)) "0: nothing" (0, 0) (List.length (Soldat_sparks.of_fx none.fx), dots none);
+          Alcotest.(check bool) "1: the emitter's dots, no spark" true (Soldat_sparks.of_fx (juice.fx) = [] && dots juice >= 50);
+          Alcotest.(check bool) "and the screen shaken" true (Soldat_juice.shake (Soldat_juice.of_fx juice.fx) <> (0., 0.));
+          Alcotest.(check bool) "2: Soldat's sparks, no dot" true (Soldat_sparks.of_fx (soldat.fx) <> [] && dots soldat = 0);
+          Alcotest.(check bool) "three seconds later: the dots are gone, the screen still" true (dots (after 180 juice) = 0 && Soldat_juice.shake (Soldat_juice.of_fx (after 180 juice).fx) = (0., 0.));
           (* heard the same, whatever is seen *)
           let heard effects = (after 1 { p with effects; bullets = [ grenade ] }).sounds in
           Alcotest.(check bool) "the sounds are the same in all three" true (heard 0 <> [] && heard 0 = heard 1 && heard 1 = heard 2));

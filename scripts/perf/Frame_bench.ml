@@ -21,7 +21,7 @@
  *)
 
 let bench (name : string) (frames : int) (map : Soldat_map.t) : unit =
-  let p = ref (Soldat_update.start ~bots:(Soldat_bots.cast 3 1) map) in
+  let p = ref (Soldat_update.start ~bots:(Soldat_cast.cast 3 1) map) in
   let t0 = Unix.gettimeofday () in
   for _ = 1 to frames do
     p := Soldat_update.tick !p Soldat_model.still ~look:(0., 0.)
@@ -35,6 +35,7 @@ let read (file : string) : string =
   Fun.protect ~finally:(fun () -> close_in chan) (fun () -> really_input_string chan (in_channel_length chan))
 
 let () =
+  Soldat_orig.register ();
   match List.tl (Array.to_list Sys.argv) with
   | [] -> bench "Arena2" 3600 (Lazy.force Soldat_map.arena2)
   | files ->

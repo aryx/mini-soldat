@@ -1,0 +1,28 @@
+; Soldat's own, of the parts of the game that are made twice
+; (src/game/Soldat_parts.mli, docs/twins.md): each adapted from its
+; Pascal, as the rest of the game is.
+;
+;   Soldat_bots          the bots (shared/AI.pas)
+;   Soldat_sparks        the sparks (shared/mechanics/Sparks.pas), and
+;   Soldat_sparks_view     their pictures
+;   Soldat_fall          how a thing falls: points and sticks (Things.pas)
+;   Soldat_online        a round played on a server: the network, Soldat's
+;                        way (shared/network/NetworkClient*.pas)
+;   Soldat_orig          puts them in the game's slots (register)
+;
+; A program linked with this folder and not src/twin is the game with
+; nothing of the twins (mini-soldat-orig). Pure OCaml: the browser's
+; program links it.
+(library
+ (name soldat_orig)
+ (wrapped false)
+ (libraries
+   soldat_map soldat_anim soldat_assets soldat_game soldat_render soldat_net
+   caps ; Cap.network: the authority to connect
+   tiny_libs.core ; Set_: the keys held; Basics
+   tiny_libs.random ; Lehmer: the sparks' own chance
+   tiny_libs.graphics_rgba ; Rgba_image: a spark's picture
+   tiny_libs.physics_2d ; Particles: a thing's points
+   tiny_libs.networking_protocols ; Transport: the connection, on every platform
+   tiny_libs.networking_netcode ; Prediction and Interpolation
+   elm_playground))

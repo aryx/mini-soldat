@@ -8,4 +8,9 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
+(* the game's parts, Soldat's and the twins *)
+let () =
+  Soldat_orig.register ();
+  Soldat_twin.register ()
+
 let () = Testo.interpret_argv ~project_name:"game" (fun _env -> Unit_soldier.tests @ Unit_weapons.tests @ Unit_things.tests @ Unit_bots.tests @ Unit_sparks.tests @ Unit_teams.tests @ Unit_rambo.tests @ Unit_goodies.tests @ Unit_layers.tests @ Unit_soldat.tests)

@@ -47,3 +47,21 @@ let dots (j : t) : (float * float * float * kind * float) list =
 let shake (j : t) : float * float =
   let o = Trauma.offset ~max_offset:14. ~seed:3 ~trauma:j.trauma j.time in
   (o.dx, o.dy)
+
+(*****************************************************************************)
+(* The part *)
+(*****************************************************************************)
+
+type Soldat_state.fx += Juice of t
+
+let of_fx (fx : Soldat_state.fx) : t = match fx with Juice j -> j | _ -> none
+
+(* the twin as the game's effects (Soldat_parts): the dots, the shake,
+ * and the camera going after its soldier a part of the way each tick
+ * (Follow.smooth: 1 - e^(-rate dt) of what is left) *)
+let part : Soldat_parts.effects =
+  {
+    tick = (fun _ ~random:_ events fx -> (Juice (step (List.fold_left (fun j (_, event) -> of_event j event) (match fx with Juice j -> j | _ -> none) events)), []));
+    shake = (fun ~random:_ fx -> match fx with Juice j -> shake j | _ -> (0., 0.));
+    follow = (fun ~camera:(x, y) (px, py) ~look:(lx, ly) -> (Follow.smooth ~rate:9. ~dt (px +. lx) x, Follow.smooth ~rate:9. ~dt (py +. ly) y));
+  }

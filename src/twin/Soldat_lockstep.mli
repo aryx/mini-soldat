@@ -35,6 +35,22 @@
    What it gives: no server to run, and a few bytes where the other way
    sends kilobytes.
 
+   **Or guess** (Rollback, the flag rollback): waiting 3 ticks for
+   one's own keys is what a fighting game cannot have. The other way
+   plays my keys at once and *guesses* the other's (it still holds
+   what it held); when its real keys come and the guess was wrong,
+   the round goes back to the tick of the guess and plays again from
+   there, in one frame. Going back is free here: a round is a value,
+   and to go back to one is to have kept it (Rollback.create is given
+   the tick as a function, and keeps the rounds itself).
+
+     Rollback.step r mine      my keys, played now; the replay, if a
+                               guess was wrong
+     Rollback.model r          the round to show, maybe on guesses
+
+   Its price is not delay but the other's soldier seen to jump when a
+   guess was wrong, and ticks played twice.
+
    Both programs must be started alike (the same map, mode, bots and
    flags): the round's start is not sent either. Its camera, its sparks
    and its sounds are each program's own, and no part of the checksum.
@@ -56,7 +72,7 @@ type t
 
 (* the round both start from: [play] with its second soldier a
  * player's too, not a bot's *)
-val start : me:int -> Soldat_model.play -> t
+val start : ?rollback:bool -> me:int -> Soldat_model.play -> t
 
 (* a frame: the other's packets since the last, my keys and where my
  * cursor is; the game after (a tick later, or waiting for the other's
@@ -71,9 +87,12 @@ val desync : t -> int option
 (* how many frames it waited for the other's keys *)
 val stalls : t -> int
 
+(* with rollback: how many guesses were wrong, and the ticks played again *)
+val rollbacks : t -> int * int
+
 (* this program as a peer: the connection asked for (made at the first
  * frame), the round started when the title's space is pressed *)
-val connect : < Cap.network ; .. > -> Transport.role -> unit
+val connect : ?rollback:bool -> < Cap.network ; .. > -> Transport.role -> unit
 
 (* a frame: Soldat_update.update until the round starts, then the
  * peer's; nothing of it without [connect] *)

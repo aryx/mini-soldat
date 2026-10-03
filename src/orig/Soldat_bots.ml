@@ -15,61 +15,42 @@
 (* See Soldat_bots.mli *)
 open Soldat_model (* its types, used all along *)
 
-(*****************************************************************************)
-(* The characters *)
-(*****************************************************************************)
+(* what a bot has in mind from a tick to the next: Soldat's Brain. A
+ * waypoint is its number in the map's file, from 1; none: 0. A
+ * soldier is its place among the round's, none: -1 *)
+type brain = {
+  character : character;
+  target : int;
+  (* who shot it: seen, it becomes the target *)
+  pissed_off : int;
+  (* the waypoint it is at, the one it goes to, and the one before *)
+  current : int;
+  next : int;
+  old : int;
+  (* ticks at the same waypoint, and what is left before it gives up
+   * and goes back *)
+  last : int;
+  waypoint_time : int;
+  timeout : int;
+  (* ticks it has not moved, or has waited where a waypoint says to *)
+  one_place : int;
+  (* it is walking to a kit *)
+  go_thing : bool;
+  (* it is falling fast: the jets *)
+  fall_save : bool;
+  (* its keys last tick: a grenade's is held from a tick to the next *)
+  keys : Soldat_soldier.control;
+}
 
-(* the lines "Key=value" of a file *)
-let values (text : string) : (string * string) list =
-  String.split_on_char '\n' text
-  |> List.filter_map (fun line ->
-         let line = String.trim line in
-         match String.index_opt line '=' with
-         | Some i -> Some (String.sub line 0 i, String.trim (String.sub line (i + 1) (String.length line - i - 1)))
-         | None -> None)
+(* a bot's mind in a round is its Brain (Soldat_state) *)
+type Soldat_state.mind += Brain of brain
 
-(* "$00BBGGRR", Delphi's TColor: blue first (ReadConfColor turns it
- * round) *)
-let colour (s : string) : (int * int * int) option =
-  match int_of_string_opt ("0x" ^ String.sub s 1 (String.length s - 1)) with
-  | Some n when String.length s > 1 && s.[0] = '$' -> Some (n land 255, (n lsr 8) land 255, (n lsr 16) land 255)
-  | _ -> None
-  | exception Invalid_argument _ -> None
-
-(* the skin's is read as it is, red first (ReadConfMagicColor) *)
-let turned ((r, g, b) : int * int * int) : int * int * int = (b, g, r)
-
-let character (text : string) : character option =
-  let lines = String.split_on_char '\n' text |> List.map String.trim in
-  let v = values text in
-  let get key = List.assoc_opt key v in
-  let number key default = Option.value (Option.bind (get key) int_of_string_opt) ~default in
-  let colour_of key default = Option.value (Option.bind (get key) colour) ~default in
-  let favourite =
-    Option.bind (get "Favourite_Weapon") (fun name -> List.find_opt (fun id -> (Soldat_weapons.get id).name = name) Soldat_weapons.primaries)
-  in
-  match (List.mem "[BOT]" lines, get "Name", favourite) with
-  | (true, Some bot, Some favourite) ->
-      Some
-        {
-          bot;
-          bot_shirt = colour_of "Color1" (128, 128, 128);
-          bot_trousers = colour_of "Color2" (64, 64, 64);
-          bot_skin = turned (colour_of "Skin_Color" (120, 180, 230));
-          favourite;
-          accuracy = number "Accuracy" 20;
-          shoot_dead = number "Shoot_Dead" 0 = 1;
-          grenade_freq = number "Grenade_Frequency" 200;
-          camper = number "Camping" 0;
-        }
-  | _ -> None
-
-let characters : character list Lazy.t = lazy (List.filter_map (fun (_, base64) -> character (Base64.decode base64)) Bots_data.all)
-
-let cast (n : int) (round : int) : character list =
-  let all = Array.of_list (Lazy.force characters) in
-  let count = Array.length all in
-  if count = 0 then [] else List.init n (fun i -> all.((((round + i) mod count) + count) mod count))
+(* the characters are the cast's (Soldat_cast): here as they were *)
+let character = Soldat_cast.character
+let characters = Soldat_cast.characters
+let cast = Soldat_cast.cast
+let weapon = Soldat_cast.weapon
+let whole = Soldat_cast.whole
 
 (* WAYPOINT_TIMEOUT_SMALL *)
 let timeout_small = 320
@@ -83,13 +64,6 @@ let brain (character : character) : brain =
     character; target = -1; pissed_off = -1; current = 0; next = 0; old = 0; last = 0; waypoint_time = 0; timeout = timeout_small; one_place = 0;
     go_thing = false; fall_save = false; keys = Soldat_soldier.no_control;
   }
-
-(* Random(n): a whole number from 0 to n - 1; 0 for none *)
-let whole ~(random : unit -> float) (n : int) : int = if n <= 0 then 0 else min (n - 1) (int_of_float (random () *. float_of_int n))
-
-(* TSprite.Respawn: its favourite, or one of the first nine *)
-let weapon (c : character) ~(random : unit -> float) : Soldat_weapons.id =
-  if whole ~random 2 = 0 then c.favourite else List.nth Soldat_weapons.primaries (whole ~random 9)
 
 (*****************************************************************************)
 (* What it sees *)
@@ -309,8 +283,8 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
         end
     | _ -> ());
     (* a target that camps is gone to *)
-    (match p.brains.(!target) with
-    | Some theirs when (not !go_thing) && theirs.current > 0 && action theirs.current <> 0 -> towards ()
+    (match p.minds.(!target) with
+    | Brain theirs when (not !go_thing) && theirs.current > 0 && action theirs.current <> 0 -> towards ()
     | _ -> ());
     (* above: the jets *)
     let dy = bucket (snd m) (snd t) in
@@ -426,3 +400,23 @@ let control (p : play) (i : int) (brain : brain) ~(random : unit -> float) : Sol
     { brain with target = !target; pissed_off = !pissed_off; current = !current; next = !next; old = !old; last = !last; waypoint_time = !waypoint_time;
       timeout = !timeout; one_place = !one_place; go_thing = !go_thing; fall_save; keys },
     !looked )
+
+(*****************************************************************************)
+(* The part *)
+(*****************************************************************************)
+
+let brain_of (mind : Soldat_state.mind) : brain option = match mind with Brain b -> Some b | _ -> None
+
+(* Soldat's bots as the game's bots (Soldat_parts): a mind is a Brain *)
+let part : Soldat_parts.bots =
+  {
+    owns = (function Brain _ -> true | _ -> false);
+    fresh = (fun c -> Brain (brain c));
+    control =
+      (fun p i mind ~random ->
+        match mind with
+        | Brain b ->
+            let (keys, b, looked) = control p i b ~random in
+            (keys, Brain b, looked)
+        | other -> (still, other, []));
+  }

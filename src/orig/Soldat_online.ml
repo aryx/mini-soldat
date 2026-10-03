@@ -266,7 +266,7 @@ let shown (g : game) (round : play) : play =
   in
   let mine = round.soldiers.(g.seat) in
   soldiers.(g.seat) <- (match (mine.dead, g.ahead) with (None, Some ahead) -> { mine with body = fst (Prediction.model ahead) } | _ -> mine);
-  { round with soldiers; sparks = g.sparks; camera = g.camera }
+  { round with soldiers; fx = Soldat_sparks.Sparks g.sparks; camera = g.camera }
 
 let update (computer : computer) (model : model) : model =
   (* the first frame: the connection asked for, made now *)
@@ -309,27 +309,22 @@ let update (computer : computer) (model : model) : model =
             s.chosen <- (s.chosen + (if down then 1 else 0) + (if up then n - 1 else 0)) mod n;
             let words = "" :: List.map fst mode_words in
             (* the interface's twin: the same screen as widgets of the
-             * Playground's Gui, asked for here and drawn by the view
-             * (Gui.draw): a button a room, clicked to enter it, and a
-             * menu for the mode. Immediate mode: no button object, only
-             * "was I clicked this frame" *)
-            if level model Interface = 2 then begin
-              s.mode <- Gui.menu computer ~at:(0., -60.) (List.map (fun w -> if w = "" then "the map's own mode" else w) words) s.mode;
-              List.iteri
-                (fun i (room, players) ->
-                  let label = Printf.sprintf "%s    %s" room (match players with 0 -> "nobody yet" | 1 -> "1 player" | n -> Printf.sprintf "%d players" n) in
-                  if Gui.button computer ~at:(0., 180. -. (50. *. float_of_int i)) label && not (Gui.modal ()) then
-                    enter s (if List.nth words s.mode = "" || not (List.mem room maps) then room else room ^ "." ^ List.nth words s.mode))
-                rooms
-            end;
+             * Playground's Gui (src/twin/Soldat_gui), in a program that
+             * has it; drawn by the view *)
+            let named word room = if word = "" || not (List.mem room maps) then room else room ^ "." ^ word in
+            (match (level model Interface, !Soldat_parts.lobby) with
+            | (2, Some widgets) ->
+              let (mode, clicked) = widgets computer ~rooms ~modes:(List.map (fun w -> if w = "" then "the map's own mode" else w) words) s.mode in
+              s.mode <- mode;
+              Option.iter (fun room -> enter s (named (List.nth words mode) room)) clicked
+            | _ -> ());
             (* left and right: the mode to ask a new room with *)
             let left = (not typing) && Scene2d.pressed (fun k -> k.kleft || k.ka) scenes and right = (not typing) && Scene2d.pressed (fun k -> k.kright || k.kd) scenes in
             s.mode <- (s.mode + (if right then 1 else 0) + (if left then List.length words - 1 else 0)) mod List.length words;
             let word = List.nth words s.mode in
             let room = fst (List.nth rooms s.chosen) in
             (* a room that is there has its mode; a map's name with a mode makes one *)
-            let asked = if word = "" || not (List.mem room maps) then room else room ^ "." ^ word in
-            if (not typing) && Scene2d.pressed (fun k -> k.kenter) scenes then enter s asked;
+            if (not typing) && Scene2d.pressed (fun k -> k.kenter) scenes then enter s (named word room);
             Lobby { rooms; chosen = s.chosen; here = s.here; mode = word }
         | None -> Connecting (s.status ^ "  (" ^ s.transport.status () ^ ")")
         | Some g -> (
@@ -367,7 +362,7 @@ let update (computer : computer) (model : model) : model =
                   (List.filter_map (fun (i, (o : soldier)) -> if o.dead = None && o.body.jetting then Some (i, (o.body.x, o.body.y)) else None) (List.mapi (fun i o -> (i, o)) (Array.to_list p.soldiers)));
                 (* the camera: its own, as alone *)
                 let z = zoom computer.screen in
-                let (cx, cy) = Soldat_update.follow p me (computer.mouse.mx /. z, -.computer.mouse.my /. z) in
+                let (cx, cy) = Soldat_sparks.part.follow ~camera:p.camera (Soldat_bullets.place me) ~look:(computer.mouse.mx /. z, -.computer.mouse.my /. z) in
                 let (wx, wy) = Soldat_sparks.wobble ~random g.sparks in
                 g.camera <- (cx +. wx, cy +. wy);
                 Online ({ p with camera = g.camera }, g.seat)

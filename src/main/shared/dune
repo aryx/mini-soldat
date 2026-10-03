@@ -1,0 +1,13 @@
+; the program, whatever it is linked with: the flags, the map, the
+; first model, the Playground's loop (Soldat_main.run). Its entries say
+; which parts it has: ../MiniSoldat.ml (Soldat's and the twins),
+; ../orig/ (Soldat's only), ../twin/ (the twins only).
+(library
+ (name soldat_main)
+ (wrapped false)
+ (libraries
+   tiny_libs.core ; Program
+   tiny_libs.networking_protocols ; Transport.role: how two peers find each other
+   caps ; Cap.open_in: a map's file read
+   soldat_map soldat_assets soldat_game soldat_render soldat_net
+   elm_playground))

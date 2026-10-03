@@ -77,3 +77,8 @@ val mute : bool ref
  * wherever it is; 2 the Playground's Space (its attenuation, its
  * direction); 3 Soldat's own, with a far fight's rumble *)
 val level : int ref
+
+(* the twin's way of saying how loud and from where (level 2), put here
+ * by the program that has it (Soldat_twin.register) *)
+type place = listener:float * float -> float * float -> (float * float) option
+val twin : place option ref

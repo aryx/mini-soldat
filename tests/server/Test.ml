@@ -23,6 +23,8 @@ let sockets_allowed () : bool =
 (* the socket tests reach the network (localhost): the capability from
  * here *)
 let () =
+  Soldat_orig.register ();
+  Soldat_twin.register ();
   Cap.main (fun caps ->
       Testo.interpret_argv ~project_name:"server" (fun _env ->
           Unit_protocol.tests @ Unit_wire.tests @ Unit_lobby.tests @ Unit_room.tests @ Unit_lockstep.tests @ if sockets_allowed () then Unit_server.tests caps @ Unit_online.tests caps else []))

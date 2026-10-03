@@ -1,0 +1,16 @@
+; mini-soldat-orig: the game with Soldat's own parts only (docs/twins.md).
+; On Cairo's platform when it is installed, else the software one, as
+; mini-soldat (../dune).
+(copy_files ../Platform_choice.{mli,cairo.ml,software.ml})
+
+(executable
+ (name MiniSoldatOrig)
+ (public_name mini-soldat-orig)
+ (libraries
+   tiny_libs.core ; Program
+   caps
+   soldat_main soldat_orig
+   elm_playground
+   (select Platform_choice.ml from
+     (elm_playground_native -> Platform_choice.cairo.ml)
+     (elm_playground_software -> Platform_choice.software.ml))))

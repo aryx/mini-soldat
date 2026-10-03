@@ -29,7 +29,7 @@ let weapons (p : Soldat_model.play) : Soldat_things.t list = List.filter (fun (t
 
 (* a thing's ticks on a map, until it is gone *)
 let rec fall (map : Soldat_map.t) (n : int) (thing : Soldat_things.t) : Soldat_things.t option =
-  if n = 0 then Some thing else match Soldat_things.tick map thing with Some thing -> fall map (n - 1) thing | None -> None
+  if n = 0 then Some thing else match Soldat_things.tick ~move:Soldat_fall.move map thing with Some thing -> fall map (n - 1) thing | None -> None
 
 let length (thing : Soldat_things.t) : float =
   let (ax, ay) = thing.points.(0).pos and (bx, by) = thing.points.(1).pos in

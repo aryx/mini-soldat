@@ -115,19 +115,29 @@ let start (name : string) (s : Audio.sound) ~(volume : float) ~(pan : float) : u
  * 2 the Playground's Space; 3 Soldat's *)
 let level = ref 3
 
-let heard ~(listener : float * float) ((x, y) : float * float) : (float * float) option =
+(* how loud and from which side a sound at a place is heard: a part
+ * made twice (Soldat_parts.mli), Soldat's own below and the twin's
+ * (src/twin/Soldat_space), put here when the program starts *)
+type place = listener:float * float -> float * float -> (float * float) option
+
+(* Soldat's (Sound.pas): quieter in a straight line to nothing at 750
+ * units; the side, the distance across over a depth of 1000. It is
+ * in the shared code because the rumble of a far fight, below, is
+ * measured the same way *)
+let soldat : place =
+ fun ~listener (x, y) ->
   let (dx, dy) = (x -. fst listener, y -. snd listener) in
   let d = Float.hypot dx dy /. max_dist in
-  match !level with
-  | 0 -> None
-  | 1 -> Some (1., 0.)
-  | 2 ->
-      (* the twin: full within 100 units then as their inverse
-       * (Space.attenuation), and the sine of its angle from straight
-       * ahead for a listener looking into the screen (Space.direction) *)
-      let volume = Space.attenuation ~reference:100. (Float.hypot dx dy) in
-      Some (volume, Space.direction ~listener:(Space.vec 0. 0. (-300.)) ~right:(Space.vec 1. 0. 0.) (Space.vec dx dy 0.))
-  | _ -> if d > 1. then None else Some (1. -. d, dx /. Float.hypot dx pan_width)
+  if d > 1. then None else Some (1. -. d, dx /. Float.hypot dx pan_width)
+
+let twin : place option ref = ref None
+
+let heard ~(listener : float * float) (at : float * float) : (float * float) option =
+  match (!level, !twin) with
+  | (0, _) -> None
+  | (1, _) -> Some (1., 0.)
+  | (2, Some place) -> place ~listener at
+  | _ -> soldat ~listener at
 
 (* what is heard of it from far, in its place and besides *)
 let distant (sfx : Soldat_sfx.t) : Soldat_sfx.t option =

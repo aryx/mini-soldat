@@ -8,5 +8,6 @@
    caps ; Cap.main: the authority to listen and to read the maps
    soldat_map ; a room's map, read from a file
    soldat_game ; no sparks, no sound, on a server
+   soldat_orig ; Soldat's bots
    soldat_server
    elm_playground_software)) ; an implem of virtual elm_playground, to link: the game's types use it

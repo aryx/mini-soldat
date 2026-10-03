@@ -86,7 +86,7 @@ let tests =
               Alcotest.(check bool) "who killed whom" true (p.log <> [] && back.log = p.log);
               Alcotest.(check bool) "deaths, second weapons, bonuses, vests" true
                 (Array.for_all2 (fun (a : Soldat_model.soldier) (b : Soldat_model.soldier) -> a.deaths = b.deaths && a.secondary = b.secondary && a.bonus = b.bonus && a.vest = b.vest) p.soldiers back.soldiers);
-              Alcotest.(check bool) "no bot's mind travels" true (Array.for_all (( = ) None) back.brains);
+              Alcotest.(check bool) "no bot's mind travels" true (Array.for_all (( = ) Soldat_state.Nobody) back.minds);
               (* a dead body's points *)
               Array.iteri
                 (fun i (s : Soldat_model.soldier) ->

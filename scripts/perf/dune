@@ -5,7 +5,7 @@
  (modules Frame_bench)
  (libraries
    unix ; the clock
-   soldat_map soldat_game
+   soldat_map soldat_game soldat_orig
    elm_playground
    elm_playground_software)) ; an implem of virtual elm_playground, to link
 

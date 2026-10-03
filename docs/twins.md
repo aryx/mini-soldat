@@ -10,11 +10,36 @@ from, in two ways. Keep it true as twins are written.
 ## A twin
 
 Where mini-soldat has a part of its own and the Playground has a
-library for it, the part gets a **twin**: the same job done with the
-Playground's library, beside Soldat's, chosen while the game runs. The
-port stays the default: the feel is Soldat's. A twin is small, says in
-its opening comment which functions of the library it stands on, and
-is what a reader of the Playground's `.mli` would write first.
+library for it, the part is made twice: Soldat's, adapted from its
+Pascal, and a **twin**, the same job done with the Playground's
+library, as a reader of that library's `.mli` would write it first.
+The port stays the default: the feel is Soldat's.
+
+## Three folders, three programs
+
+| folder | what is in it |
+|---|---|
+| `src/game`, `src/map`, `src/render`... | the shared code: what is made once (the map, the soldier, the weapons, the bullets, a round's rules, the picture) |
+| `src/orig` | Soldat's own of the parts made twice: `Soldat_bots`, `Soldat_sparks` and their pictures, `Soldat_fall`, `Soldat_online` (a round on a server) |
+| `src/twin` | their twins: `Soldat_engine_bot`, `Soldat_juice`, `Soldat_bodies`, `Soldat_space`, `Soldat_lockstep`, `Soldat_gui` |
+
+The shared code names neither folder. A part is a record of functions,
+and `Soldat_parts` has a *slot* for each, Soldat's and the twin's; a
+program fills the slots of the folders it is linked with when it
+starts (`Soldat_orig.register`, `Soldat_twin.register`), and a round
+asks the slot for the one its layer's level says, or for the other
+when that one is not there. What a part keeps from a tick to the next
+(a bot's mind, the sparks) is an open type of `Soldat_state`, to which
+each part adds its own case. So there are three programs of one shared
+code:
+
+| program | linked with | what it is |
+|---|---|---|
+| `mini-soldat` | both | the whole game: a key goes from Soldat's to the twin while it runs |
+| `mini-soldat-orig` | `src/orig` | what is adapted from the Pascal, and nothing else: the same round as `mini-soldat`'s, to the pixel |
+| `mini-soldat-twin` | `src/twin` | the shared code on elm-playground's libraries alone: its bots, its effects, its rigid bodies, its lockstep |
+
+`make loc` counts `src/twin` apart: the budget is the port's.
 
 ## A layer
 
@@ -59,11 +84,11 @@ between: the particles are seen only, but live in the round.
 |---|---|---|---|
 | the bots | `Soldat_bots` (from `AI.pas`) | `Soldat_engine_bot`: `Sense` (what it has seen, remembered, forgotten), `Bot` (late, and not every tick), `Pathfind.astar` over the map's waypoints, a `Behavior` tree for what to do | done |
 | the effects | `Soldat_sparks` (from `Sparks.pas`), the camera of `Soldat_update.follow` | `Soldat_juice`: `Emitter.burst` and `step`, `Trauma.add`, `decay` and `offset`, `Follow.smooth` | done |
-| the sound's place | `Soldat_sound.heard` (from `Sound.pas`) | `Space.attenuation`, `Space.pan` | done |
+| the sound's place | `Soldat_sound.heard` (from `Sound.pas`) | `Soldat_space`: `Space.attenuation`, `Space.direction` | done |
 | things on the ground | `Soldat_things` on `Particles` | `Soldat_bodies`: a kit or a weapon as one body of the `Physics` layer (`body`, `immovable` for the map's walls, `simulate`) | done |
-| a dead body | `Soldat_ragdoll` on `Particles` | `Joint2d` between bodies (`Physics.pin`) | to come: the engine throws a box thinner than 4 units that lands on its end (`Soldat_bodies.mli`), and a limb is 3 thick; to fix there first |
-| the network | `Soldat_room`: the server plays, `Prediction`, `Interpolation` | `Soldat_lockstep`: two players, no server, only the keys sent (`Lockstep.step`, `packet`, `receive`, `checksum`, `desync`); `Sim_net` as the network in its tests | done; `Rollback` to come |
-| the menus | text shapes by hand | the lobby on `Gui` (immediate mode: `Gui.button`, `Gui.menu`, `Gui.draw`) | done for the lobby; the title and the weapons' menu to come |
+| a dead body | `Soldat_ragdoll` on `Particles` | `Joint2d` between bodies (`Physics.pin`) | waits for elm-playground: `Physics.simulate` has one step a tick, so a body that falls farther in a tick than it is thick is already deeper in the floor than it is wide, and the collision's test (the axis of least overlap) pushes it out sideways, harder each tick. A limb is 3 thick and falls 4 a tick. Smaller steps there (or a test along the way) first |
+| the network | `Soldat_room`: the server plays, `Prediction`, `Interpolation` | `Soldat_lockstep`: two players, no server, only the keys sent (`Lockstep.step`, `packet`, `receive`, `checksum`, `desync`); `Sim_net` as the network in its tests; and with the flag `rollback`, the other's keys guessed and the round played again when the guess was wrong (`Rollback.create`, `step`, `model`) | done |
+| the menus | text shapes by hand | `Soldat_gui`: the lobby on `Gui` (immediate mode: `Gui.button`, `Gui.menu`, `Gui.draw`) | done for the lobby; the title and the weapons' menu to come |
 
 ## The book
 

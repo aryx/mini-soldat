@@ -23,14 +23,14 @@ let tests =
           let room = Soldat_room.create ~seats:3 ~name:"test" Testutil_map.rooms in
           let p = Soldat_room.play room in
           Alcotest.(check int) "three soldiers" 3 (Array.length p.soldiers);
-          Alcotest.(check bool) "all bots'" true (Array.for_all (fun (s : Soldat_model.soldier) -> not s.human) p.soldiers && Array.for_all (( <> ) None) p.brains);
+          Alcotest.(check bool) "all bots'" true (Array.for_all (fun (s : Soldat_model.soldier) -> not s.human) p.soldiers && Array.for_all (fun m -> Soldat_bots.brain_of m <> None) p.minds);
           Alcotest.(check int) "no player" 0 (Soldat_room.players room);
           let bot = (soldier room 0).name in
           (* a player takes the first *)
           let (room, seat) = Option.get (Soldat_room.join "pad" room) in
           Alcotest.(check int) "the first seat" 0 seat;
           Alcotest.(check bool) "the soldier is pad's" true ((soldier room 0).name = "pad" && (soldier room 0).human && (soldier room 0).body.human);
-          Alcotest.(check bool) "and no bot's" true ((Soldat_room.play room).brains.(0) = None);
+          Alcotest.(check bool) "and no bot's" true ((Soldat_bots.brain_of (Soldat_room.play room).minds.(0)) = None);
           Alcotest.(check (pair (Alcotest.float 0.01) (Alcotest.float 0.01))) "where it was" (p.soldiers.(0).body.x, p.soldiers.(0).body.y) ((soldier room 0).body.x, (soldier room 0).body.y);
           let (room, seat) = Option.get (Soldat_room.join "mm" room) in
           Alcotest.(check (pair int int)) "the next player the next seat" (1, 2) (seat, Soldat_room.players room);
@@ -38,7 +38,7 @@ let tests =
           Alcotest.(check bool) "all taken: no seat for a fourth" true (Soldat_room.join "fourth" room = None);
           (* pad leaves: its bot has it back, the others keep their numbers *)
           let room = Soldat_room.leave 0 room in
-          Alcotest.(check bool) "left: its bot has it back" true ((soldier room 0).name = bot && not (soldier room 0).human && (Soldat_room.play room).brains.(0) <> None);
+          Alcotest.(check bool) "left: its bot has it back" true ((soldier room 0).name = bot && not (soldier room 0).human && (Soldat_bots.brain_of (Soldat_room.play room).minds.(0)) <> None);
           Alcotest.(check string) "the others keep their seats" "mm" (soldier room 1).name;
           let (room, seat) = Option.get (Soldat_room.join "fourth" room) in
           Alcotest.(check (pair int string)) "and the seat is to take again" (0, "fourth") (seat, (soldier room 0).name);

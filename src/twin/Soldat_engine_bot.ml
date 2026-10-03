@@ -11,8 +11,23 @@
 (* See Soldat_engine_bot.mli *)
 open Soldat_model (* its types, used all along *)
 
-let character : character =
-  { bot = "Engine"; bot_shirt = (60, 110, 220); bot_trousers = (30, 55, 110); bot_skin = (230, 180, 120); favourite = Ak74; accuracy = 0; shoot_dead = false; grenade_freq = -1; camper = 0 }
+let character : character = Soldat_cast.engine
+
+(* what the bot of ai=engine may know (Sense.mli, Soldat_engine_bot):
+ * where it is and how it is, and its nearest enemy -- seen now, or
+ * remembered where it was last seen, or not known at all. Not the
+ * round: it cannot read through a wall what it has not got *)
+type senses = {
+  me : float * float;
+  my_vx : float;
+  my_fuel : int;
+  seed : int; (* which soldier: its aim wobbles its own way *)
+  frame : int; (* to patrol by, when it has nobody to chase *)
+  enemy : (float * float) Sense.target;
+  (* the next waypoint of its way, on a map that has some: to where it
+   * last saw its enemy, or to a far place of the map when it knows nobody *)
+  way : Pms.waypoint option;
+}
 
 (* where a soldier's chest is: what one aims at, and sees from *)
 let chest (s : soldier) : float * float = (s.body.x, s.body.y -. 12.)
@@ -123,3 +138,27 @@ let decide (s : senses) : intent =
 (* a hand's reaction is about a fifth of a second, and no hand changes
  * its mind sixty times a second (Bot.mli) *)
 let mind : (play * int, senses, intent) Bot.t = Bot.make ~delay:12 ~rate:4 ~sense ~decide ()
+
+(*****************************************************************************)
+(* The part *)
+(*****************************************************************************)
+
+(* a bot's mind in a round: the senses it has seen and not yet acted
+ * on, its memory of its enemy among them (Bot.running) *)
+type Soldat_state.mind += Mind of (senses, intent) Bot.running
+
+let running (m : Soldat_state.mind) : (senses, intent) Bot.running option = match m with Mind r -> Some r | _ -> None
+
+(* the twin as the game's bots (Soldat_parts): it looks at no thing *)
+let part : Soldat_parts.bots =
+  {
+    owns = (function Mind _ -> true | _ -> false);
+    fresh = (fun _ -> Mind (Bot.start still));
+    control =
+      (fun p i its ~random:_ ->
+        match its with
+        | Mind running ->
+            let (keys, running) = Bot.step mind (p, i) running in
+            (keys, Mind running, [])
+        | other -> (still, other, []));
+  }

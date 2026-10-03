@@ -144,7 +144,17 @@ val again : Soldat_map.t -> random:(unit -> float) -> t -> t
  * the game puts it [again] at home. None: gone (a weapon whose time is over, or out of
  * the map). A kit out of the map is given back as it is: [lost] says
  * so, and the game puts it [again] *)
-val tick : ?heard:Soldat_event.t list ref -> ?carried:float * float -> Soldat_map.t -> t -> t option
+val tick :
+  ?heard:Soldat_event.t list ref -> ?carried:float * float -> ?move:(?heard:Soldat_event.t list ref -> Soldat_map.t -> t -> t) -> Soldat_map.t -> t -> t option
+
+(* what the parts that move a thing need of it (src/orig/Soldat_fall,
+ * src/twin/Soldat_bodies): a point of it out of the walls it is in,
+ * if it is in one; its sticks; its drag and weight; how little it
+ * must move to be at rest *)
+val out_of_walls : Soldat_map.t -> Particles.particle -> Particles.particle option
+val sticks : t -> Particles.stick list
+val physics : kind -> float * float
+val min_move_delta : float
 
 (* a team's flag standing at home, and both: none on a map that has no
  * place for them *)

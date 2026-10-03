@@ -322,34 +322,12 @@ let tick_flag ?(heard : Soldat_event.t list ref option) ?(carried : (float * flo
   let ttl = if in_base || carried <> None then flag_timeout else max 0 (thing.ttl - 1) in
   { thing with points; still; hits = thing.hits + !touched; in_base; ttl; interest = (if in_base || carried <> None then flag_interest else thing.interest) }
 
-let tick ?(heard : Soldat_event.t list ref option) ?(carried : (float * float) option) (map : Soldat_map.t) (thing : t) : t option =
+let tick ?(heard : Soldat_event.t list ref option) ?(carried : (float * float) option) ?(move : (?heard:Soldat_event.t list ref -> Soldat_map.t -> t -> t) option) (map : Soldat_map.t) (thing : t) : t option =
   match thing.kind with
   | Flag team -> Some (tick_flag ?heard ?carried map team thing)
   | _ ->
-  let thing =
-    if thing.still then thing
-    else begin
-      let touched = ref 0 in
-      (* it is heard as it first lands, and while it still bounces hard:
-       * a weapon up to 30 times, a kit 3 *)
-      let lands (p : Particles.particle) : unit =
-        let often = match thing.kind with Weapon _ -> 30 | _ -> 3 in
-        let n = thing.hits + !touched in
-        if n = 0 || (length p.pos p.old > 1.5 && n < often) then
-          Option.iter (fun l -> l := Soldat_event.Sound ((match thing.kind with Weapon _ -> Weapon_hit | Flag _ -> Flag_fall | _ -> Kit_fall), p.pos) :: !l) heard
-      in
-      let points =
-        Array.map (fun p -> match out_of_walls map p with Some p -> lands p; incr touched; p | None -> p) thing.points
-        |> Particles.step ~drag:(1. -. fst (physics thing.kind)) ~accel:(0., snd (physics thing.kind) *. Soldat_soldier.grav) ~dt:1.
-        |> Particles.relax ~iterations:1 (sticks thing)
-      in
-      let moved i = length points.(i).pos points.(i).old in
-      (* at rest: where it was is where it is *)
-      if !touched >= 2 && (moved 0 +. moved 1) /. 2. < min_move_delta then
-        { thing with points = Array.map (fun (p : Particles.particle) -> { p with old = p.pos }) points; still = true }
-      else { thing with points; hits = thing.hits + !touched }
-    end
-  in
+  (* how it falls and lands is a part's (Soldat_parts.things); none: it stays *)
+  let thing = match move with Some move when not thing.still -> move ?heard map thing | _ -> thing in
   let ttl = max (-1000) (thing.ttl - 1) in
   match thing.kind with
   (* a weapon and a bonus kit are gone when their time is over (T:1068) *)

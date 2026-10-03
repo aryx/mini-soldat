@@ -419,7 +419,7 @@ let decode_world (map : Soldat_map.t) (bytes : string) : (play, string) result =
       if List.exists (fun (b : bullet) -> b.owner < -1 || b.owner >= n) bullets || List.exists (fun (t : Soldat_things.t) -> t.holder < -1 || t.holder >= n) things then
         Wire.fail r "a soldier that is not there";
       {
-        map; mode; captures = (alpha, bravo); news; camera = (0., 0.); soldiers; brains = Array.make n None; minds = Array.make n None; bullets; things;
-        sparks = []; spark_seed = Lehmer.of_int 1; sounds = []; events; time_left; seed = Lehmer.of_int 1; frame; log; bonuses = 0; ai = top Ai; physics = top Physics; effects = top Effects; juice = Soldat_juice.none;
+        map; mode; captures = (alpha, bravo); news; camera = (0., 0.); soldiers; minds = Array.make n Soldat_state.Nobody; cast = Array.make n None; bullets; things;
+        fx = Soldat_state.Nothing; spark_seed = Lehmer.of_int 1; sounds = []; events; time_left; seed = Lehmer.of_int 1; frame; log; bonuses = 0; ai = top Ai; physics = top Physics; effects = top Effects;
       })
     bytes

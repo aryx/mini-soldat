@@ -1,4 +1,5 @@
-(* Soldat_sparks: what is only for the eye. Blood, shells and clips
+(* Soldat_sparks (the effects' part, Soldat's way: Soldat_parts.mli;
+   its twin is src/twin/Soldat_juice): what is only for the eye. Blood, shells and clips
    falling, smoke, the fire of an explosion and of the jets, the chips
    a bullet takes off a wall.
 
@@ -97,3 +98,11 @@ val capped : t list -> t list
 (* how much an explosion shakes the picture, this tick: a move of the
  * camera, each way (the wobble of TSpark.Update) *)
 val wobble : random:(unit -> float) -> t list -> float * float
+
+(* a round's sparks (Soldat_state) *)
+type Soldat_state.fx += Sparks of t list
+val of_fx : Soldat_state.fx -> t list
+
+(* Soldat's sparks as the game's effects, with Soldat's camera: what
+ * Soldat_orig registers *)
+val part : Soldat_parts.effects

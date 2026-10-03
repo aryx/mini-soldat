@@ -21,6 +21,7 @@
  (libraries
    alcotest testo
    testutil_soldat soldat_map soldat_anim soldat_game
+   soldat_orig soldat_twin ; the parts made twice, both
    tiny_libs.physics_2d ; Particles: a ragdoll's points
    tiny_libs.ai ; Bot: the last senses of the bot of ai=engine
    elm_playground

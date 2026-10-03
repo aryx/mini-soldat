@@ -55,15 +55,15 @@ let fight () =
 let engine () =
   let p = Soldat_update.start ~bots:(Soldat_bots.cast 2 1) ~engine:true Testutil_map.rooms in
   Alcotest.(check string) "the last bot is the Engine" "Engine" p.soldiers.(2).name;
-  Alcotest.(check bool) "it has a mind, and no brain" true (p.minds.(2) <> None && p.brains.(2) = None);
-  Alcotest.(check bool) "the other is Soldat's" true (p.brains.(1) <> None && p.minds.(1) = None);
+  Alcotest.(check bool) "it has a mind, and no brain" true (Soldat_engine_bot.running p.minds.(2) <> None && (Soldat_bots.brain_of p.minds.(2)) = None);
+  Alcotest.(check bool) "the other is Soldat's" true (Soldat_bots.brain_of p.minds.(1) <> None && Soldat_engine_bot.running p.minds.(1) = None);
   let x0 = p.soldiers.(2).body.x in
   let p = ref p and roamed = ref 0. in
   for _ = 1 to 300 do
     p := tick !p;
     roamed := Float.max !roamed (Float.abs (!p.soldiers.(2).body.x -. x0))
   done;
-  let senses = Option.get (Bot.last_senses (Option.get !p.minds.(2))) in
+  let senses = Option.get (Bot.last_senses (Option.get (Soldat_engine_bot.running !p.minds.(2)))) in
   Alcotest.(check bool) "alone in its room: it knows of nobody" true (senses.enemy.position = None);
   Alcotest.(check bool) "and patrols" true (!roamed > 30.);
   Alcotest.(check bool) "while Soldat's, without waypoints, stays" true (Float.abs (!p.soldiers.(1).body.x -. (Soldat_update.start ~bots:(Soldat_bots.cast 2 1) Testutil_map.rooms).soldiers.(1).body.x) < 1.);
@@ -72,7 +72,7 @@ let engine () =
   let beside (s : Soldat_model.soldier) = { s with body = Soldat_soldier.create ~human:true (me.x -. 100., me.y) 190 } in
   let p = ref { !p with soldiers = Array.mapi (fun i s -> if i = 0 then beside s else s) !p.soldiers } in
   p := tick !p;
-  let senses = Option.get (Bot.last_senses (Option.get !p.minds.(2))) in
+  let senses = Option.get (Bot.last_senses (Option.get (Soldat_engine_bot.running !p.minds.(2)))) in
   Alcotest.(check bool) "an enemy in its room: sensed at once" true senses.enemy.visible;
   let fired_by n = let q = ref !p in for _ = 1 to n do q := tick !q done; !q.soldiers.(2).body.weapon.ammo < 40 in
   Alcotest.(check bool) "nothing done about it for 12 ticks" false (fired_by 8);

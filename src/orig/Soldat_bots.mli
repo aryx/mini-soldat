@@ -1,4 +1,5 @@
-(* Soldat_bots: Soldat's own bots.
+(* Soldat_bots: Soldat's own bots (the bots' part, Soldat's way:
+   Soldat_parts.mli; its twin is src/twin/Soldat_engine_bot).
 
    A bot presses the keys a player would (Soldat_soldier.control), and
    its soldier moves and fires by the same rules. Each tick it decides
@@ -69,6 +70,42 @@
    server/configs/bots/.
 *)
 open Soldat_model
+
+(* what a bot has in mind from a tick to the next: Soldat's Brain. A
+ * waypoint is its number in the map's file, from 1; none: 0. A
+ * soldier is its place among the round's, none: -1 *)
+type brain = {
+  character : character;
+  target : int;
+  (* who shot it: seen, it becomes the target *)
+  pissed_off : int;
+  (* the waypoint it is at, the one it goes to, and the one before *)
+  current : int;
+  next : int;
+  old : int;
+  (* ticks at the same waypoint, and what is left before it gives up
+   * and goes back *)
+  last : int;
+  waypoint_time : int;
+  timeout : int;
+  (* ticks it has not moved, or has waited where a waypoint says to *)
+  one_place : int;
+  (* it is walking to a kit *)
+  go_thing : bool;
+  (* it is falling fast: the jets *)
+  fall_save : bool;
+  (* its keys last tick: a grenade's is held from a tick to the next *)
+  keys : Soldat_soldier.control;
+}
+
+(* a bot's mind in a round is its Brain *)
+type Soldat_state.mind += Brain of brain
+
+(* a mind's Brain, if it is one *)
+val brain_of : Soldat_state.mind -> brain option
+
+(* Soldat's bots as the game's bots: what Soldat_orig registers *)
+val part : Soldat_parts.bots
 
 (* a .bot file read; None if it has no [BOT] section, or likes a
  * weapon that is not here *)

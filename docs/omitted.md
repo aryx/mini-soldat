@@ -11,9 +11,9 @@ judged. Keep it true when a part is ported.
 | | lines |
 |---|---|
 | OpenSoldat's own Pascal (`shared/`, `client/`, `server/`; not `3rdparty/`) | 109,196 |
-| mini-soldat's `src/` (`.ml` and `.mli`, comments and blank lines included) | 10,374 |
-| of which its files' opening comments, not counted in the budget | 1,737 |
-| **the budget's count** (`make loc`) | **8,637 of 10,000** |
+| mini-soldat's `src/` without its twins (`.ml` and `.mli`, comments and blank lines included) | 10,846 |
+| of which its files' opening comments, not counted in the budget | 1,853 |
+| **the budget's count** (`make loc`) | **8,993 of 10,000** |
 
 But 109,196 is not all Soldat. More than half of it is not the game:
 
@@ -21,10 +21,10 @@ But 109,196 is not all Soldat. More than half of it is not the game:
 |---|---|---|
 | bindings to libraries: Steam (15,462), OpenGL (20,772), FreeType, OpenAL, PhysFS, stb, an anti-cheat's client | 39,004 | none: elm-playground is the window, the drawing and the sound (it is not counted here either) |
 | the server's scripting engine (`server/scriptcore/`: a Pascal interpreter and its API, for server owners' scripts) | 16,440 | none |
-| **the game itself** | **53,752** | **10,374** |
+| **the game itself** | **53,752** | **10,846** |
 
-So the honest comparison is 10,374 lines against 53,752, about a
-fifth, not a tenth; or 8,637 against 53,752, 16%, with the budget's
+So the honest comparison is 10,846 lines against 53,752, about a
+fifth, not a tenth; or 8,993 against 53,752, 16%, with the budget's
 count. And those lines do not do all that the 53,752 do: below.
 
 ## The game itself, part by part

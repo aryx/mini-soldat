@@ -194,7 +194,7 @@ let tests =
           (* a shot, its shell on the floor a moment later, the sparks it left *)
           let (q, heard) = play p 1 (fun c -> { c with fire = true }) in
           Alcotest.(check bool) "a shot" true (heard = [ Soldat_sfx.Fire Ak74 ]);
-          Alcotest.(check int) "its shell and its puff are in the round" 2 (List.length q.sparks);
+          Alcotest.(check int) "its shell and its puff are in the round" 2 (List.length (Soldat_sparks.of_fx q.fx));
           let (_, heard) = play q 120 Fun.id in
           Alcotest.(check bool) "the shell on the floor" true (has Soldat_sfx.Shell heard);
           (* an empty clip: the reload's sound, once *)
@@ -228,7 +228,7 @@ let tests =
           let before = !Soldat_sparks.most in
           Soldat_sparks.most := 0;
           let without = Fun.protect ~finally:(fun () -> Soldat_sparks.most := before) round in
-          Alcotest.(check bool) "there were sparks" true (with_sparks.sparks <> [] && without.sparks = []);
+          Alcotest.(check bool) "there were sparks" true (Soldat_sparks.of_fx (with_sparks.fx) <> [] && (Soldat_sparks.of_fx without.fx) = []);
           Alcotest.(check bool) "the same round with and without them" true (places with_sparks = places without);
-          Alcotest.(check bool) "and the same sparks twice" true ((round ()).sparks = with_sparks.sparks));
+          Alcotest.(check bool) "and the same sparks twice" true (Soldat_sparks.of_fx (round ()).fx = Soldat_sparks.of_fx with_sparks.fx));
     ]

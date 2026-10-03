@@ -1,9 +1,16 @@
 ; the game without its picture: the weapons' numbers (Soldat_weapons),
 ; a soldier that moves and fires as Soldat's (Soldat_soldier), dead its
 ; skeleton let loose (Soldat_ragdoll), the state (Soldat_model), the
-; bullets and the explosions (Soldat_bullets), the bots (Soldat_bots),
-; a tick and the rounds (Soldat_update). Soldat's shared/: Weapons.pas,
-; Game.pas, AI.pas, mechanics/.
+; bullets and the explosions (Soldat_bullets), the bots' cast
+; (Soldat_cast), a tick and the rounds (Soldat_update). Soldat's
+; shared/: Weapons.pas, Game.pas, mechanics/.
+;
+; The shared code: what is made once. The parts made twice
+; (Soldat_parts.mli: the bots, the effects, how a thing falls, the
+; sound's place) are in src/orig (Soldat's) and src/twin (on
+; elm-playground's libraries), and reach a round through
+; Soldat_parts' slots: nothing here names either folder.
+
 (library
  (name soldat_game)
  (wrapped false)
@@ -14,9 +21,6 @@
    tiny_libs.random ; Lehmer: the bullets' scatter, from a seed
    tiny_libs.graphics_2d_geometry ; Vec2
    tiny_libs.physics_2d ; Particles: the ragdolls; Collide: a bullet's way
-   tiny_libs.ai ; Sense, Bot, Pathfind, Behavior: the bots' twin
-   tiny_libs.juice ; Emitter, Trauma, Follow: the sparks' twin
-   tiny_libs.audio ; Space: the sound's place, the twin
    elm_playground)) ; the keys and the mouse, Scene2d
 
 ; data/weapons.ini, Soldat's weapons' numbers, as a module holding it

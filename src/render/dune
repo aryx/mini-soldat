@@ -5,7 +5,7 @@
 (library
  (name soldat_render)
  (wrapped false)
- (modules Soldat_view Soldat_gostek Pictures_data Soldat_raster Soldat_scene Soldat_sparks_view)
+ (modules Soldat_view Soldat_gostek Pictures_data Soldat_raster Soldat_scene)
  (libraries
    soldat_map soldat_anim soldat_game soldat_assets
    tiny_libs.core ; Basics, Base64

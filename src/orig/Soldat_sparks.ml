@@ -242,7 +242,7 @@ let tick (map : Soldat_map.t) ~(random : unit -> float) (sparks : t list) : t li
 (* r_maxsparks: when there are more, the oldest go. In a browser each
  * is an element of the page moved every frame, and 250 of them cost
  * a third of the frames: fewer there *)
-let most = ref (if Soldat_assets.in_browser then 150 else 558)
+let most = Soldat_state.most
 
 let rec drop n l = if n <= 0 then l else match l with [] -> [] | _ :: rest -> drop (n - 1) rest
 
@@ -261,3 +261,27 @@ let wobble ~(random : unit -> float) (sparks : t list) : float * float =
           (x -. float_of_int w +. dx, y -. float_of_int w +. dy)
       | _ -> (x, y))
     (0., 0.) sparks
+
+(*****************************************************************************)
+(* The part *)
+(*****************************************************************************)
+
+type Soldat_state.fx += Sparks of t list
+
+let of_fx (fx : Soldat_state.fx) : t list = match fx with Sparks l -> l | _ -> []
+
+(* Soldat's sparks as the game's effects (Soldat_parts): the old ones a
+ * tick later, then those of what just happened; the sounds they add
+ * are their own (a shell on the ground), the events' are the round's.
+ * And Soldat's camera: a seventh of the way to its soldier each tick,
+ * and towards the cursor *)
+let part : Soldat_parts.effects =
+  {
+    tick =
+      (fun map ~random events fx ->
+        let (old, clinks) = tick map ~random (match fx with Sparks l -> l | _ -> []) in
+        let fresh = List.fold_left (fun sparks (owner, event) -> sparks @ fst (of_event map ~random ~owner event)) [] events in
+        (Sparks (capped (old @ fresh)), clinks));
+    shake = (fun ~random fx -> match fx with Sparks l -> wobble ~random l | _ -> (0., 0.));
+    follow = (fun ~camera:(cx, cy) (px, py) ~look:(lx, ly) -> (cx +. (0.14 *. (px -. cx)) +. (lx /. 7.), cy +. (0.14 *. (py -. cy)) +. (ly /. 7.)));
+  }

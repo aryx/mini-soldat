@@ -47,3 +47,14 @@ type t =
   | Flesh of point * point
   (* an explosion, a hand grenade's or the M79's *)
   | Blast of Soldat_weapons.id * point
+
+(* what an event gives to hear, whatever is made of it to see: a sound
+ * says itself; a bullet's end in a wall, its ricochet and an explosion
+ * have theirs (the PlaySound beside each CreateSpark, in the Pascal) *)
+let sounds (e : t) : (Soldat_sfx.t * (float * float)) list =
+  match e with
+  | Sound (sfx, at) -> [ (sfx, at) ]
+  | Wall (at, _) -> [ (Ric, at) ]
+  | Ricochet (at, _) -> [ (Ricochet, at) ]
+  | Blast (weapon, at) -> [ ((match weapon with M79 | Law -> M79_explosion | Cluster -> Cluster_explosion | _ -> Grenade_explosion), at) ]
+  | _ -> []

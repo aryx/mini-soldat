@@ -64,6 +64,22 @@
 *)
 open Soldat_model
 
+(* what the bot of ai=engine may know (Sense.mli, Soldat_engine_bot):
+ * where it is and how it is, and its nearest enemy -- seen now, or
+ * remembered where it was last seen, or not known at all. Not the
+ * round: it cannot read through a wall what it has not got *)
+type senses = {
+  me : float * float;
+  my_vx : float;
+  my_fuel : int;
+  seed : int; (* which soldier: its aim wobbles its own way *)
+  frame : int; (* to patrol by, when it has nobody to chase *)
+  enemy : (float * float) Sense.target;
+  (* the next waypoint of its way, on a map that has some: to where it
+   * last saw its enemy, or to a far place of the map when it knows nobody *)
+  way : Pms.waypoint option;
+}
+
 (* its looks, and the weapon it appears with *)
 val character : character
 
@@ -79,3 +95,12 @@ val decide : senses -> intent
 
 (* the two, 12 ticks late and every 4 ticks *)
 val mind : (play * int, senses, intent) Bot.t
+
+(* a bot's mind in a round (Soldat_state): what Bot.step keeps *)
+type Soldat_state.mind += Mind of (senses, intent) Bot.running
+
+(* a mind's, if it is this bot's *)
+val running : Soldat_state.mind -> (senses, intent) Bot.running option
+
+(* the twin as the game's bots: what Soldat_twin registers *)
+val part : Soldat_parts.bots

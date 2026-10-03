@@ -1,0 +1,31 @@
+; The twins (docs/twins.md): the parts of the game that are made twice
+; (src/game/Soldat_parts.mli), each done here with one of
+; elm-playground's libraries, as a reader of that library's .mli would
+; write it first. To teach, to compare with Soldat's own (src/orig),
+; and to show the libraries at work in a whole game.
+;
+;   Soldat_engine_bot    the bots: Sense, Bot, Pathfind, Behavior (tiny_libs.ai)
+;   Soldat_juice         the effects: Emitter, Trauma, Follow (tiny_libs.juice)
+;   Soldat_bodies        how a thing falls: rigid bodies (the Playground's Physics)
+;   Soldat_space         the sound's place: Space (tiny_libs.audio)
+;   Soldat_lockstep      the network: two players, no server (Lockstep, Rollback)
+;   Soldat_gui           the lobby's screen: the Playground's Gui
+;   Soldat_twin          puts them in the game's slots (register)
+;
+; A program linked with this folder and not src/orig is the game on the
+; Playground's libraries alone (mini-soldat-twin). Not counted in the
+; budget (make loc). Pure OCaml.
+(library
+ (name soldat_twin)
+ (wrapped false)
+ (libraries
+   soldat_map soldat_assets soldat_game soldat_render soldat_net
+   caps ; Cap.network: the authority to connect
+   tiny_libs.core ; Basics
+   tiny_libs.physics_2d ; Particles: a thing's points
+   tiny_libs.ai ; Sense, Bot, Pathfind, Behavior
+   tiny_libs.juice ; Emitter, Trauma, Follow
+   tiny_libs.audio ; Space
+   tiny_libs.networking_protocols ; Transport
+   tiny_libs.networking_netcode ; Lockstep, Rollback, Checksum
+   elm_playground)) ; Physics, Gui

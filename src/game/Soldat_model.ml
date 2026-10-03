@@ -92,48 +92,6 @@ type character = {
   camper : int;
 }
 
-(* what a bot has in mind from a tick to the next: Soldat's Brain. A
- * waypoint is its number in the map's file, from 1; none: 0. A
- * soldier is its place among the round's, none: -1 *)
-type brain = {
-  character : character;
-  target : int;
-  (* who shot it: seen, it becomes the target *)
-  pissed_off : int;
-  (* the waypoint it is at, the one it goes to, and the one before *)
-  current : int;
-  next : int;
-  old : int;
-  (* ticks at the same waypoint, and what is left before it gives up
-   * and goes back *)
-  last : int;
-  waypoint_time : int;
-  timeout : int;
-  (* ticks it has not moved, or has waited where a waypoint says to *)
-  one_place : int;
-  (* it is walking to a kit *)
-  go_thing : bool;
-  (* it is falling fast: the jets *)
-  fall_save : bool;
-  (* its keys last tick: a grenade's is held from a tick to the next *)
-  keys : Soldat_soldier.control;
-}
-
-(* what the bot of ai=engine may know (Sense.mli, Soldat_engine_bot):
- * where it is and how it is, and its nearest enemy -- seen now, or
- * remembered where it was last seen, or not known at all. Not the
- * round: it cannot read through a wall what it has not got *)
-type senses = {
-  me : float * float;
-  my_vx : float;
-  my_fuel : int;
-  seed : int; (* which soldier: its aim wobbles its own way *)
-  frame : int; (* to patrol by, when it has nobody to chase *)
-  enemy : (float * float) Sense.target;
-  (* the next waypoint of its way, on a map that has some: to where it
-   * last saw its enemy, or to a far place of the map when it knows nobody *)
-  way : Pms.waypoint option;
-}
 
 (* a bullet, a pellet, a grenade: Soldat's TBullet *)
 type bullet = {
@@ -183,16 +141,16 @@ type play = {
   (* the point of the map at the screen's middle *)
   camera : float * float;
   soldiers : soldier array;
-  (* one per soldier: a bot's mind, none for the player *)
-  brains : brain option array;
-  (* and, for the one bot of ai=engine, which has no brain: the senses
-   * it has seen but not yet acted on, its memory of its enemy among
-   * them (Bot.mli) *)
-  minds : (senses, intent) Bot.running option array;
+  (* one per soldier: a bot's mind, a part's own (Soldat_state); a
+   * player's: Nobody. And each bot's character: its name, its looks,
+   * its weapon, how well it aims *)
+  minds : Soldat_state.mind array;
+  cast : character option array;
   bullets : bullet list;
   things : Soldat_things.t list;
-  (* what is only seen (Soldat_sparks), with the seed of its own chance *)
-  sparks : Soldat_sparks.t list;
+  (* what is only seen, a part's own (Soldat_state), with the seed of
+   * its own chance *)
+  fx : Soldat_state.fx;
   spark_seed : Lehmer.t;
   (* what was heard this tick, and where: for who plays the sounds *)
   sounds : (Soldat_sfx.t * (float * float)) list;
@@ -211,11 +169,10 @@ type play = {
   (* how often bonus kits appear, 1 to 5; never: 0 *)
   bonuses : int;
   (* the levels of the layers that are a round's (docs/twins.md): the
-   * bots, the physics, the effects; and the effects' twin's dots *)
+   * bots, the physics, the effects *)
   ai : int;
   physics : int;
   effects : int;
-  juice : Soldat_juice.t;
 }
 
 (* the map goes from a round to the next: the title's, the round's,

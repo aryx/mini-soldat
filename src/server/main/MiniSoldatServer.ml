@@ -56,7 +56,9 @@ let () =
       let seats = int_of_string (flag "seats" "6") in
       let maps = flag "maps" "data/maps" in
       (* nobody looks or listens here *)
-      Soldat_sparks.most := 0;
+      (* the server's bots are Soldat's; it makes no sparks *)
+      Soldat_orig.register ();
+      Soldat_state.most := 0;
       Soldat_sound.mute := true;
       let (server, port) = Soldat_server.listen caps ~bind ~port:(int_of_string (flag "port" "23073")) ~capacity ~seats ~bonuses:(int_of_string (flag "bonus" "0")) ~map_of:(map_of caps maps) () in
       Printf.printf "mini-soldat-server on %s:%d, %d players a room, %d soldiers a game, maps in %s\n%!" bind port capacity seats maps;

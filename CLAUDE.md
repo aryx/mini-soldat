@@ -104,7 +104,14 @@ with levels from nothing to Soldat's own, a key each
 bots, `p` physics, `u` interface; the same names as flags, `ai=1`;
 `basic`: all at their lowest; `z` or `twins`: every twin at once, and
 back), so that the game can be had bare and a
-layer added at a time. A new part gets its layer's levels and, where
+layer added at a time. Soldat's own of the parts made twice are in
+`src/orig`, their twins in `src/twin`; the shared code names neither
+(`Soldat_parts`: a slot a part, filled by `Soldat_orig.register` and
+`Soldat_twin.register`; `Soldat_state`: a part's own state, as an open
+type), so that three programs are built of it: `mini-soldat` (both),
+`mini-soldat-orig`, `mini-soldat-twin`. Keep it so: nothing outside
+`src/orig`, `src/twin`, `src/main` and the tests may name a module of
+those two folders. A new part gets its layer's levels and, where
 the Playground has the library, its twin; keep `docs/twins.md` true.
 
 How a port is written here, as `Soldat_soldier.ml` is:
@@ -170,6 +177,7 @@ make test              # dune runtest -f, the six suites
 make loc               # lines of OCaml, and the budget's (loc-v: a library a line)
 make run               # dune exec mini-soldat
 make run-software      # dune exec mini-soldat-software
+./bin/mini-soldat-orig # Soldat's own parts only (src/orig); -twin: the twins only
 make serve             # the game in a browser, http://localhost:8001/
 make website           # the release .bc.js, its page, its content (docs/assets/)
 make serve-website     # docs/ as Github Pages will serve it, http://localhost:8000/
@@ -293,9 +301,11 @@ connection to the local server and the next run hangs.
 `src/assets` (the content's files), `src/game` (the game without its
 picture), `src/render` (the picture: `Soldat_view`, `Soldat_gostek`
 the soldier's, `Soldat_scene` and `Soldat_raster` the map's),
-`src/main` (the program, and
-`software/` and `web/` the same source on the software platform and in
-a browser), `src/net` (the protocol), `src/server` (the lobby, the
+`src/orig` and `src/twin` (the parts made twice: Soldat's, and on the
+Playground's libraries), `src/main` (the program: `shared/` what it
+does, `MiniSoldat.ml` what it is linked with, `orig/` and `twin/` the
+same with one folder only, `software/` and `web/` on the software
+platform and in a browser), `src/net` (the protocol), `src/server` (the lobby, the
 server, and `main/` its program), each folder a library (`(wrapped
 false)`, modules named `Soldat_*`), in the order they depend on each
 other. The game is a Model-View-Update program: `Soldat_model.model`,
@@ -306,8 +316,8 @@ Playground's `computer` and calls it. A round replays the same from
 the same intents (a test says so): nothing in a tick is random.
 
 What the browser's program links must be pure OCaml (no `unix`):
-`src/map`, `src/anim`, `src/game`, `src/render`, `src/net` and
-`src/online` are, and must stay
+`src/map`, `src/anim`, `src/game`, `src/render`, `src/net`, `src/orig`
+and `src/twin` are, and must stay
 so; `src/server` is not and is never linked by the game. The server's
 rule is a value too (`Soldat_lobby.receive`: a message in, the lobby
 and the messages to send out), the sockets only in `Soldat_server`, so
@@ -327,7 +337,8 @@ there (in `~/playground`), then build here.
 (`scripts/stats/loc.py`, mini-chrome's). Not a hard limit: clear code
 comes first. A file's opening comments (the notice, what the module
 is, its worked example, where it comes from) are not counted, so that
-a cap is never a reason to teach less; nor are the tests.
+a cap is never a reason to teach less; nor are the tests, nor the
+twins (`src/twin`: counted apart).
 `docs/omitted.md` is the other side of the number: what of OpenSoldat
 is not here, and what it would take. Keep it true when a part is
 ported or left out.

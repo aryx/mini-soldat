@@ -51,3 +51,11 @@ val dots : t -> (float * float * float * kind * float) list
 
 (* what the camera is moved by, in the map's units *)
 val shake : t -> float * float
+
+(* a round's dots (Soldat_state) *)
+type Soldat_state.fx += Juice of t
+val of_fx : Soldat_state.fx -> t
+
+(* the twin as the game's effects, with its camera (Follow): what
+ * Soldat_twin registers *)
+val part : Soldat_parts.effects

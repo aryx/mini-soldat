@@ -48,7 +48,7 @@ server says happened.
 | `src/server/Soldat_lobby` | who is in which room and who is told what: a value, no socket |
 | `src/server/Soldat_room` | a room's game: its seats, each player's queue of keys, its tick, what is sent: a value too |
 | `src/server/Soldat_server` | the two on the network: connections, a player seated when it enters a room, its keys routed, the rooms ticked |
-| `src/online/Soldat_online` | a player's side: the connection, its keys up, the round down, its soldier ahead, the others between two rounds, the room's talk |
+| `src/orig/Soldat_online` | a player's side: the connection, its keys up, the round down, its soldier ahead, the others between two rounds, the room's talk |
 
 ## What of elm-playground it stands on
 
@@ -99,6 +99,13 @@ says if the two rounds ever differ. Against the server's way: nothing
 to run and almost nothing to send, but one's keys are always 50 ms
 late and the slower connection sets both players' pace. Natively, over
 UDP; not between a browser and a native program.
+
+With the flag `rollback` on both sides, one's keys are played at once
+and the other's guessed (elm-playground's `Rollback`): when the real
+ones come and differ, the round goes back to that tick and is played
+again, in one frame. On a network 100 ms away where lockstep plays 6
+ticks in 10 frames, rollback plays nearly all of them
+(`tests/server/Unit_lockstep.ml`).
 
 ## The lobby's screen
 

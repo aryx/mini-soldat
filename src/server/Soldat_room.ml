@@ -38,18 +38,21 @@ let players (t : t) : int = Array.fold_left (fun n (s : seat) -> if s.nick <> No
 (* soldier [i] its bot's: its name, its mind *)
 let to_bot (p : play) (i : int) (c : character) : play =
   let s = p.soldiers.(i) in
-  let soldiers = Array.copy p.soldiers and brains = Array.copy p.brains in
+  let soldiers = Array.copy p.soldiers and minds = Array.copy p.minds and cast = Array.copy p.cast in
   soldiers.(i) <- { s with name = c.bot; human = false; trousers = c.bot_trousers; skin = c.bot_skin; body = { s.body with human = false } };
-  brains.(i) <- Some (Soldat_bots.brain c);
-  { p with soldiers; brains }
+  (* a new mind, of the bots the server has (Soldat_parts) *)
+  minds.(i) <- (match Soldat_parts.pick Soldat_parts.bots ~twin:false with Some part -> part.fresh c | None -> Soldat_state.Nobody);
+  cast.(i) <- Some c;
+  { p with soldiers; minds; cast }
 
 (* soldier [i] a player's *)
 let to_player (p : play) (i : int) (nick : string) : play =
   let s = p.soldiers.(i) in
-  let soldiers = Array.copy p.soldiers and brains = Array.copy p.brains in
+  let soldiers = Array.copy p.soldiers and minds = Array.copy p.minds and cast = Array.copy p.cast in
   soldiers.(i) <- { s with name = nick; human = true; body = { s.body with human = true } };
-  brains.(i) <- None;
-  { p with soldiers; brains }
+  minds.(i) <- Soldat_state.Nobody;
+  cast.(i) <- None;
+  { p with soldiers; minds; cast }
 
 (* a round for these seats: the first soldier, which Soldat_update makes
  * the player's, is its bot's until somebody takes it *)
@@ -70,7 +73,7 @@ let round ?mode ?bonuses (map : Soldat_map.t) (seats : seat array) (seed : int) 
 
 let create ?(seats = 6) ?(seed = 1) ?mode ?bonuses ~(name : string) (map : Soldat_map.t) : t =
   let seats =
-    Array.of_list (List.map (fun character -> { nick = None; character; queue = []; acked = -1; last = Soldat_soldier.no_control }) (Soldat_bots.cast (max 1 seats) seed))
+    Array.of_list (List.map (fun character -> { nick = None; character; queue = []; acked = -1; last = Soldat_soldier.no_control }) (Soldat_cast.cast (max 1 seats) seed))
   in
   { name; play = round ?mode ?bonuses map seats seed; seats; pending = []; rounds = 1 }
 

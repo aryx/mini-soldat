@@ -148,7 +148,7 @@ what, and Tab (or `b`) shows the scores as a table, kills and deaths.
 
 ## How much code
 
-`make loc` counts it: about 8,600 lines of a budget of 10,000, a tenth
+`make loc` counts it: about 9,000 lines of a budget of 10,000, a tenth
 of OpenSoldat's Pascal. [docs/omitted.md](docs/omitted.md) is the
 other side of that number: what of OpenSoldat is not here, what of
 its lines is not the game at all, and what the rest would take.
@@ -194,7 +194,8 @@ The network has its twin too: `net=host` on one computer and
 `net=join host=ADDRESS` on another (started with the same flags) play
 a round with no server, in lockstep: each program plays the whole
 round and only the keys are sent (`Soldat_lockstep`, on the
-Playground's `Lockstep`).
+Playground's `Lockstep`; with `rollback`, on its `Rollback`: the
+other's keys guessed, not waited for).
 
 The key `z` (or the flag `twins`) puts every twin on at once, and
 again back to Soldat's own. `basic` starts with every layer at its lowest: sticks that move and
@@ -297,9 +298,19 @@ src/server/   the server: who is in which room (Soldat_lobby) and a
               room's game (Soldat_room), as values; the sockets around
               them (Soldat_server), and main/ its program
               (MiniSoldatServer.ml)
-src/online/   a player's side of a server's round: its keys up, the
-              round down, its own soldier ahead and the others between
-              two rounds (Soldat_online)
+src/orig/     Soldat's own of the parts that are made twice
+              (docs/twins.md): its bots (Soldat_bots), its sparks
+              (Soldat_sparks), how a thing falls (Soldat_fall), and a
+              player's side of a server's round (Soldat_online)
+src/twin/     their twins, on elm-playground's libraries: the bots on
+              ai (Soldat_engine_bot), the effects on juice
+              (Soldat_juice), rigid bodies (Soldat_bodies), the sound's
+              place (Soldat_space), two players in lockstep
+              (Soldat_lockstep), the lobby on Gui (Soldat_gui)
+
+The shared code names neither of the two: three programs are built of
+it, mini-soldat (both folders: a key from one to the other),
+mini-soldat-orig (Soldat's only) and mini-soldat-twin (the twins only).
 tests/        map: Arena2 read and made into the game's; anim: the
               animations' files and frames; assets: a .bmp, a picture
               as pixels; render: where a soldier's parts go, a triangle

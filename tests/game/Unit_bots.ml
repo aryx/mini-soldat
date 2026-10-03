@@ -23,8 +23,8 @@ let facing ?(map = floor) ?(bot = "Kruger") ~(player : float * float) ~(at : flo
   { p with soldiers = Array.mapi put p.soldiers }
 
 (* the bot's keys this tick, the game's chance always [chance] *)
-let keys ?(chance = 0.5) (p : Soldat_model.play) : Soldat_soldier.control * Soldat_model.brain * int list =
-  Soldat_bots.control p 1 (Option.get p.brains.(1)) ~random:(fun () -> chance)
+let keys ?(chance = 0.5) (p : Soldat_model.play) : Soldat_soldier.control * Soldat_bots.brain * int list =
+  Soldat_bots.control p 1 (Option.get (Soldat_bots.brain_of p.minds.(1))) ~random:(fun () -> chance)
 
 let tests =
   Testo.categorize "Bots"
@@ -74,7 +74,7 @@ let tests =
             p := Soldat_update.tick !p Soldat_model.still ~look:(0., 0.)
           done;
           Alcotest.(check bool) "200 ticks later: well on its way" true (!p.soldiers.(1).body.x > 300.);
-          let brain = Option.get !p.brains.(1) in
+          let brain = Option.get (Soldat_bots.brain_of !p.minds.(1)) in
           Alcotest.(check (pair int int)) "past the second, going to the third" (2, 3) (brain.current, brain.next);
           (* a map without waypoints: it stays *)
           let p = ref (Soldat_update.start ~bots:[ named "Kruger" ] (Testutil_map.map ~spawns:[ (-1500., -20.); (0., -20.) ] (Testutil_map.slab (-2000.) 0. 2000. 200.))) in

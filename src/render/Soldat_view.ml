@@ -343,6 +343,13 @@ let view_scores (computer : computer) (p : play) : shape list =
 (* through the camera, in Soldat's order: what is behind, the bullets,
  * the soldiers, then the map's polygons over them; over it all and
  * not moving with the map, the score *)
+(* how what is only seen is drawn: each of the parts a program has
+ * (Soldat_parts.mli) puts here the picture of its own (Soldat's
+ * sparks, the twin's dots), which says nothing of another's; and what
+ * it wants asked for ahead, on the title *)
+let effects : (Soldat_state.fx -> shape list option) list ref = ref []
+let warm : (unit -> unit) list ref = ref []
+
 let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(interface : int) ~(primary : Soldat_weapons.id) (p : play) : shape list =
   let top = computer.screen.top in
   let (x, y) = at p.camera in
@@ -354,13 +361,8 @@ let view_play ?(me = 0) (computer : computer) ~(graphics : int) ~(interface : in
     @ List.concat_map (view_bullet ~graphics) p.bullets
     @ List.concat_map (view_thing ~graphics) p.things
     @ List.concat_map (view_soldier computer ~graphics) soldiers
-    @ Soldat_sparks_view.view p.sparks
-    (* the effects' twin: Juice's dots, each fading as its life goes (docs/twins.md) *)
-    @ List.map
-        (fun (x, y, size, (kind : Soldat_juice.kind), left) ->
-          let color = match kind with Blood -> rgb 190 20 20 | Chip -> rgb 150 150 150 | Smoke -> rgb 200 200 200 | Fire -> rgb 255 170 40 in
-          circle color (size / 2.) |> fade left |> move x y)
-        (Soldat_juice.dots p.juice)
+    (* what is only seen: drawn by the part it is of (below) *)
+    @ (match List.find_map (fun draw -> draw p.fx) !effects with Some shapes -> shapes | None -> [])
     @ front
     @ (if List.mem_assoc "waypoints" computer.flags then view_waypoints p.map else [])
     @ if List.mem_assoc "hitboxes" computer.flags then List.concat_map view_tested soldiers else [])
@@ -393,7 +395,7 @@ let view (computer : computer) (model : model) : shape list =
   | Title map ->
       (* the sparks' pictures asked for meanwhile: a round's first
        * explosion will not wait for them *)
-      ignore (Soldat_sparks_view.warm ());
+      List.iter (fun ask -> ask ()) !warm;
       [ view_map computer ~graphics map;
         text white 6. "MINI SOLDAT" |> move_y 300.;
         text white 2. "a/d run   w jump   s crouch   x lie down   r reload   q other weapon   e grenade   f throw it away" |> move_y 220.;

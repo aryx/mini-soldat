@@ -17,7 +17,10 @@
 # tenth can be judged.
 #
 # The budget is what the game is made of, src/, and not its tests nor
-# scripts/: a cap must never be a reason to write fewer tests.
+# scripts/: a cap must never be a reason to write fewer tests. Nor the
+# twins (src/twin, docs/twins.md): the parts made a second time on the
+# Playground's libraries, to teach and to compare; they are counted
+# apart. Soldat's own of those parts (src/orig) are the port, and in.
 #
 # A file's opening comments (every comment before its first line of
 # code: the notice, and the module's documentation, what it is, a
@@ -144,6 +147,10 @@ def classify(path):
     game by its top directory, the subgroup the library under it
     (src/game/, src/render/)."""
     parts = path.split("/")
+    # the twins (docs/twins.md): the same jobs done again on the
+    # Playground's libraries, to teach; not the port, not its budget
+    if parts[:2] == ["src", "twin"]:
+        return "twins", "src/twin/"
     if "tests" in parts[:-1]:
         return "tests", "/".join(parts[:2]) + "/"
     group = "game" if parts[0] in BROWSER else "other"
@@ -225,7 +232,7 @@ def main():
         return t
 
     print(f"{'lines':>7}  {'':<{WIDTH}}" + "".join(f"{f:>8}" for f in REST))
-    for group in ["game", "tests", "other"]:
+    for group in ["game", "twins", "tests", "other"]:
         subs = stats.get(group, {})
         if not subs:
             continue

@@ -7,7 +7,7 @@
  (name Test)
  (libraries
    unix caps alcotest testo
-   soldat_map soldat_game soldat_net soldat_server soldat_online
+   soldat_map soldat_game soldat_net soldat_server soldat_orig soldat_twin
    testutil_soldat ; maps made by hand
    tiny_libs.core ; Set_: a keyboard's keys
    elm_playground ; a computer, for the client's frames
