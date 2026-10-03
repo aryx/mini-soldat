@@ -15,8 +15,8 @@
  * map of polygons, shooting and throwing grenades, and falling as
  * ragdolls.
  *
- * It started as elm-playground's TinySoldat, and is on its way
- * (docs/plan.md): the maps are Soldat's (Arena2, carried in the
+ * It started as elm-playground's TinySoldat, and went from it to
+ * Soldat by steps (docs/plans/done/plan_soldat.md): the maps are Soldat's (Arena2, carried in the
  * program, or any .pms file named with the flag map), the soldier
  * moves and looks as Soldat's does, and fires Soldat's weapons, by its
  * rules and its numbers, against Soldat's own bots, in a deathmatch

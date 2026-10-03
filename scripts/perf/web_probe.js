@@ -20,7 +20,7 @@
 //
 // A third argument is a file: the page's picture at the end, as PNG.
 //
-// How the limit of 32 pictures was found (docs/plan.md, "To decide"):
+// How the limit of 32 pictures was found (docs/plans/done/plan_soldat.md, "To decide"):
 // 64 images in the page, 40 PNG encoded a frame, 9 frames a second.
 // No dependency: the few lines of WebSocket a client needs are below.
 const { spawn } = require("child_process"); const http = require("http"); const net=require("net"); const crypto=require("crypto");

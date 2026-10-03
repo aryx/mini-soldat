@@ -87,7 +87,8 @@ less where the Playground already does the work.
 So the whole game, without the scripting and on elm-playground, would
 be about 14,000 lines: a quarter of the 53,752 that are the game in
 OpenSoldat, an eighth of its 109,196. The target of 10,000 is for what
-is here; `docs/plan.md` says what may come next.
+is here; `docs/plans/done/plan_soldat.md` has the steps that led to it,
+all done.
 
 ## What the tenth is, then
 

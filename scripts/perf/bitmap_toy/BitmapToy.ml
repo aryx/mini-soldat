@@ -20,7 +20,7 @@
  * and so keeps what it made. While it keeps them all, n can grow and a
  * frame stays cheap. A backend that keeps the last 32 does n = 32 at
  * full speed, and at n = 33 makes pictures again every frame: this is
- * what mini-soldat ran into in a browser (docs/plan.md).
+ * what mini-soldat ran into in a browser (docs/plans/done/plan_soldat.md).
  *)
 open Playground
 

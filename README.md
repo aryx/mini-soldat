@@ -20,7 +20,8 @@ its own sources and content, both public now (see
 Pascal adapted to OCaml and to the Playground's API and physics, in far
 less code, with the same feel in the hands.
 
-Where it is ([docs/plan.md](docs/plan.md) has the steps): the soldier
+Where it is ([docs/plans/done/plan_soldat.md](docs/plans/done/plan_soldat.md)
+has the steps, all done): the soldier
 moves as Soldat's does, by its rules and its numbers, ported from its
 Pascal: the run, the wind-up before a jump, the jump sideways, the
 crouch, lying down and crawling, the roll, the backflip, the jets and
@@ -355,7 +356,8 @@ docs/         the website (index.html, written by hand; play.html and
               network.md: playing over the network, what is there and
               what is to come; notes_soldat_in_playground.md: each of
               Soldat's terms, ideas and pieces of code, and what it is
-              here; plan.md: the steps from here to Soldat
+              here; plans/done/plan_soldat.md: the steps from
+              elm-playground's toy to Soldat, all done
 ```
 
 ## License

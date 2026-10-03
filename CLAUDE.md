@@ -69,13 +69,14 @@ Yoann's direction (2026-10-02), to follow in every part:
 function of its map next to `Collide`'s, the soldier, the weapons, the
 frame, the sound, and what the Playground lacks): read it before
 porting a part, and when a part is ported move its rows from *to
-come* to the module that has them. `docs/plan.md` is the order of the
-steps and the rules they follow (Soldat's units, a pure `src/game`
-taking one `intent` per soldier, no `Random` in a tick, the server's
-branches of the Pascal for the rules): a step done is moved to its
-"Done".
+come* to the module that has them. `docs/plans/done/plan_soldat.md` is the
+order the steps were done in, all eight of them, and the rules they
+followed and that still hold (Soldat's units, a pure `src/game` taking
+one `intent` per soldier, no `Random` in a tick, the server's branches
+of the Pascal for the rules). A new plan is a file of `docs/plans/`,
+moved to `docs/plans/done/` when it is done, as in elm-playground.
 
-Ported so far (`docs/plan.md`'s "Done"): the maps (`Pms`,
+Ported so far (`docs/plans/done/plan_soldat.md`): the maps (`Pms`,
 `Soldat_map`), the soldier's moves (`Soldat_soldier`), its animations
 (`Soldat_anims`), its look (`Soldat_gostek`), the map's look
 (`Soldat_scene`, `Soldat_raster`), the weapons (`Soldat_weapons`, the

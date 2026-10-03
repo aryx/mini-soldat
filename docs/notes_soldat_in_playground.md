@@ -530,6 +530,7 @@ required here). In the order they would hurt:
 
 ## To come
 
-What is planned, and in which order, is `docs/plan.md`. This note is
+What was planned, in which order, and done, is
+`docs/plans/done/plan_soldat.md`; what is not here, `docs/omitted.md`. This note is
 kept true as parts are ported: a row marked *to come* gets its module
 when it has one.

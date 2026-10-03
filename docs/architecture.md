@@ -4,7 +4,8 @@ How mini-soldat is put together: its libraries, what a tick does, how a
 frame gets from the game's values to pixels on a screen, where its
 content comes from, and what each layer keeps from one frame to the
 next. For what each piece is in Soldat's own sources, see
-`notes_soldat_in_playground.md`; for what is left to do, `plan.md`.
+`notes_soldat_in_playground.md`; for the steps it was made in,
+`plans/done/plan_soldat.md`; for what is not here, `omitted.md`.
 
 ## The whole of it, on a page
 

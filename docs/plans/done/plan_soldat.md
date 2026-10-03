@@ -7,9 +7,13 @@ physics. What each piece of Soldat is here, or will be, is
 `docs/notes_soldat_in_playground.md`; this is the order.
 
 Written on 2026-10-02 after reading the Pascal (about 20,000 lines of
-`shared/` and `client/`) and the Playground's API side by side. To be
-kept true: a step done is moved to "Done" with what it turned out to
-be.
+`shared/` and `client/`) and the Playground's API side by side; each
+step done was moved to "Done" with what it turned out to be.
+
+**Done** (2026-10-03): all eight steps, and the twins and layers after
+them; hence this file in `docs/plans/done/`. Its rules of the road
+still hold. What is not in the game is `docs/omitted.md`, and for the
+network `docs/network.md`; what was left to decide is at the end.
 
 ## Done
 
