@@ -75,7 +75,7 @@ Go and play the real one: its
 
 ## Building
 
-It stands on elm-playground's packages, 0.3.3 or later: the Playground
+It stands on elm-playground's packages, 0.3.5 or later: the Playground
 for its window, its drawing and its physics, on one of its two native
 platforms (SDL for the window either way, and Cairo,
 `elm_playground_native`, or the Playground's own rasterizer,

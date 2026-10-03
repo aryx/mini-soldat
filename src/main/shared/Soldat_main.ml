@@ -162,8 +162,11 @@ let run (caps : < Cap.open_in ; .. >) ~(register : unit -> unit)
       Soldat_model.layers
   in
   let first = match map with Map map -> Soldat_model.initial_model ~levels map | Named name -> Soldat_model.loading_model ~levels name in
-  (* the system's cursor is hidden only where Soldat's is drawn *)
-  if Soldat_model.level first Interface >= 2 then Playground_platform.set_cursor Hidden;
+  (* the system's cursor is hidden where Soldat's is drawn: at the first
+   * frame, not here: in a browser the page has no body yet when the
+   * program starts, and its cursor is the body's (the page showed
+   * nothing: "Cannot read properties of null (reading 'style')") *)
+  let hide = ref (Soldat_model.level first Interface >= 2) in
   (* the weapon to appear with, by its key in Soldat's menu *)
   let primary =
     match Option.bind (List.assoc_opt "weapon" flags) int_of_string_opt with
@@ -214,5 +217,12 @@ let run (caps : < Cap.open_in ; .. >) ~(register : unit -> unit)
     | (Some _, None) -> prerr_endline "net=: this program has not the twin's network (src/twin)"; false
     | _ -> false
   in
-  let app = Playground.game Soldat_view.view (update ~peer:asked) first in
+  let update computer model =
+    if !hide then begin
+      hide := false;
+      Playground_platform.set_cursor Hidden
+    end;
+    update ~peer:asked computer model
+  in
+  let app = Playground.game Soldat_view.view update first in
   Playground_platform.run_app ~flags app

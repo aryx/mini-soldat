@@ -288,8 +288,13 @@ last two, they are wanted, as in `README.md`. `docs/play.html`,
 (the page from `src/main/web/index.html`; the program built with
 dune's release profile, 660 KB against 4 MB in dev; the content of
 `data/` the game fetches, its pictures as plain pixels) and are
-committed: run it and commit them when the game or its content changed
-and the site should show it. To time a page in a real browser, the
+committed, **but not at each change** (Yoann, 2026-10-03):
+`MiniSoldat.bc.js` is 750 KB and every build of it is a new copy in
+the repository's history. Run `make website` and commit its files only
+for a release worth showing (a step done, a fix of the public page),
+or when asked; between two of them the site is behind the sources, and
+that is fine. To try the web program meanwhile, `make serve` (the
+development build, not committed). To time a page in a real browser, the
 frames and the pictures encoded each second: `node
 scripts/perf/web_probe.js URL SECONDS` (a headless Chrome over its
 DevTools protocol; it presses space and holds d). Kill what it leaves

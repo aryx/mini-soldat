@@ -5,6 +5,11 @@
 # (with direction from me)
 
 ** Features
+- fixed: the page showed nothing in a browser (the system's cursor was
+  hidden before the page had a body: now at the first frame); CI
+  pinned elm-playground 0.3.3: the Dockerfile now clones elm-playground
+  and installs it (configure, without it, pins the commit this was
+  tested on)
 - Soldat's minimap (F3 or n; not shown at first, as in Soldat): the
   whole map small, rastered once, with one's own soldier, one's
   team's, the flags at home, the yellow flag, the bow
