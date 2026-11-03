@@ -1,0 +1,31 @@
+* Big plan 
+
+** TODO changes.txt
+
+** Later
+
+* Last
+
+** Last1
+
+# make it a good example to illustrate how to use the playground! let's make it a book
+#  in the principia series! Like I always wanted to do!
+
+*** add some of the "inspect" of playground in soldat? Like for AI
+when type a debug key we could see what they "see", path find, etc,
+so easier to understand/debug the code (A la Bret Victor a bit)
+
+*** start make book, start check if use all Playground APIs?
+for graphics? images?
+for physics?
+for sound?
+for ai?
+for network?
+for juice?
+for ???
+
+* Infra
+
+* Components
+
+* Books
