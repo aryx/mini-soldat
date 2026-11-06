@@ -29,3 +29,112 @@ for ???
 * Components
 
 * Books
+
+* Old soldat.txt
+
+*** map loader
+
+*** animation loader
+
+*** basic physics
+just gravity, inertia
+
+** Soldat.nw
+
+*** switch to soldank?
+soldat in rust, which looks pretty good, with physics
+far closer to the one in Soldat
+
+*** simplify the game
+
+**** InputUser
+too many actions
+remove also guns window, put rocket by default
+
+**** no texture
+just colors
+
+**** no sprites
+just shape
+
+**** visualize sectors? visualize properties?
+
+**** need freetype, visualize text, so can show debugging info
+like position, force, impulse, etc
+
+**** improve physics
+replace polycoll by box2d or chipmunk.
+Can be a good exercise anyway.
+
+**** port to ocaml?
+so can later port to js via js_of_ocaml and make it playable
+in the browser!!
+
+*** MY_PLAYER macro?
+instead of world.players[worlds.ME] ?
+remove also the players global? need that?
+
+*** aspectize code related to different Body_type?
+but only in HandleContact no? and maybe in that
+case it's better to have a matrix.
+but can at least use switch!
+
+*** ---------------------------------------------------
+
+*** still? BUG fix segfault
+
+**** use lldb? valgrind? 
+
+**** try Instrument.app? find memory bug? can debug ch crashes?
+
+**** assertion failed, can find backtrace with lldb?
+
+*** cleanup
+see Soldat.nw prelude section
+
+**** remove setters/getters
+
+**** factorize code of those weapons that draw. Seems very
+similar all of them
+they all have a m_fHalfHeight, a texture, etc.
+
+also have all a killMyself.
+
+*** estet
+
+**** less: put full path of .h, so cleaner to see core/Game.h, etc
+and can then better group the include? meh, I don't do
+that for ocaml as the namespace is flat so maybe not a good idea.
+
+*** re-c++11
+
+**** use auto? instead of those ugly iterators types?
+
+*** de-c++
+
+**** remove those m_xxx, just use simple field names and qualify
+with this
+
+**** get rid of those getters/setters, those private/protected
+
+**** get rid of those singleton stuff and useless delete
+
+**** replace for loop with initializers
+
+**** favor basic struct over classes and methods
+use static methods or namespace
+
+*** later: put back fontmanager
+but seems a bit complicated,
+freetype
+
+*** less: weird: why .depend does not work?
+
+*** later: a -v option
+
+*** finalize, add more features to cruel hessian which are in Soldat
+
+**** minimap?
+actually not sure there is a minimap in Soldat
+
+
